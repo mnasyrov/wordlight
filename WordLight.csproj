@@ -98,9 +98,6 @@
     </COMReference>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="E:\Documents and Settings\nasyrov.NOVOPROF\My Documents\Visual Studio 2008\Addins\WordLight - For Testing.AddIn">
-      <Link>WordLight - For Testing.AddIn</Link>
-    </Content>
     <Content Include="WordLight.AddIn" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSHARP.Targets" />
