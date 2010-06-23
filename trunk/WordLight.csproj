@@ -9,7 +9,7 @@
     <StartupObject>
     </StartupObject>
     <NoStandardLibraries>false</NoStandardLibraries>
-    <AssemblyName>Project1</AssemblyName>
+    <AssemblyName>WordLight</AssemblyName>
     <RootNamespace>WordLight</RootNamespace>
     <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
   </PropertyGroup>
@@ -48,7 +48,11 @@
     <Compile Include="Connect.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="TextPaneWindow.cs" />
+    <Compile Include="EventAdapters\TextManagerEventAdapter.cs" />
+    <Compile Include="EventAdapters\TextViewEventAdapter.cs" />
+    <Compile Include="EventAdapters\ViewFocusEventArgs.cs" />
+    <Compile Include="EventAdapters\ViewRegistrationEventArgs.cs" />
+    <Compile Include="TextViewWindow.cs" />
     <Compile Include="WindowWatcher.cs" />
     <Compile Include="WordMark.cs" />
   </ItemGroup>
