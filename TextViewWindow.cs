@@ -46,6 +46,7 @@ namespace WordLight
 		private string _previousSelectedText;
 		private IList<WordMark> _marks;
         private IVsTextView _view;
+		private int _lineHeight;
 
         public TextViewWindow(IVsTextView view)
 		{
@@ -53,6 +54,8 @@ namespace WordLight
 
 			_view = view;
 			_marks = new List<WordMark>();
+
+			_view.GetLineHeight(out _lineHeight);
 
 			AssignHandle(view.GetWindowHandle());
 		}
@@ -95,15 +98,10 @@ namespace WordLight
 		{
 			using (Graphics g = Graphics.FromHwnd(this.Handle))
 			{
-				System.Drawing.Drawing2D.GraphicsContainer cont = g.BeginContainer();
-
-				// Draw marks
 				foreach (WordMark mark in _marks)
 				{
 					mark.Draw(g, _view);
 				}
-
-				g.EndContainer(cont);
 			}
 		}
 		
@@ -144,13 +142,8 @@ namespace WordLight
 				int lastLineCol;
 				buffer.GetLastLineIndex(out lastLine, out lastLineCol);
 
-				object tempPointer;				
-				
-				buffer.CreateEditPoint(0, 0, out tempPointer);
-				EditPoint searchStart = tempPointer as EditPoint;
-
-				buffer.CreateEditPoint(lastLine, lastLineCol, out tempPointer);
-				EditPoint searchEnd = tempPointer as EditPoint;
+				EditPoint searchStart = CreateEditPoint(buffer, 0, 0);
+				EditPoint searchEnd = CreateEditPoint(buffer, lastLine, lastLineCol);
 
 				if (searchStart != null && searchEnd != null)
 				{
@@ -161,7 +154,7 @@ namespace WordLight
 						result = searchStart.FindPattern(text, (int)vsFindOptions.vsFindOptionsNone, ref searchEnd, ref ranges);
 						if (result)
 						{
-							AddMark(searchStart, searchEnd);
+							_marks.Add(new WordMark(_lineHeight, searchStart, searchEnd));
 						}
 						searchStart = searchEnd;
 					} while (result);
@@ -169,30 +162,13 @@ namespace WordLight
             }
 
             Refresh();
-
-			//TODO
-			
-			//int highlightID;
-            //Guid highlightGuid = ...; // your highlighted text style guid
-            //textManager.GetRegisteredMarkerTypeID(ref highlightGuid, out highlightID);
-
-            //// highlighting text block in the active view
-            //IVsTextView view;
-            //int result = textManager.GetActiveView(0, null, out view);
-            //IVsTextLines buffer;
-            //view.GetBuffer(out buffer);
-            //buffer.CreateLineMarker(highlightID, startLine, startColumn, endLine, endColumn, null, null);
         }
 
-		private void AddMark(EditPoint start, EditPoint end)
+		private EditPoint CreateEditPoint(IVsTextLines buffer, int line, int lineCol)
 		{
-			var mark = new WordMark();
-			mark.StartLine = start.Line;
-			mark.StartLineIndex = start.LineCharOffset;
-			mark.EndLine = end.Line;
-			mark.EndLineIndex = end.LineCharOffset;
-
-			_marks.Add(mark);
+			object tempPointer;
+			buffer.CreateEditPoint(line, lineCol, out tempPointer);
+			return tempPointer as EditPoint;
 		}
 	}
 }
