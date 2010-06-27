@@ -96,11 +96,14 @@ namespace WordLight
 
 		private void Paint()
 		{
-			using (Graphics g = Graphics.FromHwnd(this.Handle))
+			if (_marks.Count > 0)
 			{
-				foreach (WordMark mark in _marks)
+				using (Graphics g = Graphics.FromHwnd(this.Handle))
 				{
-					mark.Draw(g, _view);
+					foreach (WordMark mark in _marks)
+					{
+						mark.Draw(g, _view);
+					}
 				}
 			}
 		}
