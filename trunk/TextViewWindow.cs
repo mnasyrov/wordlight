@@ -48,12 +48,17 @@ namespace WordLight
         private IVsTextView _view;
 		private int _lineHeight;
 
-        public TextViewWindow(IVsTextView view)
+        private Color _searchMarkOutlineColor;
+
+        public TextViewWindow(IVsTextView view, WordLightSettings settings)
 		{
 			if (view == null) throw new ArgumentNullException("view");
-
+            if (settings == null) throw new ArgumentNullException("settigns");
+            
 			_view = view;
-			_marks = new List<WordMark>();
+            _searchMarkOutlineColor = settings.SearchMarkOutlineColor;
+
+            _marks = new List<WordMark>();
 
 			_view.GetLineHeight(out _lineHeight);
 
@@ -100,9 +105,11 @@ namespace WordLight
 			{
 				using (Graphics g = Graphics.FromHwnd(this.Handle))
 				{
+                    Pen pen = new Pen(_searchMarkOutlineColor);
+
 					foreach (WordMark mark in _marks)
 					{
-						mark.Draw(g, _view);
+						mark.Draw(g, _view, pen);
 					}
 				}
 			}

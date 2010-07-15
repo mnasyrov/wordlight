@@ -28,7 +28,7 @@ namespace WordLight
 			_endLineIndex = end.LineCharOffset - 1;
 		}
 
-		public void Draw(Graphics g, IVsTextView view)
+		public void Draw(Graphics g, IVsTextView view, Pen pen)
 		{
 			view.GetPointOfLineColumn(_startLine, _startLineIndex, _startPoint);
 			view.GetPointOfLineColumn(_endLine, _endLineIndex, _endPoint);
@@ -44,8 +44,8 @@ namespace WordLight
 
 				int x = _startPoint[0].x;
 				int y = _startPoint[0].y;
-
-				g.DrawRectangle(Pens.Lime, x, y, width, height);
+                
+				g.DrawRectangle(pen, x, y, width, height);
 			}
 		}
 	}
