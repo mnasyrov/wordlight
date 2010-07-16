@@ -42,18 +42,18 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="WordLightSettings.cs" />
-    <Compile Include="Common\AddinSettings.cs" />
+    <Compile Include="AddinSettings.cs" />
+    <Compile Include="SettingRepository.cs" />
     <Compile Include="AssemblyInfo.cs">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Connect.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Controls\SettingsForm.cs">
+    <Compile Include="SettingsForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Controls\SettingsForm.Designer.cs">
+    <Compile Include="SettingsForm.Designer.cs">
       <DependentUpon>SettingsForm.cs</DependentUpon>
     </Compile>
     <Compile Include="EventAdapters\TextManagerEventAdapter.cs" />
@@ -62,11 +62,11 @@
     <Compile Include="EventAdapters\ViewRegistrationEventArgs.cs" />
     <Compile Include="TextViewWindow.cs" />
     <Compile Include="WindowWatcher.cs" />
-    <Compile Include="WordMark.cs" />
+    <Compile Include="SearchMark.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="CommandBar.resx" />
-    <EmbeddedResource Include="Controls\SettingsForm.resx">
+    <EmbeddedResource Include="SettingsForm.resx">
       <DependentUpon>SettingsForm.cs</DependentUpon>
     </EmbeddedResource>
   </ItemGroup>
