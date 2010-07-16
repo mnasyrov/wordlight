@@ -148,11 +148,17 @@ namespace WordLight
         {
             string text;
 			_view.GetSelectedText(out text);
-            return text;
+			
+			if (!string.IsNullOrEmpty(text))
+				text = text.Trim();
+            
+			return text;
         }
 
         private void ProcessSelectedText(string text)
         {
+			int previousMarkCount = _marks.Count;
+
 			_marks.Clear();
 
             if (!string.IsNullOrEmpty(text))
@@ -176,6 +182,10 @@ namespace WordLight
 						result = searchStart.FindPattern(text, (int)vsFindOptions.vsFindOptionsNone, ref searchEnd, ref ranges);
 						if (result)
 						{
+							//Do not process multi-line selections
+							if (searchStart.Line != searchEnd.Line)
+								break;
+
 							_marks.Add(new SearchMark(_view, _lineHeight, searchStart, searchEnd));
 						}
 						searchStart = searchEnd;
@@ -183,7 +193,10 @@ namespace WordLight
 				}
             }
 
-            Refresh();
+			if (_marks.Count != 0 || previousMarkCount != 0)
+			{
+				Refresh();
+			}
         }
 
 		private EditPoint CreateEditPoint(IVsTextLines buffer, int line, int lineCol)
