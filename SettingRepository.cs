@@ -6,18 +6,20 @@ using System.Text;
 using EnvDTE;
 using EnvDTE80;
 
-namespace WordLight.Common
+namespace WordLight
 {
-    public class AddinSettings
+    public class SettingRepository
     {
         private Globals _globals;
         private string _keyPrefix;
 
-        public AddinSettings(Globals globals, string keyPrefix)
+        public SettingRepository(Globals globals, string addinName)
         {
             if (globals == null) throw new ArgumentNullException("globals");
+            if (string.IsNullOrEmpty(addinName)) throw new ArgumentNullException("addinName");
+            
             _globals = globals;
-            _keyPrefix = keyPrefix;
+            _keyPrefix = addinName + '_';
         }
 
         private string ExtendKey(string key)
@@ -27,7 +29,7 @@ namespace WordLight.Common
             return _keyPrefix + key;
         }
 
-        protected string GetSetting(string key)
+        public string GetSetting(string key)
         {
             key = ExtendKey(key);
             if (_globals.get_VariableExists(key))
@@ -37,14 +39,14 @@ namespace WordLight.Common
             return null;
         }
 
-        protected void SetSetting(string key, string value)
+        public void SetSetting(string key, string value)
         {
             key = ExtendKey(key);
             _globals[key] = value;
             _globals.set_VariablePersists(key, true);
         }
-        
-        protected string GetSetting(string key, string defaultValue)
+
+        public string GetSetting(string key, string defaultValue)
         {
             string value = GetSetting(key);
             if (string.IsNullOrEmpty(value))
@@ -54,7 +56,7 @@ namespace WordLight.Common
             return value;
         }
 
-        protected Color GetColorSetting(string key, Color defaultColor)
+        public Color GetColorSetting(string key, Color defaultColor)
         {
             string value = GetSetting(key);
 
@@ -66,7 +68,7 @@ namespace WordLight.Common
             return defaultColor;
         }
 
-        protected void SetColorSetting(string key, Color value)
+        public void SetColorSetting(string key, Color value)
         {
             SetSetting(key, value.ToArgb().ToString());
         }

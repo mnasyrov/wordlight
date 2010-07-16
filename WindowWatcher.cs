@@ -15,12 +15,8 @@ namespace WordLight
         private IDictionary<IntPtr, TextViewWindow> _viewWindows;
 		private TextManagerEventAdapter _textManagerEvents;
 
-        private WordLightSettings _settigns;
-
         public WindowWatcher(DTE2 application)
         {
-            _settigns = new WordLightSettings(application.DTE.Globals);
-
 			_viewWindows = new Dictionary<IntPtr, TextViewWindow>();
 
 			_textManager = GetTextManager(application);
@@ -49,7 +45,7 @@ namespace WordLight
 			IntPtr windowHandle = e.View.GetWindowHandle();
 			if (windowHandle != IntPtr.Zero && !_viewWindows.ContainsKey(windowHandle))
 			{
-				TextViewWindow viewWindow = new TextViewWindow(e.View, _settigns);
+				TextViewWindow viewWindow = new TextViewWindow(e.View);
 				_viewWindows.Add(windowHandle, viewWindow);
 			}
 		}

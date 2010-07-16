@@ -44,21 +44,16 @@ namespace WordLight
 		#endregion
 
 		private string _previousSelectedText;
-		private IList<WordMark> _marks;
+		private IList<SearchMark> _marks;
         private IVsTextView _view;
 		private int _lineHeight;
 
-        private Color _searchMarkOutlineColor;
-
-        public TextViewWindow(IVsTextView view, WordLightSettings settings)
+        public TextViewWindow(IVsTextView view)
 		{
 			if (view == null) throw new ArgumentNullException("view");
-            if (settings == null) throw new ArgumentNullException("settigns");
-            
 			_view = view;
-            _searchMarkOutlineColor = settings.SearchMarkOutlineColor;
 
-            _marks = new List<WordMark>();
+            _marks = new List<SearchMark>();
 
 			_view.GetLineHeight(out _lineHeight);
 
@@ -101,16 +96,33 @@ namespace WordLight
 
 		private void Paint()
 		{
-			if (_marks.Count > 0)
-			{
-				using (Graphics g = Graphics.FromHwnd(this.Handle))
-				{
-                    Pen pen = new Pen(_searchMarkOutlineColor);
+            if (_marks.Count == 0)
+                return;
 
-					foreach (WordMark mark in _marks)
-					{
-						mark.Draw(g, _view, pen);
-					}
+            int minUnit;
+            int maxUnit;
+            int visibleUnits;
+            int firstVisibleUnit;
+            _view.GetScrollInfo(1, out minUnit, out maxUnit, out visibleUnits, out firstVisibleUnit);
+
+            List<Rectangle> rectList = new List<Rectangle>();
+
+			using (Graphics g = Graphics.FromHwnd(this.Handle))
+			{
+                foreach (SearchMark mark in _marks)
+                {
+                    if (mark.IsVisible(firstVisibleUnit, firstVisibleUnit + visibleUnits))
+                    {
+                        Rectangle rect = mark.GetVisibleRectangle(g.VisibleClipBounds);
+                        if (rect != Rectangle.Empty)
+                            rectList.Add((Rectangle)rect);
+                    }
+                }
+
+                if (rectList.Count > 0)
+                {
+                    Pen pen = new Pen(AddinSettings.Instance.SearchMarkOutlineColor);
+                    g.DrawRectangles(pen, rectList.ToArray());
 				}
 			}
 		}
@@ -164,7 +176,7 @@ namespace WordLight
 						result = searchStart.FindPattern(text, (int)vsFindOptions.vsFindOptionsNone, ref searchEnd, ref ranges);
 						if (result)
 						{
-							_marks.Add(new WordMark(_lineHeight, searchStart, searchEnd));
+							_marks.Add(new SearchMark(_view, _lineHeight, searchStart, searchEnd));
 						}
 						searchStart = searchEnd;
 					} while (result);
