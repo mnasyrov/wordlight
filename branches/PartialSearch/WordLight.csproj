@@ -43,6 +43,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AddinSettings.cs" />
+    <Compile Include="EventAdapters\ViewScrollChangedEventArgs.cs" />
+    <Compile Include="EventAdapters\ViewScrollInfo.cs" />
     <Compile Include="SettingRepository.cs" />
     <Compile Include="AssemblyInfo.cs">
       <SubType>Code</SubType>
@@ -60,6 +62,7 @@
     <Compile Include="EventAdapters\TextViewEventAdapter.cs" />
     <Compile Include="EventAdapters\ViewFocusEventArgs.cs" />
     <Compile Include="EventAdapters\ViewRegistrationEventArgs.cs" />
+    <Compile Include="TextLineCollection.cs" />
     <Compile Include="TextViewWindow.cs" />
     <Compile Include="WindowWatcher.cs" />
     <Compile Include="SearchMark.cs" />

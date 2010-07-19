@@ -40,20 +40,34 @@ namespace WordLight.EventAdapters
 		/// </summary>
 		public event EventHandler<ViewFocusEventArgs> SetFocus;
 
+		public event EventHandler<ViewScrollChangedEventArgs> ScrollChanged;
+
 		public void OnSetFocus(IVsTextView view)
 		{
 			EventHandler<ViewFocusEventArgs> evt = SetFocus;
 			if (evt != null) evt(this, new ViewFocusEventArgs(view));
 		}
 
+		public void OnChangeScrollInfo(IVsTextView view, int iBar, int iMinUnit, int iMaxUnits, int iVisibleUnits, int iFirstVisibleUnit)
+		{
+			EventHandler<ViewScrollChangedEventArgs> evt = ScrollChanged;
+			if (evt != null)
+			{
+				ViewScrollInfo scrollInfo = new ViewScrollInfo()
+				{
+					bar = iBar,
+					minUnit = iMinUnit,
+					maxUnit = iMaxUnits,
+					visibleUnits = iVisibleUnits,
+					firstVisibleUnit = iFirstVisibleUnit
+				};
+				evt(this, new ViewScrollChangedEventArgs(view, scrollInfo));
+			}
+		}
+
 		#region Unused events
 
 		public void OnChangeCaretLine(IVsTextView pView, int iNewLine, int iOldLine)
-		{
-			// Do nothing
-		}
-
-		public void OnChangeScrollInfo(IVsTextView pView, int iBar, int iMinUnit, int iMaxUnits, int iVisibleUnits, int iFirstVisibleUnit)
 		{
 			// Do nothing
 		}

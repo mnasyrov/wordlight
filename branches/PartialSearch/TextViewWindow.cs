@@ -7,6 +7,7 @@ using System.Windows.Forms;
 
 using EnvDTE;
 using Microsoft.VisualStudio.TextManager.Interop;
+using WordLight.EventAdapters;
 
 namespace WordLight
 {
@@ -45,23 +46,36 @@ namespace WordLight
 
 		private string _previousSelectedText;
 		private IList<SearchMark> _marks;
-        private IVsTextView _view;
+		private IVsTextView _view;
 		private int _lineHeight;
 
-        public TextViewWindow(IVsTextView view)
+		private TextLineCollection _textLines;
+
+		private string selectedText;
+		private TextViewEventAdapter viewEvents;
+
+		public TextViewWindow(IVsTextView view)
 		{
 			if (view == null) throw new ArgumentNullException("view");
 			_view = view;
 
-            _marks = new List<SearchMark>();
+			_textLines = new TextLineCollection(view);
+
+			_marks = new List<SearchMark>();
 
 			_view.GetLineHeight(out _lineHeight);
+
+			viewEvents = new TextViewEventAdapter(_view);
+			viewEvents.ScrollChanged += new EventHandler<ViewScrollChangedEventArgs>(ScrollChangedHandler);
 
 			AssignHandle(view.GetWindowHandle());
 		}
 
 		public void Dispose()
 		{
+			viewEvents.ScrollChanged -= ScrollChangedHandler;
+			
+			viewEvents.Dispose();
 			ReleaseHandle();
 		}
 
@@ -96,37 +110,39 @@ namespace WordLight
 
 		private void Paint()
 		{
-            if (_marks.Count == 0)
-                return;
+			if (_marks.Count == 0)
+				return;
 
-            int minUnit;
-            int maxUnit;
-            int visibleUnits;
-            int firstVisibleUnit;
-            _view.GetScrollInfo(1, out minUnit, out maxUnit, out visibleUnits, out firstVisibleUnit);
-
-            List<Rectangle> rectList = new List<Rectangle>();
-
-            using (Graphics g = Graphics.FromHwnd(this.Handle))
+			using (Graphics g = Graphics.FromHwnd(this.Handle))
 			{
-                foreach (SearchMark mark in _marks)
-                {
-                    if (mark.IsVisible(firstVisibleUnit, firstVisibleUnit + visibleUnits))
-                    {
-                        Rectangle rect = mark.GetVisibleRectangle(g.VisibleClipBounds);
-                        if (rect != Rectangle.Empty)
-                            rectList.Add((Rectangle)rect);
-                    }
-                }
+				List<Rectangle> rectList = new List<Rectangle>();
 
-                if (rectList.Count > 0)
-                {
-                    Pen pen = new Pen(AddinSettings.Instance.SearchMarkOutlineColor);
-                    g.DrawRectangles(pen, rectList.ToArray());
+				foreach (SearchMark mark in _marks)
+				{
+					Rectangle rect = mark.GetVisibleRectangle(g.VisibleClipBounds);
+					if (rect != Rectangle.Empty)
+						rectList.Add((Rectangle)rect);
+				}
+
+				if (rectList.Count > 0)
+				{
+					Pen pen = new Pen(AddinSettings.Instance.SearchMarkOutlineColor);
+					g.DrawRectangles(pen, rectList.ToArray());
 				}
 			}
 		}
-		
+
+		private void ScrollChangedHandler(object sender, ViewScrollChangedEventArgs e)
+		{
+			if (!string.IsNullOrEmpty(selectedText))
+			{
+				using (Graphics g = Graphics.FromHwnd(this.Handle))
+				{
+					_marks = SearchWordsInViewPort(selectedText, g.VisibleClipBounds);
+				};
+			}
+		}
+
 		private void Refresh()
 		{
 			InvalidateRect(Handle, IntPtr.Zero, true);
@@ -135,92 +151,47 @@ namespace WordLight
 
 		private void HandleUserInput()
 		{
-            string selectedText = GetSelectedText();
-			
-            if (selectedText != _previousSelectedText)
-            {
-                _previousSelectedText = selectedText;
-                ProcessSelectedText(selectedText);
-            }
+			selectedText = GetSelectedText();
+
+			if (selectedText != _previousSelectedText)
+			{
+				_previousSelectedText = selectedText;
+				ProcessSelectedText(selectedText);
+			}
 		}
 
-        private string GetSelectedText()
-        {
-            string text;
+		private string GetSelectedText()
+		{
+			string text;
 			_view.GetSelectedText(out text);
-			
+
 			if (!string.IsNullOrEmpty(text))
 				text = text.Trim();
-            
-			return text;
-        }
 
-        private void ProcessSelectedText(string text)
-        {
+			return text;
+		}
+
+		private void ProcessSelectedText(string text)
+		{
 			int previousMarkCount = _marks.Count;
 
 			_marks.Clear();
 
-            if (!string.IsNullOrEmpty(text))
-            {
-				IVsTextLines buffer;
-				_view.GetBuffer(out buffer);
-
-				int lastLine;
-				int lastLineCol;
-				buffer.GetLastLineIndex(out lastLine, out lastLineCol);
-
-
-                RectangleF clipBounds;
-                using (Graphics g = Graphics.FromHwnd(this.Handle))
-                {
-                    clipBounds = g.VisibleClipBounds;
-                }
-
-                int startLine = SearchVisibleLine(clipBounds.Top, 0, lastLine);
-                //int endLine = SearchVisibleLine(clipBounds.Bottom, 0, lastLine);
-
-                //int startLine = 0;
-                int endLine = lastLine;
-
-                int endLineCol = 0;
-
-                if (endLine == lastLine)
-                    endLineCol = lastLineCol;
-                else
-                    endLine++;
-
-                _marks = SearchWords(text, startLine, 0, endLine, endLineCol);
-            }
+			if (!string.IsNullOrEmpty(text))
+			{
+				_textLines = new TextLineCollection(_view);
+				
+				using (Graphics g = Graphics.FromHwnd(this.Handle))
+				{
+					_marks = SearchWordsInViewPort(selectedText, g.VisibleClipBounds);
+				}
+			}
 
 			if (_marks.Count != 0 || previousMarkCount != 0)
 			{
 				Refresh();
 			}
-        }
-
-        private int SearchVisibleLine(float top, int startLine, int endLine)
-        {
-            if (startLine >= endLine) 
-                return startLine;
-
-            var p = new Microsoft.VisualStudio.OLE.Interop.POINT[1];
-            int middle = startLine + (endLine - startLine) / 2;;
-
-            do
-            {
-                _view.GetPointOfLineColumn(middle, 0, p);
-
-                if (p[0].x == 0 && p[0].y == 0)
-                    middle--;
-            }
-            while (middle > top);
-
-            if (top <= p[0].y)
-                return SearchVisibleLine(top, startLine, middle);
-            else
-                return SearchVisibleLine(top, middle, endLine);
-        }
+		}
 
 		private EditPoint CreateEditPoint(IVsTextLines buffer, int line, int lineCol)
 		{
@@ -229,38 +200,115 @@ namespace WordLight
 			return tempPointer as EditPoint;
 		}
 
-        private List<SearchMark> SearchWords(string text, int startLine, int startLineCol, int endLine, int endLineCol)
-        {
-            List<SearchMark> marks = new List<SearchMark>();
+		private List<SearchMark> SearchWordsInViewPort(string text, RectangleF clipBounds)
+		{
+			IVsTextLines buffer;
+			_view.GetBuffer(out buffer);
 
-            IVsTextLines buffer;
-            _view.GetBuffer(out buffer);
+			int lastLine;
+			int lastLineCol;
+			buffer.GetLastLineIndex(out lastLine, out lastLineCol);
 
-            EditPoint searchStart = CreateEditPoint(buffer, startLine, startLineCol);
-            EditPoint searchEnd = CreateEditPoint(buffer, endLine, endLineCol);
+			int startLine = _textLines.GetLineIndexByScreenY((int)clipBounds.Top, _view);
+			int endLine = _textLines.GetLineIndexByScreenY((int)clipBounds.Bottom, _view);
 
-            if (searchStart != null && searchEnd != null)
-            {
-                bool result;
-                TextRanges ranges = null;
-                EditPoint wordEnd = null;
+			int endLineCol = 0;
 
-                do
-                {
-                    result = searchStart.FindPattern(text, (int)vsFindOptions.vsFindOptionsNone, ref wordEnd, ref ranges);
-                    if (result)
-                    {
-                        //Do not process multi-line selections
-                        if (searchStart.Line != wordEnd.Line)
-                            break;
+			if (endLine == lastLine)
+				endLineCol = lastLineCol;
+			else
+				endLine++;
 
-                        marks.Add(new SearchMark(_view, _lineHeight, searchStart, wordEnd));
-                    }
-                    searchStart = wordEnd;
-                } while (result && searchStart.LessThan(searchEnd));
-            }
+			return SearchWords(text, startLine, 0, endLine, endLineCol);
+		}
 
-            return marks;
-        }
+		private List<SearchMark> SearchWords(string text, int startLine, int startLineCol, int endLine, int endLineCol)
+		{
+			List<SearchMark> marks = new List<SearchMark>();
+
+			IVsTextLines buffer;
+			_view.GetBuffer(out buffer);
+
+			EditPoint searchStart = CreateEditPoint(buffer, startLine, startLineCol);
+			EditPoint searchEnd = CreateEditPoint(buffer, endLine, endLineCol);
+
+			if (searchStart != null && searchEnd != null)
+			{
+				bool result;
+				TextRanges ranges = null;
+				EditPoint wordEnd = null;
+
+				do
+				{
+					result = searchStart.FindPattern(text, (int)vsFindOptions.vsFindOptionsNone, ref wordEnd, ref ranges);
+					if (result)
+					{
+						//Do not process multi-line selections
+						if (searchStart.Line != wordEnd.Line)
+							break;
+
+						marks.Add(new SearchMark(_view, _lineHeight, searchStart, wordEnd));
+					}
+					searchStart = wordEnd;
+				} while (result && searchStart.LessThan(searchEnd));
+			}
+
+			return marks;
+		}
+
+		//private Point GetScreenPositionOfText(int line, int column)
+		//{
+		//    var p = new Microsoft.VisualStudio.OLE.Interop.POINT[1];
+		//    _view.GetPointOfLineColumn(line, column, p);
+		//    return new Point(p[0].x, p[0].y);
+		//}
+
+		private struct ScrollInfo : IEquatable<ScrollInfo>
+		{
+			public int minUnit;
+			public int maxUnit;
+			public int visibleUnits;
+			public int firstVisibleUnit;
+
+			public static ScrollInfo Empty = new ScrollInfo()
+			{
+				firstVisibleUnit = 0,
+				maxUnit = 0,
+				minUnit = 0,
+				visibleUnits = 0
+			};
+
+			public static ScrollInfo CreateByView(IVsTextView view, int iBar)
+			{
+				ScrollInfo info = new ScrollInfo();
+				view.GetScrollInfo(iBar, out info.minUnit, out info.maxUnit, out info.visibleUnits, out info.firstVisibleUnit);
+				return info;
+			}
+
+			public bool Equals(ScrollInfo other)
+			{
+				return 
+					minUnit == other.minUnit &&
+					maxUnit == other.maxUnit &&
+					visibleUnits == other.visibleUnits &&
+					firstVisibleUnit == other.firstVisibleUnit;
+			}
+		}
+
+		private ScrollInfo lastHoriz = ScrollInfo.Empty;
+		private ScrollInfo lastVert = ScrollInfo.Empty;
+
+		private bool IsScrollPositionChanged()
+		{
+			ScrollInfo horiz = ScrollInfo.CreateByView(_view, 0);
+			ScrollInfo vert = ScrollInfo.CreateByView(_view, 1);
+
+			bool isChanged = !lastHoriz.Equals(horiz) || !lastVert.Equals(vert);
+
+			lastVert = vert;
+			lastHoriz = horiz;
+
+			return isChanged;
+		}
 	}
 }

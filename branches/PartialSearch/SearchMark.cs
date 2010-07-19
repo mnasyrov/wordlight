@@ -33,13 +33,6 @@ namespace WordLight
             _endPoint = new POINT[1];
 		}
 
-        public bool IsVisible(int firstViewLine, int lastViewLine)
-        {
-            // Here is a problem with folded regions of code
-            // return firstViewLine <= _endLine && _startLine <= lastViewLine;
-            return true;
-        }
-
 		public Rectangle GetVisibleRectangle(RectangleF visibleClipBounds)
 		{
 			_view.GetPointOfLineColumn(_startLine, _startLineIndex, _startPoint);
