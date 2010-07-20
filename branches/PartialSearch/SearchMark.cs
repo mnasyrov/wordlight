@@ -13,42 +13,30 @@ namespace WordLight
         private int _endLine;
         private int _endLineIndex;
 
-		private POINT[] _startPoint;
-		private POINT[] _endPoint;
-
-		private int _lineHeight;
-        private IVsTextView _view;
-
-		public SearchMark(IVsTextView view, int lineHeight, EditPoint start, EditPoint end)
+        public SearchMark(EditPoint start, EditPoint end)
 		{
-            _view = view;
-			_lineHeight = lineHeight;
-
 			_startLine = start.Line - 1;
 			_startLineIndex = start.LineCharOffset - 1;
 			_endLine = end.Line - 1;
 			_endLineIndex = end.LineCharOffset - 1;
-
-            _startPoint = new POINT[1];
-            _endPoint = new POINT[1];
 		}
 
-		public Rectangle GetVisibleRectangle(RectangleF visibleClipBounds)
+        public Rectangle GetVisibleRectangle(IVsTextView view, RectangleF visibleClipBounds, int lineHeight)
 		{
-			_view.GetPointOfLineColumn(_startLine, _startLineIndex, _startPoint);
-			_view.GetPointOfLineColumn(_endLine, _endLineIndex, _endPoint);
+			Point startPoint = view.GetPointOfLineColumn(_startLine, _startLineIndex);
+			Point endPoint = view.GetPointOfLineColumn(_endLine, _endLineIndex);
 			
             bool isVisible =
-				visibleClipBounds.Left <= _endPoint[0].x && _startPoint[0].x <= visibleClipBounds.Right
-				&& visibleClipBounds.Top <= _endPoint[0].y && _startPoint[0].y <= visibleClipBounds.Bottom;
+				visibleClipBounds.Left <= endPoint.X && startPoint.X <= visibleClipBounds.Right
+				&& visibleClipBounds.Top <= endPoint.Y && startPoint.Y <= visibleClipBounds.Bottom;
 
             if (isVisible)
             {
-                int height = _endPoint[0].y - _startPoint[0].y + _lineHeight;
-                int width = _endPoint[0].x - _startPoint[0].x;
+                int height = endPoint.Y - startPoint.Y + lineHeight;
+                int width = endPoint.X - startPoint.X;
 
-                int x = _startPoint[0].x;
-                int y = _startPoint[0].y;
+                int x = startPoint.X;
+                int y = startPoint.Y;
 
                 return new Rectangle(x, y, width, height);
             }

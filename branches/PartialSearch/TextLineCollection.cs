@@ -1,55 +1,56 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Linq;
 using System.Text;
 
 using EnvDTE;
 using Microsoft.VisualStudio.TextManager.Interop;
 
+using WordLight.Extensions;
+
 namespace WordLight
 {
-	public class TextLineCollection
+	public class TextLineCache
 	{
-		private struct TextLine
-		{
-			public int Index;
-			public int ScreenY;
-		}
-
-		private TextLine[] visibleLines;
+		private int[] visibleLines;
 		private int visibleLineCount;
 
-		public TextLineCollection(IVsTextView view)
+		public TextLineCache(IVsTextView view, IVsHiddenTextManager hiddenTextManager)
 		{
-			IVsTextLines buffer;
-			view.GetBuffer(out buffer);
+			IVsTextLines buffer = view.GetBuffer();
+            IVsHiddenTextSession hiddenTextSession = hiddenTextManager.GetHiddenTextSession(buffer);
 
-			int lastLine;
-			int lastLineCol;
-			buffer.GetLastLineIndex(out lastLine, out lastLineCol);
+            TextSpan span = buffer.CreateSpanForAllLines();
+            IList<TextSpan> hiddenRegions = hiddenTextSession.GetAllHiddenRegions(span);
 
-			visibleLines = new TextLine[lastLine + 1];
+            int lineCount = span.iEndLine + 1;
+
+            visibleLines = new int[lineCount];
 			visibleLineCount = 0;
 
-			for (int i = 0; i < lastLine; i++)
+            for (int line = 0; line < span.iEndLine; line++)
 			{
-				Point pos = GetScreenPositionOfText(view, i, 0);
-				if (pos != Point.Empty)
+                bool isVisible = true;
+
+                foreach (var hiddenSpan in hiddenRegions)
+                {
+                    if (hiddenSpan.iStartLine <= line && line <= hiddenSpan.iEndIndex)
+                    {
+                        isVisible = false;
+                        break;
+                    }
+                }
+
+				if (isVisible)
 				{
-					visibleLines[visibleLineCount] = new TextLine() {Index = i, ScreenY = pos.Y };
+					visibleLines[visibleLineCount] = line;
 					visibleLineCount++;
 				}
 			}
 		}
 
-		private Point GetScreenPositionOfText(IVsTextView view, int line, int column)
-		{
-			var p = new Microsoft.VisualStudio.OLE.Interop.POINT[1];
-			view.GetPointOfLineColumn(line, column, p);
-			return new Point(p[0].x, p[0].y);
-		}
-
-		public int GetLineIndexByScreenY(int targetY, IVsTextView view)
+		public int GetLineByScreenY(IVsTextView view, int targetY)
 		{
 			// Binary search
 			int left = 0;
@@ -59,8 +60,7 @@ namespace WordLight
 			{
 				int middle = left + (right - left) / 2;
 
-				//int screenY = visibleLines[middle].ScreenY;
-				Point pos = GetScreenPositionOfText(view, visibleLines[middle].Index, 0);
+				Point pos = view.GetPointOfLineColumn(visibleLines[middle], 0);
 				int screenY = pos.Y;
 
 				if (targetY <= screenY)
@@ -69,7 +69,7 @@ namespace WordLight
 					left = middle + 1;
 			}
 
-			return visibleLines[left].Index;
+			return visibleLines[left];
 		}
 	}
 }

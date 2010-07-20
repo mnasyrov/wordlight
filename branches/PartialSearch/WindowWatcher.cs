@@ -45,7 +45,7 @@ namespace WordLight
 			IntPtr windowHandle = e.View.GetWindowHandle();
 			if (windowHandle != IntPtr.Zero && !_viewWindows.ContainsKey(windowHandle))
 			{
-				TextViewWindow viewWindow = new TextViewWindow(e.View);
+                TextViewWindow viewWindow = new TextViewWindow(e.View, (IVsHiddenTextManager)_textManager);
 				_viewWindows.Add(windowHandle, viewWindow);
 			}
 		}
