@@ -48,7 +48,6 @@
     <Compile Include="AddinSettings.cs" />
     <Compile Include="EventAdapters\ViewScrollChangedEventArgs.cs" />
     <Compile Include="EventAdapters\ViewScrollInfo.cs" />
-    <Compile Include="Extensions\ICollectionExtensions.cs" />
     <Compile Include="Extensions\IVsEnumHiddenRegionsExtensions.cs" />
     <Compile Include="Extensions\IVsHiddenTextManagerExtensions.cs" />
     <Compile Include="Extensions\IVsHiddenTextSessionExtensions.cs" />

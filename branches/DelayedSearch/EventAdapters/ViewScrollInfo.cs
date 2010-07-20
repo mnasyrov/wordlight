@@ -14,6 +14,16 @@ namespace WordLight.EventAdapters
 		public int visibleUnits;
 		public int firstVisibleUnit;
 
+		public bool IsHorizontal
+		{
+			get { return bar == 0; }
+		}
+
+		public bool IsVertical
+		{
+			get { return bar == 1; }
+		}
+
 		public static ViewScrollInfo Empty = new ViewScrollInfo()
 		{
 			bar = 0,
