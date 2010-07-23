@@ -34,7 +34,9 @@ namespace WordLight
 		private const int WM_RBUTTONDBLCLK = 0x0206;
 		private const int WM_XBUTTONDBLCLK = 0x020D;
 		private const int WM_PARENTNOTIFY = 0x0210;
-		private const int WM_PAINT = 0x000F;
+		
+        private const int WM_PAINT = 0x000F;
+        private const int WM_ERASEBKGND = 0x0014;
 
 		#endregion
 
@@ -216,22 +218,15 @@ namespace WordLight
 		private void SelectionChanged(string text)
 		{
 			_selectedText = text;
-
-			int previousSearchCount = _cachedSearchMarks.Count;
-
-			_cachedSearchMarks = SearchWords(_selectedText);
-
-			if (_cachedSearchMarks.Count == 0 || previousSearchCount > 0)
-			{
-				Refresh();
-			}
+            _cachedSearchMarks = SearchWords(text);
+			Refresh();
 		}
 
 		private IList<SearchMark> SearchWords(string text)
 		{
 			searchTimer.Stop();
 
-			if (string.IsNullOrEmpty(_selectedText))
+            if (string.IsNullOrEmpty(text))
 			{
 				return new List<SearchMark>();
 			}
@@ -249,18 +244,25 @@ namespace WordLight
 
 				searchTimer.Start();
 
-				return buffer.SearchWords(_selectedText, searchRange);
+                return buffer.SearchWords(text, searchRange);
 			}
 		}
 
-		void searchTimer_Elapsed(object sender, ElapsedEventArgs e)
+		private void searchTimer_Elapsed(object sender, ElapsedEventArgs e)
 		{
 			string text = _selectedText;
 			if (!string.IsNullOrEmpty(text))
 			{
 				IVsTextLines buffer = _view.GetBuffer();
 				TextSpan searchRange = buffer.CreateSpanForAllLines();
-				_cachedSearchMarks = buffer.SearchWords(text, searchRange);
+				
+                IList<SearchMark> marks = buffer.SearchWords(text, searchRange);
+                
+                if (text == _selectedText)
+                {
+                    _cachedSearchMarks = marks;
+                    Refresh();
+                }
 			}
 		}
 	}
