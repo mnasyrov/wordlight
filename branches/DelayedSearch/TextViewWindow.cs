@@ -5,13 +5,13 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows.Forms;
-using System.Timers;
 
 using EnvDTE;
 using Microsoft.VisualStudio.TextManager.Interop;
 
 using WordLight.EventAdapters;
 using WordLight.Extensions;
+using WordLight.Searchers;
 
 namespace WordLight
 {
@@ -64,7 +64,7 @@ namespace WordLight
 		private int topTextLineInView = 0;
 		private int bottomTextLineInView = 0;
 
-		private System.Timers.Timer searchTimer;
+        private ITextSearch textSearch;
 
 		public TextViewWindow(IVsTextView view, IVsHiddenTextManager hiddenTextManager)
 		{
@@ -78,10 +78,8 @@ namespace WordLight
 			viewEvents = new TextViewEventAdapter(_view);
 			viewEvents.ScrollChanged += new EventHandler<ViewScrollChangedEventArgs>(ScrollChangedHandler);
 
-			searchTimer = new System.Timers.Timer();
-			searchTimer.AutoReset = false;
-			searchTimer.Interval = 500;
-			searchTimer.Elapsed += new ElapsedEventHandler(searchTimer_Elapsed);
+            textSearch = new TextSearchByTimer();
+            textSearch.SearchCompleted += new EventHandler<SearchCompletedEventArgs>(searcher_SearchCompleted);
 
 			AssignHandle(view.GetWindowHandle());
 		}
@@ -218,52 +216,30 @@ namespace WordLight
 		private void SelectionChanged(string text)
 		{
 			_selectedText = text;
-            _cachedSearchMarks = SearchWords(text);
-			Refresh();
-		}
-
-		private IList<SearchMark> SearchWords(string text)
-		{
-			searchTimer.Stop();
-
+            _cachedSearchMarks = new List<SearchMark>();
+            
             if (string.IsNullOrEmpty(text))
-			{
-				return new List<SearchMark>();
+			{				
+                Refresh();
 			}
 			else
 			{
 				IVsTextLines buffer = _view.GetBuffer();
-				TextSpan searchRange = buffer.CreateSpanForAllLines();
-
-				searchRange.iStartLine = topTextLineInView;
-				if (searchRange.iEndLine != bottomTextLineInView)
-				{
-					searchRange.iEndLine = bottomTextLineInView;
-					searchRange.iEndIndex = 0;
-				}
-
-				searchTimer.Start();
-
-                return buffer.SearchWords(text, searchRange);
+                textSearch.SearchAsync(buffer, text, topTextLineInView, bottomTextLineInView);
 			}
 		}
 
-		private void searchTimer_Elapsed(object sender, ElapsedEventArgs e)
-		{
-			string text = _selectedText;
-			if (!string.IsNullOrEmpty(text))
-			{
-				IVsTextLines buffer = _view.GetBuffer();
-				TextSpan searchRange = buffer.CreateSpanForAllLines();
-				
-                IList<SearchMark> marks = buffer.SearchWords(text, searchRange);
+        private void searcher_SearchCompleted(object sender, SearchCompletedEventArgs e)
+        {
+            if (e.Job.Text == _selectedText)
+            {
+                _cachedSearchMarks = e.Marks;
                 
-                if (text == _selectedText)
+                if (topTextLineInView <= e.Job.Range.iEndLine && e.Job.Range.iStartLine <= bottomTextLineInView)
                 {
-                    _cachedSearchMarks = marks;
                     Refresh();
                 }
-			}
-		}
+            }
+        }
 	}
 }

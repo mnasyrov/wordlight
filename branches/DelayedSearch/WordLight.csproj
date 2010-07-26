@@ -52,6 +52,11 @@
     <Compile Include="Extensions\IVsHiddenTextManagerExtensions.cs" />
     <Compile Include="Extensions\IVsHiddenTextSessionExtensions.cs" />
     <Compile Include="Extensions\IVsTextLinesExtensions.cs" />
+    <Compile Include="Searchers\TextSearchByTimer.cs" />
+    <Compile Include="Searchers\ITextSearch.cs" />
+    <Compile Include="Searchers\SearchCompletedEventArgs.cs" />
+    <Compile Include="Searchers\SearchJob.cs" />
+    <Compile Include="Searchers\TextSearchByThreadWorker.cs" />
     <Compile Include="SettingRepository.cs" />
     <Compile Include="AssemblyInfo.cs">
       <SubType>Code</SubType>
