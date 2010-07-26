@@ -225,20 +225,30 @@ namespace WordLight
 			else
 			{
 				IVsTextLines buffer = _view.GetBuffer();
-                textSearch.SearchAsync(buffer, text, topTextLineInView, bottomTextLineInView);
+
+				TextSpan startRange = buffer.CreateSpanForAllLines();
+
+				startRange.iStartLine = topTextLineInView;
+				if (startRange.iEndLine != bottomTextLineInView)
+				{
+					startRange.iEndLine = bottomTextLineInView;
+					startRange.iEndIndex = 0;
+				}
+
+                textSearch.SearchAsync(buffer, text, startRange);
 			}
 		}
 
         private void searcher_SearchCompleted(object sender, SearchCompletedEventArgs e)
         {
-            if (e.Job.Text == _selectedText)
+            if (e.Text == _selectedText)
             {
                 _cachedSearchMarks = e.Marks;
-                
-                if (topTextLineInView <= e.Job.Range.iEndLine && e.Job.Range.iStartLine <= bottomTextLineInView)
-                {
-                    Refresh();
-                }
+				Refresh();
+				//if (topTextLineInView >= e.Range.iStartLine && e.Range.iEndLine <= bottomTextLineInView)
+				//{
+				//    Refresh();
+				//}
             }
         }
 	}

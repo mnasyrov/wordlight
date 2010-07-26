@@ -25,8 +25,15 @@ namespace WordLight
 
 		public Rectangle GetVisibleRectangle(IVsTextView view, RectangleF visibleClipBounds, int lineHeight)
 		{
+			Rectangle rect = Rectangle.Empty;
+
 			Point startPoint = view.GetPointOfLineColumn(_span.iStartLine, _span.iStartIndex);
+			if (startPoint == Point.Empty)
+				return rect;
+
 			Point endPoint = view.GetPointOfLineColumn(_span.iEndLine, _span.iEndIndex);
+			if (endPoint == Point.Empty)
+				return rect;
 
 			bool isVisible =
 				visibleClipBounds.Left <= endPoint.X && startPoint.X <= visibleClipBounds.Right
@@ -40,10 +47,10 @@ namespace WordLight
 				int x = startPoint.X;
 				int y = startPoint.Y;
 
-				return new Rectangle(x, y, width, height);
+				rect = new Rectangle(x, y, width, height);
 			}
 
-			return Rectangle.Empty;
+			return rect;
 		}
 	}
 }

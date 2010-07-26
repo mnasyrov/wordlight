@@ -43,10 +43,10 @@ namespace WordLight
                     if (result)
                     {
                         //Do not process multi-line selections
-                        if (searchStart.Line != wordEnd.Line)
-                            break;
-
-                        marks.Add(new SearchMark(searchStart, wordEnd));
+						if (searchStart.Line == wordEnd.Line)
+						{
+							marks.Add(new SearchMark(searchStart, wordEnd));
+						}
                     }
                     searchStart = wordEnd;
                 } while (result && searchStart.LessThan(searchEnd));

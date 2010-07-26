@@ -10,6 +10,6 @@ namespace WordLight.Searchers
     public interface ITextSearch
     {
         event EventHandler<SearchCompletedEventArgs> SearchCompleted;
-        void SearchAsync(IVsTextLines buffer, string text, int topTextLineInView, int bottomTextLineInView);
+        void SearchAsync(IVsTextLines buffer, string text, TextSpan startRange);
     }
 }

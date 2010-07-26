@@ -11,6 +11,20 @@ namespace WordLight.Searchers
 {
     public class TextSearchByThreadWorker : ITextSearch
     {
+		private class SearchJob
+		{
+			public IVsTextLines Buffer { get; set; }
+			public string Text { get; set; }
+			public TextSpan Range { get; set; }
+
+			public SearchJob(IVsTextLines buffer, string text, TextSpan range)
+			{
+                this.Buffer = buffer;
+                this.Text = text;
+                this.Range = range;
+            }
+		}
+
         private Queue<SearchJob> _jobs;
         private object _jobsSyncRoot = new object();
         
@@ -24,21 +38,13 @@ namespace WordLight.Searchers
             _jobs = new Queue<SearchJob>();            
         }
 
-        public void SearchAsync(IVsTextLines buffer, string text, int topTextLineInView, int bottomTextLineInView)
+		public void SearchAsync(IVsTextLines buffer, string text, TextSpan viewRange)
         {
             TextSpan textRange = buffer.CreateSpanForAllLines();
 
-            TextSpan viewRange = buffer.CreateSpanForAllLines();
-            viewRange.iStartLine = topTextLineInView;
-            viewRange.iEndLine = bottomTextLineInView;
-            if (viewRange.iEndLine == textRange.iEndLine)
-            {
-                viewRange.iEndIndex = textRange.iEndIndex;
-            }
+            SearchAsync(new SearchJob(buffer, text, viewRange));
 
-            SearchAsync(buffer, text, viewRange);
-
-            int height = bottomTextLineInView - topTextLineInView;
+			int height = viewRange.iEndLine - viewRange.iStartLine;
             if (height > 0)
             {
                 int upTop;
@@ -47,21 +53,21 @@ namespace WordLight.Searchers
 
                 do
                 {
-                    upTop = topTextLineInView - step * height;
+					upTop = viewRange.iStartLine - step * height;
 
                     TextSpan up = new TextSpan();
                     up.iStartLine = upTop < textRange.iStartLine ? textRange.iStartLine : upTop;
-                    up.iEndLine = bottomTextLineInView - step * height + 1;
+					up.iEndLine = viewRange.iEndLine - step * height + 1;
 
                     if (up.iEndLine >= textRange.iStartLine)
                     {
-                        SearchAsync(buffer, text, up);
+                        SearchAsync(new SearchJob(buffer, text, up));
                     }
 
-                    downBottom = bottomTextLineInView + step * height + 1;
+					downBottom = viewRange.iEndLine + step * height + 1;
 
                     TextSpan down = new TextSpan();
-                    down.iStartLine = topTextLineInView + step * height;
+					down.iStartLine = viewRange.iStartLine + step * height;
                     down.iEndLine = downBottom > textRange.iEndLine ? textRange.iEndLine : downBottom;
                     if (down.iEndLine == textRange.iEndLine)
                     {
@@ -70,24 +76,13 @@ namespace WordLight.Searchers
 
                     if (down.iStartLine <= textRange.iEndLine)
                     {
-                        SearchAsync(buffer, text, down);
+                        SearchAsync(new SearchJob(buffer, text, down));
                     }
 
                     step++;
                 }
                 while (upTop >= textRange.iStartLine || downBottom <= textRange.iEndLine);
             }
-        }
-
-        private void SearchAsync(IVsTextLines buffer, string text, TextSpan range)
-        {
-            SearchJob job = new SearchJob()
-            {
-                Buffer = buffer,
-                Text = text,
-                Range = range
-            };
-            SearchAsync(job);
         }
 
         private void EnqueueJob(SearchJob job)
@@ -141,7 +136,7 @@ namespace WordLight.Searchers
                     EventHandler<SearchCompletedEventArgs> evt = SearchCompleted;
                     if (evt != null)
                     {
-                        evt(this, new SearchCompletedEventArgs(job, marks));
+                        evt(this, new SearchCompletedEventArgs(job.Text, job.Range, marks));
                     }
                 }
             }
