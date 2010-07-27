@@ -52,10 +52,10 @@
     <Compile Include="Extensions\IVsHiddenTextManagerExtensions.cs" />
     <Compile Include="Extensions\IVsHiddenTextSessionExtensions.cs" />
     <Compile Include="Extensions\IVsTextLinesExtensions.cs" />
+    <Compile Include="Searchers\SearchMark.cs" />
     <Compile Include="Searchers\TextSearchByTimer.cs" />
     <Compile Include="Searchers\ITextSearch.cs" />
     <Compile Include="Searchers\SearchCompletedEventArgs.cs" />
-    <Compile Include="Searchers\TextSearchByThreadWorker.cs" />
     <Compile Include="SettingRepository.cs" />
     <Compile Include="AssemblyInfo.cs">
       <SubType>Code</SubType>
@@ -77,7 +77,6 @@
     <Compile Include="TextViewWindow.cs" />
     <Compile Include="Extensions\IVsTextViewExtensions.cs" />
     <Compile Include="WindowWatcher.cs" />
-    <Compile Include="SearchMark.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="CommandBar.resx" />
