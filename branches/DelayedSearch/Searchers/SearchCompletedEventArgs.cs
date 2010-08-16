@@ -11,7 +11,7 @@ namespace WordLight.Searchers
     {
         private string _text;
 		private TextSpan _range;
-        private IList<SearchMark> _marks;
+        private IList<TextSpan> _marks;
 
 		public string Text
 		{
@@ -23,12 +23,12 @@ namespace WordLight.Searchers
 			get { return _range; }
 		}
 
-        public IList<SearchMark> Marks
+        public IList<TextSpan> Marks
         {
             get { return _marks; }
         }
 
-        public SearchCompletedEventArgs(string text, TextSpan range, IList<SearchMark> marks)
+        public SearchCompletedEventArgs(string text, TextSpan range, IList<TextSpan> marks)
         {
 			_text = text;
 			_range = range;

@@ -11,53 +11,62 @@ namespace WordLight.Searchers
 {
     public class TextSearchByTimer : ITextSearch
     {
-        private System.Timers.Timer searchTimer;
-		private string text;
-		private IVsTextLines buffer;
+        private System.Timers.Timer _searchTimer;
+
+        private IVsTextLines _buffer;
+        private string _searchText;
+        private TextSpan _searchRange;
+        private object _searchSyncLock = new object();
 
         public event EventHandler<SearchCompletedEventArgs> SearchCompleted;
 
         public TextSearchByTimer()
         {
-            searchTimer = new System.Timers.Timer();
-            searchTimer.AutoReset = false;
-            searchTimer.Interval = 500;
-            searchTimer.Elapsed += new ElapsedEventHandler(searchTimer_Elapsed);
+            _searchTimer = new System.Timers.Timer();
+            _searchTimer.AutoReset = false;
+            _searchTimer.Interval = 500;
+            _searchTimer.Elapsed += new ElapsedEventHandler(searchTimer_Elapsed);
         }
 
-		public void SearchAsync(IVsTextLines buffer, string text, TextSpan startRange)
+        public void SearchAsync(IVsTextLines buffer, string text, TextSpan searchRange)
         {
-            searchTimer.Stop();
+            _searchTimer.Stop();
 
-			if (string.IsNullOrEmpty(text))
-				return;
+            if (string.IsNullOrEmpty(text))
+                return;
 
-			this.buffer = buffer;
-			this.text = text;
+            lock (_searchSyncLock)
+            {
+                _buffer = buffer;
+                _searchText = text;
+                _searchRange = searchRange;
+            }
 
-			IList<SearchMark> marks = buffer.SearchWords(text, startRange);            
-            
-            EventHandler<SearchCompletedEventArgs> evt = SearchCompleted;
-			if (evt != null && marks.Count > 0)
-			{
-				evt(this, new SearchCompletedEventArgs(text, startRange, marks));
-			}
-
-			searchTimer.Start();            
+            _searchTimer.Start();
         }
 
         private void searchTimer_Elapsed(object sender, ElapsedEventArgs e)
         {
-            if (!string.IsNullOrEmpty(text))
+            IVsTextLines buffer;
+            string searchText;
+            TextSpan searchRange;
+
+            lock (_searchSyncLock)
             {
-                TextSpan searchRange = buffer.CreateSpanForAllLines();
-                IList<SearchMark> marks = buffer.SearchWords(text, searchRange);
+                buffer = _buffer;
+                searchText = _searchText;
+                searchRange = _searchRange;
+            }
+
+            if (!string.IsNullOrEmpty(searchText))
+            {
+                IList<TextSpan> marks = buffer.SearchWords(searchText, searchRange);
 
                 EventHandler<SearchCompletedEventArgs> evt = SearchCompleted;
-				if (evt != null && marks.Count > 0)
-				{
-					evt(this, new SearchCompletedEventArgs(text, searchRange, marks));
-				}
+                if (evt != null && marks.Count > 0)
+                {
+                    evt(this, new SearchCompletedEventArgs(searchText, searchRange, marks));
+                }
             }
         }
     }

@@ -24,32 +24,44 @@ namespace WordLight
             return tempPointer as EditPoint;
         }
 
-        public static IList<SearchMark> SearchWords(this IVsTextLines buffer, string text, TextSpan searchRange)
+        public static IList<TextSpan> SearchWords(this IVsTextLines buffer, string text, TextSpan searchRange)
         {
-            List<SearchMark> marks = new List<SearchMark>();
+            var all = buffer.CreateSpanForAllLines();
+            
+            string content;
+            buffer.GetLineText(all.iStartLine, all.iStartIndex, all.iEndLine, all.iEndIndex, out content);
 
-            EditPoint searchStart = buffer.CreateEditPoint(searchRange.iStartLine, searchRange.iStartIndex);
-            EditPoint searchEnd = buffer.CreateEditPoint(searchRange.iEndLine, searchRange.iEndIndex);
+            List<TextSpan> marks = new List<TextSpan>();
+            
+            int searchStart;
+            int searchEnd;
+            buffer.GetPositionOfLineIndex(searchRange.iStartLine, searchRange.iStartIndex, out searchStart);
+            buffer.GetPositionOfLineIndex(searchRange.iEndLine, searchRange.iEndIndex, out searchEnd);
 
-            if (searchStart != null && searchEnd != null)
+            int length = text.Length;
+
+            if (searchEnd > searchStart && length > 0)
             {
                 bool result;
-                TextRanges ranges = null;
-                EditPoint wordEnd = null;
-                
                 do
                 {
-                    result = searchStart.FindPattern(text, (int)vsFindOptions.vsFindOptionsNone, ref wordEnd, ref ranges);
+                    searchStart = content.IndexOf(text, searchStart, StringComparison.InvariantCultureIgnoreCase);
+
+                    result = searchStart >= 0;
                     if (result)
                     {
+                        TextSpan span = new TextSpan();
+                        buffer.GetLineIndexOfPosition(searchStart, out span.iStartLine, out span.iStartIndex);
+                        buffer.GetLineIndexOfPosition(searchStart + length, out span.iEndLine, out span.iEndIndex);
+
                         //Do not process multi-line selections
-						if (searchStart.Line == wordEnd.Line)
-						{
-							marks.Add(new SearchMark(searchStart, wordEnd));
-						}
+                        if (span.iStartLine == span.iEndLine)
+                        {
+                            marks.Add(span);
+                        }
                     }
-                    searchStart = wordEnd;
-                } while (result && searchStart.LessThan(searchEnd));
+                    searchStart++;
+                } while (result && searchStart <= searchEnd);
             }
 
             return marks;
