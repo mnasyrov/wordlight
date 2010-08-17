@@ -27,12 +27,12 @@ namespace WordLight
         public static IList<TextSpan> SearchWords(this IVsTextLines buffer, string text, TextSpan searchRange)
         {
             var all = buffer.CreateSpanForAllLines();
-            
+
             string content;
             buffer.GetLineText(all.iStartLine, all.iStartIndex, all.iEndLine, all.iEndIndex, out content);
 
             List<TextSpan> marks = new List<TextSpan>();
-            
+
             int searchStart;
             int searchEnd;
             buffer.GetPositionOfLineIndex(searchRange.iStartLine, searchRange.iStartIndex, out searchStart);
@@ -42,29 +42,52 @@ namespace WordLight
 
             if (searchEnd > searchStart && length > 0)
             {
-                bool result;
-                do
+                List<int> positions = SearchOccurrence(content, text, searchStart, searchEnd);
+
+                foreach (int pos in positions)
                 {
-                    searchStart = content.IndexOf(text, searchStart, StringComparison.InvariantCultureIgnoreCase);
+                    TextSpan span = new TextSpan();
+                    buffer.GetLineIndexOfPosition(pos, out span.iStartLine, out span.iStartIndex);
+                    buffer.GetLineIndexOfPosition(pos + length, out span.iEndLine, out span.iEndIndex);
 
-                    result = searchStart >= 0;
-                    if (result)
+                    //Do not process multi-line selections
+                    if (span.iStartLine == span.iEndLine)
                     {
-                        TextSpan span = new TextSpan();
-                        buffer.GetLineIndexOfPosition(searchStart, out span.iStartLine, out span.iStartIndex);
-                        buffer.GetLineIndexOfPosition(searchStart + length, out span.iEndLine, out span.iEndIndex);
-
-                        //Do not process multi-line selections
-                        if (span.iStartLine == span.iEndLine)
-                        {
-                            marks.Add(span);
-                        }
+                        marks.Add(span);
                     }
-                    searchStart++;
-                } while (result && searchStart <= searchEnd);
+                }
             }
 
             return marks;
+        }
+        
+        /// <remarks>
+        /// Modification of Boyer–Moore string search
+        /// Based on http://algolist.manual.ru/search/esearch/qsearch.php
+        /// </remarks>
+        private static List<int> SearchOccurrence(string text, string value, int searchStart, int searchEnd)
+        {
+            List<int> results = new List<int>();
+
+            int[] badChars = new int[char.MaxValue + 1];
+            int valueLength = value.Length;
+
+            /* Preprocessing */
+            for (int i = 0; i < badChars.Length; i++)
+                badChars[i] = valueLength + 1;
+
+            for (int i = 0; i < valueLength; i++)
+                badChars[value[i]] = valueLength - i;
+
+            /* Searching */
+            searchEnd = Math.Min(searchEnd, text.Length) - valueLength;
+            for (int i = searchStart; i < searchEnd; i += badChars[text[i + valueLength]])
+            {
+                if (text.Substring(i, valueLength).StartsWith(value, StringComparison.InvariantCultureIgnoreCase))
+                    results.Add(i);
+            }
+
+            return results;
         }
     }
 }

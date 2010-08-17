@@ -55,7 +55,6 @@ namespace WordLight
         private IVsTextView _view;
         private IVsHiddenTextManager _hiddenTextManager;
 
-        //TODO: Move to SearchMark
         private int _lineHeight;
 
         private string _selectedText;
@@ -65,7 +64,6 @@ namespace WordLight
         private int bottomTextLineInView = 0;
 
         private ITextSearch textSearch;
-        //private TextSpan _searchRange;
 
         public TextViewWindow(IVsTextView view, IVsHiddenTextManager hiddenTextManager)
         {
@@ -235,46 +233,21 @@ namespace WordLight
         {
             IVsTextLines buffer = _view.GetBuffer();
 
-            TextSpan viewRange = buffer.CreateSpanForAllLines();
-            viewRange.iStartLine = topTextLineInView;
-            if (viewRange.iEndLine != bottomTextLineInView)
-            {
-                viewRange.iEndLine = bottomTextLineInView;
-                viewRange.iEndIndex = 0;
-            }
-
-            //_searchRange = searchRange;
-
-            //_cachedSearchMarks = buffer.SearchWords(_selectedText, searchRange);
-            //textSearch.SearchAsync(buffer, _selectedText, searchRange);
-
-            //_cachedSearchMarks = buffer.SearchWords(_selectedText, buffer.CreateSpanForAllLines());
-
-            //_cachedSearchMarks = buffer.SearchWords(_selectedText, searchRange);
-
-            //int caretLine;
-            //int caretColumn;
-            //_view.GetCaretPos(out caretLine, out caretColumn);
-
-            //int height = 2 * 1024 / _lineHeight;
-
             //TextSpan viewRange = buffer.CreateSpanForAllLines();
-            //if (caretLine - height > viewRange.iStartLine)
-            //    viewRange.iStartLine = caretLine - height;
-
-            //if (caretLine + height < viewRange.iEndLine)
+            //viewRange.iStartLine = topTextLineInView;
+            //if (viewRange.iEndLine != bottomTextLineInView)
             //{
-            //    viewRange.iEndLine = caretLine + height;
+            //    viewRange.iEndLine = bottomTextLineInView;
             //    viewRange.iEndIndex = 0;
             //}
 
-            _cachedSearchMarks = buffer.SearchWords(_selectedText, viewRange);
+            //_cachedSearchMarks = buffer.SearchWords(_selectedText, viewRange);
             textSearch.SearchAsync(buffer, _selectedText, buffer.CreateSpanForAllLines());
         }
 
         private void searcher_SearchCompleted(object sender, SearchCompletedEventArgs e)
         {
-            if (e.Text == _selectedText /*&& e.Range.Equals(_searchRange)*/)
+            if (e.Text == _selectedText)
             {
                 _cachedSearchMarks = e.Marks;
                 Refresh();
