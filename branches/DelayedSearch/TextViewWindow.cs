@@ -11,7 +11,7 @@ using Microsoft.VisualStudio.TextManager.Interop;
 
 using WordLight.EventAdapters;
 using WordLight.Extensions;
-using WordLight.Searchers;
+using WordLight.Search;
 
 namespace WordLight
 {
@@ -49,46 +49,48 @@ namespace WordLight
         private static extern bool InvalidateRect(IntPtr hWnd, IntPtr rect, bool erase);
 
         #endregion
-
+        
+        private IVsTextView _view;
+        private IVsTextLines _buffer;
+        private IVsHiddenTextManager _hiddenTextManager;
         private string _previousSelectedText;
         private IList<TextSpan> _cachedSearchMarks = new List<TextSpan>();
-        private IVsTextView _view;
-        private IVsHiddenTextManager _hiddenTextManager;
 
         private int _lineHeight;
 
         private string _selectedText;
-        private TextViewEventAdapter viewEvents;
+        private TextViewEventAdapter _viewEvents;
 
         private int topTextLineInView = 0;
         private int bottomTextLineInView = 0;
 
-        private ITextSearch textSearch;
+        private TextSearch _search;
 
         public TextViewWindow(IVsTextView view, IVsHiddenTextManager hiddenTextManager)
         {
             if (view == null) throw new ArgumentNullException("view");
+            if (hiddenTextManager == null) throw new ArgumentNullException("hiddenTextManager");
+            
             _view = view;
-
             _hiddenTextManager = hiddenTextManager;
 
             _lineHeight = _view.GetLineHeight();
+            _buffer = view.GetBuffer();
 
-            viewEvents = new TextViewEventAdapter(_view);
-            viewEvents.ScrollChanged += new EventHandler<ViewScrollChangedEventArgs>(ScrollChangedHandler);
+            _search = new TextSearch(_buffer);
+            _search.SearchCompleted += new EventHandler<SearchCompletedEventArgs>(searcher_SearchCompleted);            
 
-            textSearch = new TextSearchByTimer();
-            //textSearch = new TextSearchByThreadWorker();
-            textSearch.SearchCompleted += new EventHandler<SearchCompletedEventArgs>(searcher_SearchCompleted);
+            _viewEvents = new TextViewEventAdapter(_view);
+            _viewEvents.ScrollChanged += new EventHandler<ViewScrollChangedEventArgs>(ScrollChangedHandler);
 
             AssignHandle(view.GetWindowHandle());
         }
 
         public void Dispose()
         {
-            viewEvents.ScrollChanged -= ScrollChangedHandler;
+            _viewEvents.ScrollChanged -= ScrollChangedHandler;
 
-            viewEvents.Dispose();
+            _viewEvents.Dispose();
             ReleaseHandle();
         }
 
@@ -218,31 +220,27 @@ namespace WordLight
             _selectedText = text;
             _cachedSearchMarks = new List<TextSpan>();
 
-            if (string.IsNullOrEmpty(text))
-            {
-                Refresh();
-            }
-            else
+            if (!string.IsNullOrEmpty(text))
             {
                 SearchWords();
-                Refresh();
             }
+            Refresh();
         }
 
         private void SearchWords()
         {
             IVsTextLines buffer = _view.GetBuffer();
 
-            //TextSpan viewRange = buffer.CreateSpanForAllLines();
-            //viewRange.iStartLine = topTextLineInView;
-            //if (viewRange.iEndLine != bottomTextLineInView)
-            //{
-            //    viewRange.iEndLine = bottomTextLineInView;
-            //    viewRange.iEndIndex = 0;
-            //}
+            TextSpan viewRange = buffer.CreateSpanForAllLines();
+            viewRange.iStartLine = topTextLineInView;
+            if (viewRange.iEndLine != bottomTextLineInView)
+            {
+                viewRange.iEndLine = bottomTextLineInView;
+                viewRange.iEndIndex = 0;
+            }
 
-            //_cachedSearchMarks = buffer.SearchWords(_selectedText, viewRange);
-            textSearch.SearchAsync(buffer, _selectedText, buffer.CreateSpanForAllLines());
+            _cachedSearchMarks = _search.SearchOccurrences(_selectedText, viewRange);
+            _search.SearchOccurrencesDelayed(_selectedText, buffer.CreateSpanForAllLines());
         }
 
         private void searcher_SearchCompleted(object sender, SearchCompletedEventArgs e)

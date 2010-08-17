@@ -5,7 +5,7 @@ using System.Text;
 
 using Microsoft.VisualStudio.TextManager.Interop;
 
-namespace WordLight.Searchers
+namespace WordLight.Search
 {
     public class SearchCompletedEventArgs : EventArgs
     {

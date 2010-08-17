@@ -34,7 +34,7 @@ namespace WordLight
 
         private void ResetToDefaults()
         {
-            SearchMarkOutlineColor = Color.Orange;            
+            SearchMarkOutlineColor = Color.FromArgb(255, 105, 180); //Hot pink
         }
 
         public void Load(SettingRepository repository)
