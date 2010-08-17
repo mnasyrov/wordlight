@@ -36,6 +36,9 @@
     <Reference Include="Microsoft.VisualStudio.OLE.Interop, Version=7.1.40304.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" />
     <Reference Include="Microsoft.VisualStudio.TextManager.Interop, Version=7.1.40304.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" />
     <Reference Include="System" />
+    <Reference Include="System.Core">
+      <RequiredTargetFramework>3.5</RequiredTargetFramework>
+    </Reference>
     <Reference Include="System.Data" />
     <Reference Include="System.Drawing" />
     <Reference Include="System.Windows.Forms" />
@@ -43,6 +46,14 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AddinSettings.cs" />
+    <Compile Include="EventAdapters\ViewScrollChangedEventArgs.cs" />
+    <Compile Include="EventAdapters\ViewScrollInfo.cs" />
+    <Compile Include="Extensions\IVsEnumHiddenRegionsExtensions.cs" />
+    <Compile Include="Extensions\IVsHiddenTextManagerExtensions.cs" />
+    <Compile Include="Extensions\IVsHiddenTextSessionExtensions.cs" />
+    <Compile Include="Extensions\IVsTextLinesExtensions.cs" />
+    <Compile Include="Search\TextSearch.cs" />
+    <Compile Include="Search\SearchCompletedEventArgs.cs" />
     <Compile Include="SettingRepository.cs" />
     <Compile Include="AssemblyInfo.cs">
       <SubType>Code</SubType>
@@ -61,8 +72,8 @@
     <Compile Include="EventAdapters\ViewFocusEventArgs.cs" />
     <Compile Include="EventAdapters\ViewRegistrationEventArgs.cs" />
     <Compile Include="TextViewWindow.cs" />
+    <Compile Include="Extensions\IVsTextViewExtensions.cs" />
     <Compile Include="WindowWatcher.cs" />
-    <Compile Include="SearchMark.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="CommandBar.resx" />
