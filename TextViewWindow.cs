@@ -176,15 +176,14 @@ namespace WordLight
         {
             if (e.ScrollInfo.IsVertical)
             {
-                IVsTextLines buffer = _view.GetBuffer();
-                IVsHiddenTextSession hiddenTextSession = _hiddenTextManager.GetHiddenTextSession(buffer);
+                IVsHiddenTextSession hiddenTextSession = _hiddenTextManager.GetHiddenTextSession(_buffer);
 
-                TextSpan entireSpan = buffer.CreateSpanForAllLines();
+                TextSpan entireSpan = _buffer.CreateSpanForAllLines();
                 IList<TextSpan> hiddenRegions = hiddenTextSession.GetAllHiddenRegions(entireSpan);
 
                 int viewLine = -1;
                 int textLine = -1;
-
+				
                 while (
                     textLine <= entireSpan.iEndLine &&
                     viewLine <= e.ScrollInfo.maxUnit &&
@@ -195,10 +194,10 @@ namespace WordLight
                     if (!IsTextLineHidden(textLine, hiddenRegions))
                     {
                         viewLine++;
-                        if (viewLine == e.ScrollInfo.firstVisibleUnit)
+                        if (viewLine <= e.ScrollInfo.firstVisibleUnit)
                             topTextLineInView = textLine;
 
-                        if (viewLine == e.ScrollInfo.firstVisibleUnit + e.ScrollInfo.visibleUnits)
+                        if (viewLine <= e.ScrollInfo.firstVisibleUnit + e.ScrollInfo.visibleUnits)
                             bottomTextLineInView = textLine;
                     }
                 }
@@ -207,11 +206,14 @@ namespace WordLight
 
         private bool IsTextLineHidden(int line, IList<TextSpan> hiddenRegions)
         {
-            foreach (var hiddenSpan in hiddenRegions)
-            {
-                if (hiddenSpan.iStartLine <= line && line <= hiddenSpan.iEndLine)
-                    return true;
-            }
+			if (hiddenRegions != null)
+			{
+				foreach (var hiddenSpan in hiddenRegions)
+				{
+					if (hiddenSpan.iStartLine <= line && line <= hiddenSpan.iEndLine)
+						return true;
+				}
+			}
             return false;
         }
 
@@ -229,18 +231,16 @@ namespace WordLight
 
         private void SearchWords()
         {
-            IVsTextLines buffer = _view.GetBuffer();
-
-            TextSpan viewRange = buffer.CreateSpanForAllLines();
+            TextSpan viewRange = _buffer.CreateSpanForAllLines();
             viewRange.iStartLine = topTextLineInView;
-            if (viewRange.iEndLine != bottomTextLineInView)
+			if (bottomTextLineInView < viewRange.iEndLine)
             {
                 viewRange.iEndLine = bottomTextLineInView;
                 viewRange.iEndIndex = 0;
             }
 
             _cachedSearchMarks = _search.SearchOccurrences(_selectedText, viewRange);
-            _search.SearchOccurrencesDelayed(_selectedText, buffer.CreateSpanForAllLines());
+            _search.SearchOccurrencesDelayed(_selectedText, _buffer.CreateSpanForAllLines());
         }
 
         private void searcher_SearchCompleted(object sender, SearchCompletedEventArgs e)
