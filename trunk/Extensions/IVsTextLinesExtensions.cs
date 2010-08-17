@@ -33,10 +33,10 @@ namespace WordLight
 
         public static string GetText(this IVsTextLines buffer)
         {
-            var allLines = buffer.CreateSpanForAllLines();
+            var entireSpan = buffer.CreateSpanForAllLines();
             
             string text;
-            buffer.GetLineText(allLines.iStartLine, allLines.iStartIndex, allLines.iEndLine, allLines.iEndIndex, out text);
+            buffer.GetLineText(entireSpan.iStartLine, entireSpan.iStartIndex, entireSpan.iEndLine, entireSpan.iEndIndex, out text);
 
             return text;
         }
