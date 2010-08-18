@@ -66,10 +66,17 @@ namespace WordLight
 
         private TextSearch _search;
 
-        public TextViewWindow(IVsTextView view, IVsHiddenTextManager hiddenTextManager)
+        private IVsTextManager _textManager;
+        private int _searchMarkerTypeId;
+
+        public TextViewWindow(IVsTextView view, IVsHiddenTextManager hiddenTextManager, IVsTextManager textManager)
         {
             if (view == null) throw new ArgumentNullException("view");
             if (hiddenTextManager == null) throw new ArgumentNullException("hiddenTextManager");
+
+            _textManager = textManager;
+            Guid searchMarkerType = GuidConstants.SearchMarkerType;
+            _textManager.GetRegisteredMarkerTypeID(ref searchMarkerType, out _searchMarkerTypeId);
             
             _view = view;
             _hiddenTextManager = hiddenTextManager;
@@ -140,7 +147,7 @@ namespace WordLight
             {
                 using (Graphics g = Graphics.FromHwnd(this.Handle))
                 {
-                    DrawSearchMarks(g, _cachedSearchMarks);
+                    //DrawSearchMarks(g, _cachedSearchMarks);
                 }
             }
         }
@@ -201,10 +208,19 @@ namespace WordLight
             }
         }
 
+        private List<IVsTextLineMarker> searchMarkers = new List<IVsTextLineMarker>();
+
         private void SelectionChanged(string text)
         {
             _selectedText = text;
             _cachedSearchMarks = new List<TextSpan>();
+
+            foreach (var marker in searchMarkers)
+            {
+                marker.UnadviseClient();
+                marker.Invalidate();
+            }
+            searchMarkers.Clear();
 
             if (!string.IsNullOrEmpty(text))
             {
@@ -224,7 +240,14 @@ namespace WordLight
             }
 
             _cachedSearchMarks = _search.SearchOccurrences(_selectedText, viewRange);
-            _search.SearchOccurrencesDelayed(_selectedText, _buffer.CreateSpanForAllLines());
+            //_search.SearchOccurrencesDelayed(_selectedText, _buffer.CreateSpanForAllLines());
+
+            foreach (TextSpan mark in _cachedSearchMarks)
+            {
+                var marker = new IVsTextLineMarker[1];
+                _buffer.CreateLineMarker(_searchMarkerTypeId, mark.iStartLine, mark.iStartIndex, mark.iEndLine, mark.iEndIndex, null, marker);
+                searchMarkers.Add(marker[0]);
+            }
         }
 
         private void searcher_SearchCompleted(object sender, SearchCompletedEventArgs e)

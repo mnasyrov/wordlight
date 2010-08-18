@@ -34,6 +34,10 @@
   <ItemGroup>
     <Reference Include="Extensibility, Version=7.0.3300.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" />
     <Reference Include="Microsoft.VisualStudio.OLE.Interop, Version=7.1.40304.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" />
+    <Reference Include="Microsoft.VisualStudio.Shell.9.0, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL" />
+    <Reference Include="Microsoft.VisualStudio.Shell.Interop, Version=7.1.40304.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" />
+    <Reference Include="Microsoft.VisualStudio.Shell.Interop.8.0, Version=8.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" />
+    <Reference Include="Microsoft.VisualStudio.Shell.Interop.9.0, Version=9.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" />
     <Reference Include="Microsoft.VisualStudio.TextManager.Interop, Version=7.1.40304.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" />
     <Reference Include="System" />
     <Reference Include="System.Core">
@@ -52,6 +56,11 @@
     <Compile Include="Extensions\IVsHiddenTextManagerExtensions.cs" />
     <Compile Include="Extensions\IVsHiddenTextSessionExtensions.cs" />
     <Compile Include="Extensions\IVsTextLinesExtensions.cs" />
+    <Compile Include="GuidConstants.cs" />
+    <Compile Include="WordLightPackage.cs" />
+    <Compile Include="Search\SearchMarkerType.cs" />
+    <Compile Include="Search\SearchTextMarkerClient.cs" />
+    <Compile Include="Search\TextMarkerService.cs" />
     <Compile Include="Search\TextSearch.cs" />
     <Compile Include="Search\SearchCompletedEventArgs.cs" />
     <Compile Include="SettingRepository.cs" />
