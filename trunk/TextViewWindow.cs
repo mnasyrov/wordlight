@@ -176,45 +176,29 @@ namespace WordLight
         {
             if (e.ScrollInfo.IsVertical)
             {
-                IVsHiddenTextSession hiddenTextSession = _hiddenTextManager.GetHiddenTextSession(_buffer);
-
-                TextSpan entireSpan = _buffer.CreateSpanForAllLines();
-                IList<TextSpan> hiddenRegions = hiddenTextSession.GetAllHiddenRegions(entireSpan);
-
-                int viewLine = -1;
-                int textLine = -1;
-				
-                while (
-                    textLine <= entireSpan.iEndLine &&
-                    viewLine <= e.ScrollInfo.maxUnit &&
-                    viewLine <= e.ScrollInfo.firstVisibleUnit + e.ScrollInfo.visibleUnits)
+                IVsLayeredTextView viewLayer = _view as IVsLayeredTextView;
+                IVsTextLayer topLayer = null;
+                IVsTextLayer bufferLayer = _buffer as IVsTextLayer;
+                
+                if (viewLayer != null)
                 {
-                    textLine++;
+                    viewLayer.GetTopmostLayer(out topLayer);                    
+                }
 
-                    if (!IsTextLineHidden(textLine, hiddenRegions))
-                    {
-                        viewLine++;
-                        if (viewLine <= e.ScrollInfo.firstVisibleUnit)
-                            topTextLineInView = textLine;
-
-                        if (viewLine <= e.ScrollInfo.firstVisibleUnit + e.ScrollInfo.visibleUnits)
-                            bottomTextLineInView = textLine;
-                    }
+                if (topLayer != null && bufferLayer != null)
+                {
+                    int temp;
+                    topLayer.LocalLineIndexToDeeperLayer(bufferLayer, e.ScrollInfo.firstVisibleUnit, 0, out topTextLineInView, out temp);
+                    topLayer.LocalLineIndexToDeeperLayer(bufferLayer, e.ScrollInfo.firstVisibleUnit + e.ScrollInfo.visibleUnits, 0, out bottomTextLineInView, out temp);
+                    bottomTextLineInView++;
+                }
+                else
+                {
+                    TextSpan entireSpan = _buffer.CreateSpanForAllLines();
+                    topTextLineInView = entireSpan.iStartLine;
+                    bottomTextLineInView = entireSpan.iEndLine;
                 }
             }
-        }
-
-        private bool IsTextLineHidden(int line, IList<TextSpan> hiddenRegions)
-        {
-			if (hiddenRegions != null)
-			{
-				foreach (var hiddenSpan in hiddenRegions)
-				{
-					if (hiddenSpan.iStartLine <= line && line <= hiddenSpan.iEndLine)
-						return true;
-				}
-			}
-            return false;
         }
 
         private void SelectionChanged(string text)
