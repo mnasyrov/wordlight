@@ -54,7 +54,6 @@ namespace WordLight
         private IVsTextLines _buffer;
         private IVsHiddenTextManager _hiddenTextManager;
         private string _previousSelectedText;
-        private IList<TextSpan> _cachedSearchMarks = new List<TextSpan>();
 
         private int _lineHeight;
 
@@ -68,6 +67,9 @@ namespace WordLight
 
         private IVsTextManager _textManager;
         private int _searchMarkerTypeId;
+
+        private List<IVsTextLineMarker> searchMarkers = new List<IVsTextLineMarker>();
+        private object searchMarkersSyncLock = new object();
 
         public TextViewWindow(IVsTextView view, IVsHiddenTextManager hiddenTextManager, IVsTextManager textManager)
         {
@@ -123,10 +125,6 @@ namespace WordLight
                 case WM_XBUTTONDBLCLK:
                     HandleUserInput();
                     break;
-
-                case WM_PAINT:
-                    Paint();
-                    break;
             }
         }
 
@@ -138,44 +136,6 @@ namespace WordLight
             {
                 _previousSelectedText = text;
                 SelectionChanged(text);
-            }
-        }
-
-        private void Paint()
-        {
-            if (_cachedSearchMarks.Count > 0)
-            {
-                using (Graphics g = Graphics.FromHwnd(this.Handle))
-                {
-                    //DrawSearchMarks(g, _cachedSearchMarks);
-                }
-            }
-        }
-
-        private void Refresh()
-        {
-            InvalidateRect(Handle, IntPtr.Zero, true);
-            UpdateWindow(Handle);
-        }
-
-        private void DrawSearchMarks(Graphics g, IList<TextSpan> markList)
-        {
-            var rectList = new List<Rectangle>(markList.Count);
-
-            foreach (TextSpan mark in markList)
-            {
-                if (topTextLineInView <= mark.iEndLine && mark.iStartLine <= bottomTextLineInView)
-                {
-                    Rectangle rect = GetVisibleRectangle(mark, _view, g.VisibleClipBounds, _lineHeight);
-                    if (rect != Rectangle.Empty)
-                        rectList.Add((Rectangle)rect);
-                }
-            }
-
-            if (rectList.Count > 0)
-            {
-                Pen pen = new Pen(AddinSettings.Instance.SearchMarkOutlineColor);
-                g.DrawRectangles(pen, rectList.ToArray());
             }
         }
 
@@ -208,25 +168,24 @@ namespace WordLight
             }
         }
 
-        private List<IVsTextLineMarker> searchMarkers = new List<IVsTextLineMarker>();
-
         private void SelectionChanged(string text)
         {
             _selectedText = text;
-            _cachedSearchMarks = new List<TextSpan>();
 
-            foreach (var marker in searchMarkers)
+            lock (searchMarkersSyncLock)
             {
-                marker.UnadviseClient();
-                marker.Invalidate();
+                foreach (var marker in searchMarkers)
+                {
+                    marker.UnadviseClient();
+                    marker.Invalidate();
+                }
+                searchMarkers.Clear();
             }
-            searchMarkers.Clear();
 
             if (!string.IsNullOrEmpty(text))
             {
                 SearchWords();
             }
-            Refresh();
         }
 
         private void SearchWords()
@@ -239,14 +198,17 @@ namespace WordLight
                 viewRange.iEndIndex = 0;
             }
 
-            _cachedSearchMarks = _search.SearchOccurrences(_selectedText, viewRange);
-            //_search.SearchOccurrencesDelayed(_selectedText, _buffer.CreateSpanForAllLines());
+            IList<TextSpan> marks = _search.SearchOccurrences(_selectedText, viewRange);
+            _search.SearchOccurrencesDelayed(_selectedText, _buffer.CreateSpanForAllLines());
 
-            foreach (TextSpan mark in _cachedSearchMarks)
+            lock (searchMarkersSyncLock)
             {
-                var marker = new IVsTextLineMarker[1];
-                _buffer.CreateLineMarker(_searchMarkerTypeId, mark.iStartLine, mark.iStartIndex, mark.iEndLine, mark.iEndIndex, null, marker);
-                searchMarkers.Add(marker[0]);
+                foreach (TextSpan mark in marks)
+                {
+                    var marker = new IVsTextLineMarker[1];
+                    _buffer.CreateLineMarker(_searchMarkerTypeId, mark.iStartLine, mark.iStartIndex, mark.iEndLine, mark.iEndIndex, null, marker);
+                    searchMarkers.Add(marker[0]);
+                }
             }
         }
 
@@ -254,39 +216,16 @@ namespace WordLight
         {
             if (e.Text == _selectedText)
             {
-                _cachedSearchMarks = e.Marks;
-                Refresh();
+                lock (searchMarkersSyncLock)
+                {
+                    foreach (TextSpan mark in e.Marks)
+                    {
+                        var marker = new IVsTextLineMarker[1];
+                        _buffer.CreateLineMarker(_searchMarkerTypeId, mark.iStartLine, mark.iStartIndex, mark.iEndLine, mark.iEndIndex, null, marker);
+                        searchMarkers.Add(marker[0]);
+                    }
+                }
             }
-        }
-
-        private Rectangle GetVisibleRectangle(TextSpan span, IVsTextView view, RectangleF visibleClipBounds, int lineHeight)
-        {
-            Rectangle rect = Rectangle.Empty;
-
-            Point startPoint = view.GetPointOfLineColumn(span.iStartLine, span.iStartIndex);
-            if (startPoint == Point.Empty)
-                return rect;
-
-            Point endPoint = view.GetPointOfLineColumn(span.iEndLine, span.iEndIndex);
-            if (endPoint == Point.Empty)
-                return rect;
-
-            bool isVisible =
-                visibleClipBounds.Left <= endPoint.X && startPoint.X <= visibleClipBounds.Right
-                && visibleClipBounds.Top <= endPoint.Y && startPoint.Y <= visibleClipBounds.Bottom;
-
-            if (isVisible)
-            {
-                int height = endPoint.Y - startPoint.Y + lineHeight;
-                int width = endPoint.X - startPoint.X;
-
-                int x = startPoint.X;
-                int y = startPoint.Y;
-
-                rect = new Rectangle(x, y, width, height);
-            }
-
-            return rect;
         }
     }
 }
