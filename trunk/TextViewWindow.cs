@@ -195,7 +195,7 @@ namespace WordLight
             }
             if (rectList.Count > 0)
             {
-                Pen pen = new Pen(AddinSettings.Instance.SearchMarkOutlineColor);
+                Pen pen = new Pen(AddinSettings.Instance.SearchMarkBorderColor);
                 g.DrawRectangles(pen, rectList.ToArray());
             }
         }
