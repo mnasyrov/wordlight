@@ -64,6 +64,7 @@ namespace WordLight
 
         private int topTextLineInView = 0;
         private int bottomTextLineInView = 0;
+        private int leftTextColumnInView = 0;
 
         private TextSearch _search;
 
@@ -176,12 +177,21 @@ namespace WordLight
             UpdateWindow(Handle);
         }
 
+        private int _leftMarginWidth = 0;
+
         private void DrawSearchMarks(Graphics g)
         {
+            //Fix for clip bounds: take into account left margin pane during horizontal scrolling.
+            Point leftTop = _view.GetPointOfLineColumn(topTextLineInView, leftTextColumnInView);
+            if (!leftTop.IsEmpty)
+                _leftMarginWidth = leftTop.X;
+            RectangleF visibleClipBounds = new RectangleF(
+                _leftMarginWidth, g.VisibleClipBounds.Y, g.VisibleClipBounds.Width, g.VisibleClipBounds.Height);            
+
             List<Rectangle> rectList;
             lock (_searchMarksSyncLock)
             {
-                rectList = GetRectanglesForVisibleMarks(_searchMarks, g.VisibleClipBounds);
+                rectList = GetRectanglesForVisibleMarks(_searchMarks, visibleClipBounds);
             }
             if (rectList.Count > 0)
             {
@@ -209,6 +219,10 @@ namespace WordLight
 
         private void ScrollChangedHandler(object sender, ViewScrollChangedEventArgs e)
         {
+            if (e.ScrollInfo.IsHorizontal)
+            {
+                leftTextColumnInView = e.ScrollInfo.firstVisibleUnit;
+            }
             if (e.ScrollInfo.IsVertical)
             {
                 IVsLayeredTextView viewLayer = _view as IVsLayeredTextView;
@@ -300,11 +314,11 @@ namespace WordLight
 
             if (isVisible)
             {
-                int height = endPoint.Y - startPoint.Y + lineHeight;
-                int width = endPoint.X - startPoint.X;
-
-                int x = startPoint.X;
+                int x = Math.Max(startPoint.X, (int)visibleClipBounds.Left);
                 int y = startPoint.Y;
+
+                int height = endPoint.Y - y + lineHeight;
+                int width = endPoint.X - x;                
 
                 rect = new Rectangle(x, y, width, height);
             }
