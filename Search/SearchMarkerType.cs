@@ -22,30 +22,27 @@ namespace WordLight.Search
 
 		public int GetBehaviorFlags(out uint pdwFlags)
 		{
-			pdwFlags = (uint)MARKERBEHAVIORFLAGS.MB_DEFAULT;
+            pdwFlags = (uint)(MARKERBEHAVIORFLAGS.MB_DEFAULT);
 			return VSConstants.S_OK;
 		}
 
 		public int GetDefaultColors(COLORINDEX[] piForeground, COLORINDEX[] piBackground)
 		{
-			System.Diagnostics.Trace.WriteLine("*** GetDefaultColors");
-			piForeground[0] = COLORINDEX.CI_DARKGREEN;
+            piForeground[0] = COLORINDEX.CI_USERTEXT_FG;
 			piBackground[0] = COLORINDEX.CI_USERTEXT_BK;
 			return VSConstants.S_OK;
 		}
 
 		public int GetDefaultFontFlags(out uint pdwFontFlags)
 		{
-			System.Diagnostics.Trace.WriteLine("*** GetDefaultFontFlags");
 			pdwFontFlags = (uint)FONTFLAGS.FF_DEFAULT;
 			return VSConstants.S_OK;
 		}
 
 		public int GetDefaultLineStyle(COLORINDEX[] piLineColor, LINESTYLE[] piLineIndex)
 		{
-			System.Diagnostics.Trace.WriteLine("*** GetDefaultLineStyle");
-			piLineIndex[0] = LINESTYLE.LI_DOTTED;
-			piLineColor[0] = COLORINDEX.CI_DARKGREEN;
+			piLineIndex[0] = LINESTYLE.LI_SOLID;
+            piLineColor[0] = COLORINDEX.CI_MAGENTA;
 			return VSConstants.S_OK;
 		}
 
@@ -57,7 +54,6 @@ namespace WordLight.Search
 
 		public int GetVisualStyle(out uint pdwVisualFlags)
 		{
-			System.Diagnostics.Trace.WriteLine("*** GetVisualStyle");
 			pdwVisualFlags = (uint)(MARKERVISUAL.MV_COLOR_ALWAYS | MARKERVISUAL.MV_BORDER);
 			return VSConstants.S_OK;
 		}
@@ -68,19 +64,19 @@ namespace WordLight.Search
 
 		public int GetCanonicalName(out string pbstrNonLocalizeName)
 		{
-			pbstrNonLocalizeName = "ColorTest Marker";
+			pbstrNonLocalizeName = "WordLight Search Marker";
 			return VSConstants.S_OK;
 		}
 
 		public int GetDescription(out string pbstrDesc)
 		{
-			pbstrDesc = "ColorTest Marker";
+            pbstrDesc = "WordLight Search Marker";
 			return VSConstants.S_OK;
 		}
 
 		public int GetDisplayName(out string pbstrDisplayName)
 		{
-			pbstrDisplayName = "ColorTest Marker";
+            pbstrDisplayName = "WordLight Search Marker";
 			return VSConstants.S_OK;
 		}
 
