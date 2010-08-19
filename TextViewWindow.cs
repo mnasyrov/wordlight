@@ -54,7 +54,8 @@ namespace WordLight
         private IVsTextLines _buffer;
         private IVsHiddenTextManager _hiddenTextManager;
         private string _previousSelectedText;
-        private IList<TextSpan> _cachedSearchMarks = new List<TextSpan>();
+        private List<TextSpan> _searchMarks = new List<TextSpan>();
+        private object _searchMarksSyncLock = new object(); 
 
         private int _lineHeight;
 
@@ -136,40 +137,74 @@ namespace WordLight
 
         private void Paint()
         {
-            if (_cachedSearchMarks.Count > 0)
+            using (Graphics g = Graphics.FromHwnd(this.Handle))
             {
-                using (Graphics g = Graphics.FromHwnd(this.Handle))
-                {
-                    DrawSearchMarks(g, _cachedSearchMarks);
-                }
+                DrawSearchMarks(g);
             }
         }
 
-        private void Refresh()
+        private void RepaintWindow()
         {
             InvalidateRect(Handle, IntPtr.Zero, true);
             UpdateWindow(Handle);
         }
 
-        private void DrawSearchMarks(Graphics g, IList<TextSpan> markList)
+        private void UpdateVisibleMarks()
         {
-            var rectList = new List<Rectangle>(markList.Count);
-
-            foreach (TextSpan mark in markList)
+            RectangleF maxClipBounds = new RectangleF(0, 0, float.MaxValue, float.MaxValue);
+            List<Rectangle> rectList;
+            lock (_searchMarksSyncLock)
             {
-                if (topTextLineInView <= mark.iEndLine && mark.iStartLine <= bottomTextLineInView)
+                rectList = GetRectanglesForVisibleMarks(_searchMarks, maxClipBounds);
+            }
+            if (rectList.Count > 0)
+            {
+                foreach (var rect in rectList)
                 {
-                    Rectangle rect = GetVisibleRectangle(mark, _view, g.VisibleClipBounds, _lineHeight);
-                    if (rect != Rectangle.Empty)
-                        rectList.Add((Rectangle)rect);
+                    IntPtr pRect = Marshal.AllocHGlobal(Marshal.SizeOf(rect));
+                    try
+                    {
+                        Marshal.StructureToPtr(rect, pRect, false);
+                        InvalidateRect(Handle, pRect, false);
+                    }
+                    finally
+                    {
+                        Marshal.FreeHGlobal(pRect);
+                    }
                 }
             }
+            UpdateWindow(Handle);
+        }
 
+        private void DrawSearchMarks(Graphics g)
+        {
+            List<Rectangle> rectList;
+            lock (_searchMarksSyncLock)
+            {
+                rectList = GetRectanglesForVisibleMarks(_searchMarks, g.VisibleClipBounds);
+            }
             if (rectList.Count > 0)
             {
                 Pen pen = new Pen(AddinSettings.Instance.SearchMarkOutlineColor);
                 g.DrawRectangles(pen, rectList.ToArray());
             }
+        }
+
+        private List<Rectangle> GetRectanglesForVisibleMarks(IList<TextSpan> marks, RectangleF visibleClipBounds)
+        {
+            List<Rectangle> rectList = new List<Rectangle>(marks.Count);
+
+                foreach (TextSpan mark in marks)
+                {
+                    if (topTextLineInView <= mark.iEndLine && mark.iStartLine <= bottomTextLineInView)
+                    {
+                        Rectangle rect = GetVisibleRectangle(mark, _view, visibleClipBounds, _lineHeight);
+                        if (rect != Rectangle.Empty)
+                            rectList.Add((Rectangle)rect);
+                    }
+                }
+
+            return rectList;
         }
 
         private void ScrollChangedHandler(object sender, ViewScrollChangedEventArgs e)
@@ -204,13 +239,16 @@ namespace WordLight
         private void SelectionChanged(string text)
         {
             _selectedText = text;
-            _cachedSearchMarks = new List<TextSpan>();
+            lock (_searchMarksSyncLock)
+            {
+                _searchMarks.Clear();
+            }
 
             if (!string.IsNullOrEmpty(text))
             {
                 SearchWords();
             }
-            Refresh();
+            RepaintWindow();
         }
 
         private void SearchWords()
@@ -223,7 +261,11 @@ namespace WordLight
                 viewRange.iEndIndex = 0;
             }
 
-            _cachedSearchMarks = _search.SearchOccurrences(_selectedText, viewRange);
+            var marks = _search.SearchOccurrences(_selectedText, viewRange);
+            lock (_searchMarksSyncLock)
+            {
+                _searchMarks.AddRange(marks);
+            }
             _search.SearchOccurrencesDelayed(_selectedText, _buffer.CreateSpanForAllLines());
         }
 
@@ -231,8 +273,12 @@ namespace WordLight
         {
             if (e.Text == _selectedText)
             {
-                _cachedSearchMarks = e.Marks;
-                Refresh();
+                lock (_searchMarksSyncLock)
+                {
+                    _searchMarks.Clear();
+                    _searchMarks.AddRange(e.Marks);
+                }
+                UpdateVisibleMarks();
             }
         }
 
