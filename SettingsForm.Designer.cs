@@ -77,7 +77,7 @@
             this.MinimizeBox = false;
             this.Name = "SettingsForm";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
-            this.Text = "WordLight";
+            this.Text = "WordLight settings";
             this.ResumeLayout(false);
 
         }

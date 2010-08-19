@@ -24,8 +24,8 @@ namespace WordLight
         private SettingRepository _repository;
 
         [Category("Search marks")]
-        [DisplayName("Outline color"), Description("Defines outline color for search marks")]
-        public Color SearchMarkOutlineColor { get; set; }
+        [DisplayName("Border color"), Description("Defines a color for a border of a search mark")]
+        public Color SearchMarkBorderColor { get; set; }
 
         protected AddinSettings()
         {
@@ -34,7 +34,7 @@ namespace WordLight
 
         private void ResetToDefaults()
         {
-            SearchMarkOutlineColor = Color.FromArgb(255, 105, 180); //Hot pink
+            SearchMarkBorderColor = Color.FromArgb(255, 105, 180); //Hot pink
         }
 
         public void Load(SettingRepository repository)
@@ -51,7 +51,7 @@ namespace WordLight
             SettingRepository settings = _repository;
             if (settings != null)
             {
-                SearchMarkOutlineColor = settings.GetColorSetting("SearchMarkOutlineColor", SearchMarkOutlineColor);
+                SearchMarkBorderColor = settings.GetColorSetting("SearchMarkBorderColor", SearchMarkBorderColor);
             }
         }
 
@@ -60,7 +60,7 @@ namespace WordLight
             SettingRepository settings = _repository;
             if (settings != null)
             {
-                settings.SetColorSetting("SearchMarkOutlineColor", SearchMarkOutlineColor);
+                settings.SetColorSetting("SearchMarkBorderColor", SearchMarkBorderColor);
             }
         }
     }    
