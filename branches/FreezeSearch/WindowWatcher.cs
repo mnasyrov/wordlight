@@ -52,6 +52,14 @@ namespace WordLight
 				_textViews.Add(windowHandle, view);
 				view.GotFocus += new EventHandler(ViewGotFocusHandler);
 				view.LostFocus += new EventHandler(ViewLostFocusHandler);
+
+				lock (_currentViewSyncRoot)
+				{
+					if (_textViews.Count == 1)
+					{
+						_currentView = view;
+					}
+				}
 			}
 		}
 
@@ -112,12 +120,12 @@ namespace WordLight
 			}
 		}
 
-		public void FreezeSearch()
+		public void FreezeSearch(int searchGroup)
 		{
 			lock (_currentViewSyncRoot)
 			{
 				if (_currentView != null)
-					_currentView.FreezeSearch();
+					_currentView.FreezeSearch(searchGroup);
 			}
 		}
     }

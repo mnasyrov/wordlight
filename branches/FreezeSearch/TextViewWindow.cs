@@ -62,6 +62,7 @@ namespace WordLight
         private string _currentSelectedText;
 		private string _selectedText;
         private TextViewEventAdapter _viewEvents;
+		private TextStreamEventAdapter _textStreamEvents;
 
         private int topTextLineInView = 0;
         private int bottomTextLineInView = 0;
@@ -84,6 +85,8 @@ namespace WordLight
 
             _lineHeight = _view.GetLineHeight();
             _buffer = view.GetBuffer();
+			_textStreamEvents = new TextStreamEventAdapter(_buffer);
+			_textStreamEvents.StreamTextChanged += new EventHandler(StreamTextChangedHandler);
 
             _search = new TextSearch(_buffer);
             _search.SearchCompleted += new EventHandler<SearchCompletedEventArgs>(searcher_SearchCompleted);            
@@ -98,6 +101,9 @@ namespace WordLight
 
         public void Dispose()
         {
+			_textStreamEvents.StreamTextChanged -= StreamTextChangedHandler;
+			_textStreamEvents.Dispose();
+
 			_viewEvents.GotFocus -= GotFocusHandler;
 			_viewEvents.LostFocus -= LostFocusHandler;			
             _viewEvents.ScrollChanged -= ScrollChangedHandler;
@@ -260,6 +266,11 @@ namespace WordLight
             }
         }
 
+		private void StreamTextChangedHandler(object sender, EventArgs e)
+		{
+			SelectionChanged(_currentSelectedText);
+		}
+
         private void SelectionChanged(string text)
         {
 			_currentSelectedText = text;
@@ -353,8 +364,10 @@ namespace WordLight
 			if (evt != null) evt(this, EventArgs.Empty);
 		}
 
-		public void FreezeSearch()
+		public void FreezeSearch(int searchGroup)
 		{
+			System.Diagnostics.Trace.WriteLine("Current selected text: " + _currentSelectedText);
+
 			_isFreezedSearch = !string.IsNullOrEmpty(_currentSelectedText);
 			SelectionChanged(_currentSelectedText);
 		}
