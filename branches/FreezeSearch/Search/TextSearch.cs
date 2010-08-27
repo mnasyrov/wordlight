@@ -80,33 +80,35 @@ namespace WordLight.Search
         {
             List<TextSpan> marks = new List<TextSpan>();
 
-            string text = _buffer.GetText();
+			if (!string.IsNullOrEmpty(value))
+			{
+				string text = _buffer.GetText();
+				if (!string.IsNullOrEmpty(text))
+				{
+					int searchStart = _buffer.GetPositionOfLineIndex(searchRange.iStartLine, searchRange.iStartIndex);
+					int searchEnd = _buffer.GetPositionOfLineIndex(searchRange.iEndLine, searchRange.iEndIndex);
 
-            if (!string.IsNullOrEmpty(text))
-            {
-                int searchStart = _buffer.GetPositionOfLineIndex(searchRange.iStartLine, searchRange.iStartIndex);
-                int searchEnd = _buffer.GetPositionOfLineIndex(searchRange.iEndLine, searchRange.iEndIndex);
+					int length = value.Length;
 
-                int length = value.Length;
+					if (searchEnd > searchStart && length > 0)
+					{
+						List<int> positions = SearchOccurrencesInText(text, value, searchStart, searchEnd);
 
-                if (searchEnd > searchStart && length > 0)
-                {
-                    List<int> positions = SearchOccurrencesInText(text, value, searchStart, searchEnd);
+						foreach (int pos in positions)
+						{
+							TextSpan span = new TextSpan();
+							_buffer.GetLineIndexOfPosition(pos, out span.iStartLine, out span.iStartIndex);
+							_buffer.GetLineIndexOfPosition(pos + length, out span.iEndLine, out span.iEndIndex);
 
-                    foreach (int pos in positions)
-                    {
-                        TextSpan span = new TextSpan();
-                        _buffer.GetLineIndexOfPosition(pos, out span.iStartLine, out span.iStartIndex);
-                        _buffer.GetLineIndexOfPosition(pos + length, out span.iEndLine, out span.iEndIndex);
-
-                        //Do not process multi-line selections
-                        if (span.iStartLine == span.iEndLine)
-                        {
-                            marks.Add(span);
-                        }
-                    }
-                }
-            }
+							//Do not process multi-line selections
+							if (span.iStartLine == span.iEndLine)
+							{
+								marks.Add(span);
+							}
+						}
+					}
+				}
+			}
 
             return marks;
         }
@@ -142,7 +144,7 @@ namespace WordLight.Search
             IList<TextSpan> marks = SearchOccurrences(value, searchRange);
 
             EventHandler<SearchCompletedEventArgs> evt = SearchCompleted;
-            if (evt != null && marks.Count > 0)
+            if (evt != null)
             {
                 evt(this, new SearchCompletedEventArgs(value, searchRange, marks));
             }
@@ -154,8 +156,8 @@ namespace WordLight.Search
 
         public void SearchOccurrencesAsync(string value, TextSpan searchRange)
         {
-            if (!string.IsNullOrEmpty(value))
-            {
+            //if (!string.IsNullOrEmpty(value))
+            //{
                 lock (_asyncJobsSyncRoot)
                 {
                     _asyncJobs.Enqueue(new SearchJob() { Value = value, Range = searchRange });
@@ -165,7 +167,7 @@ namespace WordLight.Search
                 {
                     ThreadPool.QueueUserWorkItem(new WaitCallback(SearchThreadWorker));
                 }
-            }
+            //}
         }
 
         private void SearchThreadWorker(object stateInfo)

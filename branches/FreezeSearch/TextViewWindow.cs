@@ -54,23 +54,37 @@ namespace WordLight
         private IVsTextLines _buffer;
         private IVsHiddenTextManager _hiddenTextManager;
         private string _previousSelectedText;
-        private List<TextSpan> _searchMarks = new List<TextSpan>();
-        private object _searchMarksSyncLock = new object(); 
+
+		private List<TextSpan> _searchMarks = new List<TextSpan>();
+        private object _searchMarksSyncLock = new object();
+
+		private List<TextSpan> _freezeMarks1 = new List<TextSpan>();
+		private object _freezeMarks1SyncLock = new object();
+
+		private List<TextSpan> _freezeMarks2 = new List<TextSpan>();
+		private object _freezeMarks2SyncLock = new object();
+
+		private List<TextSpan> _freezeMarks3 = new List<TextSpan>();
+		private object _freezeMarks3SyncLock = new object(); 
 
         private int _lineHeight;
 
-        private string _currentSelectedText;
 		private string _selectedText;
         private TextViewEventAdapter _viewEvents;
 		private TextStreamEventAdapter _textStreamEvents;
-
-        private int topTextLineInView = 0;
-        private int bottomTextLineInView = 0;
+		        
         private int leftTextColumnInView = 0;
 
         private TextSearch _search;
+		private TextSearch _freezeSearch1;
+		private TextSearch _freezeSearch2;
+		private TextSearch _freezeSearch3;
 
-		private bool _isFreezedSearch = false;
+		private string _freezeText1;
+		private string _freezeText2;
+		private string _freezeText3;
+
+		private TextSpan _viewRange = new TextSpan();
 
 		public event EventHandler GotFocus;
 		public event EventHandler LostFocus;
@@ -89,7 +103,16 @@ namespace WordLight
 			_textStreamEvents.StreamTextChanged += new EventHandler(StreamTextChangedHandler);
 
             _search = new TextSearch(_buffer);
-            _search.SearchCompleted += new EventHandler<SearchCompletedEventArgs>(searcher_SearchCompleted);            
+            _search.SearchCompleted += new EventHandler<SearchCompletedEventArgs>(searcher_SearchCompleted);
+
+			_freezeSearch1 = new TextSearch(_buffer);
+			_freezeSearch1.SearchCompleted += new EventHandler<SearchCompletedEventArgs>(FreezeSearchCompleted1);
+
+			_freezeSearch2 = new TextSearch(_buffer);
+			_freezeSearch2.SearchCompleted += new EventHandler<SearchCompletedEventArgs>(FreezeSearchCompleted2);
+
+			_freezeSearch3 = new TextSearch(_buffer);
+			_freezeSearch3.SearchCompleted += new EventHandler<SearchCompletedEventArgs>(FreezeSearchCompleted3);
 
             _viewEvents = new TextViewEventAdapter(_view);
             _viewEvents.ScrollChanged += new EventHandler<ViewScrollChangedEventArgs>(ScrollChangedHandler);
@@ -198,7 +221,7 @@ namespace WordLight
         private void DrawSearchMarks(Graphics g)
         {
             //Fix for clip bounds: take into account left margin pane during horizontal scrolling.
-            Point leftTop = _view.GetPointOfLineColumn(topTextLineInView, leftTextColumnInView);
+            Point leftTop = _view.GetPointOfLineColumn(_viewRange.iStartLine, leftTextColumnInView);
             if (!leftTop.IsEmpty)
                 _leftMarginWidth = leftTop.X;
             RectangleF visibleClipBounds = new RectangleF(
@@ -209,11 +232,46 @@ namespace WordLight
             {
                 rectList = GetRectanglesForVisibleMarks(_searchMarks, visibleClipBounds);
             }
+
+			List<Rectangle> freezed1;
+			lock (_freezeMarks1SyncLock)
+			{
+				freezed1 = GetRectanglesForVisibleMarks(_freezeMarks1, visibleClipBounds);
+			}
+
+			List<Rectangle> freezed2;
+			lock (_freezeMarks2SyncLock)
+			{
+				freezed2 = GetRectanglesForVisibleMarks(_freezeMarks2, visibleClipBounds);
+			}
+
+			List<Rectangle> freezed3;
+			lock (_freezeMarks3SyncLock)
+			{
+				freezed3 = GetRectanglesForVisibleMarks(_freezeMarks3, visibleClipBounds);
+			}
+
             if (rectList.Count > 0)
             {
                 Pen pen = new Pen(AddinSettings.Instance.SearchMarkBorderColor);
                 g.DrawRectangles(pen, rectList.ToArray());
             }
+
+			if (freezed1.Count > 0)
+			{
+				Pen pen = new Pen(Color.Blue);
+				g.DrawRectangles(pen, freezed1.ToArray());
+			}
+			if (freezed2.Count > 0)
+			{
+				Pen pen = new Pen(Color.Green);
+				g.DrawRectangles(pen, freezed2.ToArray());
+			}
+			if (freezed3.Count > 0)
+			{
+				Pen pen = new Pen(Color.Red);
+				g.DrawRectangles(pen, freezed3.ToArray());
+			}
         }
 
         private List<Rectangle> GetRectanglesForVisibleMarks(IList<TextSpan> marks, RectangleF visibleClipBounds)
@@ -222,7 +280,7 @@ namespace WordLight
 
                 foreach (TextSpan mark in marks)
                 {
-                    if (topTextLineInView <= mark.iEndLine && mark.iStartLine <= bottomTextLineInView)
+                    if (_viewRange.iStartLine <= mark.iEndLine && mark.iStartLine <= _viewRange.iEndLine)
                     {
                         Rectangle rect = GetVisibleRectangle(mark, _view, visibleClipBounds, _lineHeight);
                         if (rect != Rectangle.Empty)
@@ -241,6 +299,9 @@ namespace WordLight
             }
             if (e.ScrollInfo.IsVertical)
             {
+				int topTextLineInView = 0;
+				int bottomTextLineInView = 0;
+
                 IVsLayeredTextView viewLayer = _view as IVsLayeredTextView;
                 IVsTextLayer topLayer = null;
                 IVsTextLayer bufferLayer = _buffer as IVsTextLayer;
@@ -263,21 +324,44 @@ namespace WordLight
                     topTextLineInView = entireSpan.iStartLine;
                     bottomTextLineInView = entireSpan.iEndLine;
                 }
+
+				TextSpan viewRange = _buffer.CreateSpanForAllLines();
+				viewRange.iStartLine = topTextLineInView;
+				if (bottomTextLineInView < viewRange.iEndLine)
+				{
+					viewRange.iEndLine = bottomTextLineInView;
+					viewRange.iEndIndex = 0;
+				}
+
+				_viewRange = viewRange;
             }
         }
 
 		private void StreamTextChangedHandler(object sender, EventArgs e)
 		{
-			SelectionChanged(_currentSelectedText);
+			RefreshFreezeGroups();
+		}
+
+		private void RefreshFreezeGroups()
+		{
+			TextSpan document = _buffer.CreateSpanForAllLines();
+
+			_freezeMarks1.Clear();
+			_freezeMarks1.AddRange(_freezeSearch1.SearchOccurrences(_freezeText1, _viewRange));
+			_freezeSearch1.SearchOccurrencesDelayed(_freezeText1, document);
+
+			_freezeMarks2.Clear();
+			_freezeMarks2.AddRange(_freezeSearch2.SearchOccurrences(_freezeText2, _viewRange));
+			_freezeSearch2.SearchOccurrencesDelayed(_freezeText2, document);
+
+			_freezeMarks3.Clear();
+			_freezeMarks3.AddRange(_freezeSearch3.SearchOccurrences(_freezeText3, _viewRange));
+			_freezeSearch3.SearchOccurrencesDelayed(_freezeText3, document);
 		}
 
         private void SelectionChanged(string text)
         {
-			_currentSelectedText = text;
-			if (!_isFreezedSearch)
-			{
-				_selectedText = text;
-			}
+			_selectedText = text;
 
             lock (_searchMarksSyncLock)
             {
@@ -286,27 +370,14 @@ namespace WordLight
 
 			if (!string.IsNullOrEmpty(_selectedText))
             {
-                SearchWords();
+				var marks = _search.SearchOccurrences(_selectedText, _viewRange);
+				lock (_searchMarksSyncLock)
+				{
+					_searchMarks.AddRange(marks);
+				}
+				_search.SearchOccurrencesDelayed(_selectedText, _buffer.CreateSpanForAllLines());
             }
             RepaintWindow();
-        }
-
-        private void SearchWords()
-        {
-            TextSpan viewRange = _buffer.CreateSpanForAllLines();
-            viewRange.iStartLine = topTextLineInView;
-			if (bottomTextLineInView < viewRange.iEndLine)
-            {
-                viewRange.iEndLine = bottomTextLineInView;
-                viewRange.iEndIndex = 0;
-            }
-
-            var marks = _search.SearchOccurrences(_selectedText, viewRange);
-            lock (_searchMarksSyncLock)
-            {
-                _searchMarks.AddRange(marks);
-            }
-            _search.SearchOccurrencesDelayed(_selectedText, _buffer.CreateSpanForAllLines());
         }
 
         private void searcher_SearchCompleted(object sender, SearchCompletedEventArgs e)
@@ -321,6 +392,36 @@ namespace WordLight
                 UpdateVisibleMarks();
             }
         }
+
+		private void FreezeSearchCompleted1(object sender, SearchCompletedEventArgs e)
+		{
+			lock (_freezeMarks1SyncLock)
+			{
+				_freezeMarks1.Clear();
+				_freezeMarks1.AddRange(e.Marks);
+			}
+			RepaintWindow();
+		}
+
+		private void FreezeSearchCompleted2(object sender, SearchCompletedEventArgs e)
+		{
+			lock (_freezeMarks2SyncLock)
+			{
+				_freezeMarks2.Clear();
+				_freezeMarks2.AddRange(e.Marks);
+			}
+			RepaintWindow();
+		}
+
+		private void FreezeSearchCompleted3(object sender, SearchCompletedEventArgs e)
+		{
+			lock (_freezeMarks3SyncLock)
+			{
+				_freezeMarks3.Clear();
+				_freezeMarks3.AddRange(e.Marks);
+			}
+			RepaintWindow();
+		}
 
         private Rectangle GetVisibleRectangle(TextSpan span, IVsTextView view, RectangleF visibleClipBounds, int lineHeight)
         {
@@ -364,12 +465,21 @@ namespace WordLight
 			if (evt != null) evt(this, EventArgs.Empty);
 		}
 
-		public void FreezeSearch(int searchGroup)
+		public void FreezeSearch(int group)
 		{
-			System.Diagnostics.Trace.WriteLine("Current selected text: " + _currentSelectedText);
-
-			_isFreezedSearch = !string.IsNullOrEmpty(_currentSelectedText);
-			SelectionChanged(_currentSelectedText);
+			switch (group)
+			{
+				case 1 :
+					_freezeText1 = _selectedText;
+					break;
+				case 2:
+					_freezeText2 = _selectedText;
+					break;
+				case 3:
+					_freezeText3 = _selectedText;
+					break;
+			}
+			RefreshFreezeGroups();
 		}
     }
 }
