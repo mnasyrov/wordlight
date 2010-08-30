@@ -17,6 +17,28 @@ namespace WordLight
 {
     public class TextViewWindow : NativeWindow, IDisposable
     {
+        [StructLayout(LayoutKind.Sequential)]
+        private struct RECT
+        {
+            public int Left;
+            public int Top;
+            public int Right;
+            public int Bottom;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct PAINTSTRUCT
+        {
+            public IntPtr hdc;
+            public bool fErase;
+            public RECT rcPaint;
+            public bool fRestore;
+            public bool fIncUpdate;
+
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 32)]
+            public byte[] rgbReserved;
+        }
+
         #region WinProc Messages
 
         private const int WM_KEYDOWN = 0x0100;
@@ -48,6 +70,18 @@ namespace WordLight
         [DllImport("user32.dll", SetLastError = false)]
         private static extern bool InvalidateRect(IntPtr hWnd, IntPtr rect, bool erase);
 
+        [DllImport("user32.dll", SetLastError = false)]
+        private static extern bool ValidateRect(IntPtr hWnd, IntPtr rect);
+
+        [DllImport("user32.dll", SetLastError = false)]
+        private static extern bool GetUpdateRect(IntPtr hWnd, IntPtr rect, bool erase);
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr BeginPaint(IntPtr hWnd, ref PAINTSTRUCT lpPaint);
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr EndPaint(IntPtr hWnd, ref PAINTSTRUCT lpPaint);
+
         #endregion
         
         private IVsTextView _view;
@@ -55,17 +89,10 @@ namespace WordLight
         private IVsHiddenTextManager _hiddenTextManager;
         private string _previousSelectedText;
 
-		private List<TextSpan> _searchMarks = new List<TextSpan>();
-        private object _searchMarksSyncLock = new object();
-
-		private List<TextSpan> _freezeMarks1 = new List<TextSpan>();
-		private object _freezeMarks1SyncLock = new object();
-
-		private List<TextSpan> _freezeMarks2 = new List<TextSpan>();
-		private object _freezeMarks2SyncLock = new object();
-
-		private List<TextSpan> _freezeMarks3 = new List<TextSpan>();
-		private object _freezeMarks3SyncLock = new object(); 
+        private MarkCollection _searchMarks = new MarkCollection();
+        private MarkCollection _freezeMarks1 = new MarkCollection();
+        private MarkCollection _freezeMarks2 = new MarkCollection();
+        private MarkCollection _freezeMarks3 = new MarkCollection();
 
         private int _lineHeight;
 
@@ -137,8 +164,6 @@ namespace WordLight
 
         protected override void WndProc(ref Message m)
         {
-            base.WndProc(ref m);
-
             switch (m.Msg)
             {
                 case WM_KEYUP:
@@ -155,11 +180,22 @@ namespace WordLight
                 case WM_MBUTTONDBLCLK:
                 case WM_RBUTTONDBLCLK:
                 case WM_XBUTTONDBLCLK:
+                    base.WndProc(ref m);
                     HandleUserInput();
                     break;
 
+                case WM_ERASEBKGND:
+                    //m.Msg = 0;
+                    base.WndProc(ref m);
+                    break;
+
                 case WM_PAINT:
+                    base.WndProc(ref m);                    
                     Paint();
+                    break;
+
+                default:
+                    base.WndProc(ref m);
                     break;
             }
         }
@@ -177,10 +213,30 @@ namespace WordLight
 
         private void Paint()
         {
-            using (Graphics g = Graphics.FromHwnd(this.Handle))
+            PAINTSTRUCT ps = new PAINTSTRUCT();
+            IntPtr hdc = BeginPaint(Handle, ref ps);
+
+            if (hdc != IntPtr.Zero)
             {
-                DrawSearchMarks(g);
+                //using (Graphics g = Graphics.FromHdc(hdc))
+                using (Graphics g = Graphics.FromHwnd(Handle))
+                {
+                    DrawSearchMarks(g);
+                }
             }
+
+            EndPaint(Handle, ref ps);
+
+            //IntPtr pRect = Marshal.AllocHGlobal(Marshal.SizeOf(ps.rcPaint));
+            //try
+            //{
+            //    Marshal.StructureToPtr(ps.rcPaint, pRect, false);
+            //    InvalidateRect(Handle, pRect, false);
+            //}
+            //finally
+            //{
+            //    Marshal.FreeHGlobal(pRect);
+            //}
         }
 
         private void RepaintWindow()
@@ -189,19 +245,24 @@ namespace WordLight
             UpdateWindow(Handle);
         }
 
-        private void UpdateVisibleMarks()
+        private void UpdateVisibleMarks(MarkCollection marks)
         {
             RectangleF maxClipBounds = new RectangleF(0, 0, float.MaxValue, float.MaxValue);
-            List<Rectangle> rectList;
-            lock (_searchMarksSyncLock)
-            {
-                rectList = GetRectanglesForVisibleMarks(_searchMarks, maxClipBounds);
-            }
+            
+            List<Rectangle> rectList = marks.GetRectanglesForVisibleMarks(_viewRange, maxClipBounds, _view, _lineHeight);
+
             if (rectList.Count > 0)
             {
+                RECT paintRect = new RECT();
+
                 foreach (var rect in rectList)
                 {
-                    IntPtr pRect = Marshal.AllocHGlobal(Marshal.SizeOf(rect));
+                    paintRect.Bottom = rect.Bottom;
+                    paintRect.Left = rect.Left;
+                    paintRect.Right = rect.Right;
+                    paintRect.Top = rect.Top;
+
+                    IntPtr pRect = Marshal.AllocHGlobal(Marshal.SizeOf(paintRect));
                     try
                     {
                         Marshal.StructureToPtr(rect, pRect, false);
@@ -225,31 +286,12 @@ namespace WordLight
             if (!leftTop.IsEmpty)
                 _leftMarginWidth = leftTop.X;
             RectangleF visibleClipBounds = new RectangleF(
-                _leftMarginWidth, g.VisibleClipBounds.Y, g.VisibleClipBounds.Width, g.VisibleClipBounds.Height);            
+                _leftMarginWidth, g.VisibleClipBounds.Y, g.VisibleClipBounds.Width, g.VisibleClipBounds.Height);
 
-            List<Rectangle> rectList;
-            lock (_searchMarksSyncLock)
-            {
-                rectList = GetRectanglesForVisibleMarks(_searchMarks, visibleClipBounds);
-            }
-
-			List<Rectangle> freezed1;
-			lock (_freezeMarks1SyncLock)
-			{
-				freezed1 = GetRectanglesForVisibleMarks(_freezeMarks1, visibleClipBounds);
-			}
-
-			List<Rectangle> freezed2;
-			lock (_freezeMarks2SyncLock)
-			{
-				freezed2 = GetRectanglesForVisibleMarks(_freezeMarks2, visibleClipBounds);
-			}
-
-			List<Rectangle> freezed3;
-			lock (_freezeMarks3SyncLock)
-			{
-				freezed3 = GetRectanglesForVisibleMarks(_freezeMarks3, visibleClipBounds);
-			}
+            List<Rectangle> rectList = _searchMarks.GetRectanglesForVisibleMarks(_viewRange, visibleClipBounds, _view, _lineHeight);
+			List<Rectangle> freezed1 = _freezeMarks1.GetRectanglesForVisibleMarks(_viewRange, visibleClipBounds, _view, _lineHeight);
+			List<Rectangle> freezed2 = _freezeMarks2.GetRectanglesForVisibleMarks(_viewRange, visibleClipBounds, _view, _lineHeight);
+            List<Rectangle> freezed3 = _freezeMarks3.GetRectanglesForVisibleMarks(_viewRange, visibleClipBounds, _view, _lineHeight);
 
             if (rectList.Count > 0)
             {
@@ -272,23 +314,6 @@ namespace WordLight
 				Pen pen = new Pen(Color.Red);
 				g.DrawRectangles(pen, freezed3.ToArray());
 			}
-        }
-
-        private List<Rectangle> GetRectanglesForVisibleMarks(IList<TextSpan> marks, RectangleF visibleClipBounds)
-        {
-            List<Rectangle> rectList = new List<Rectangle>(marks.Count);
-
-                foreach (TextSpan mark in marks)
-                {
-                    if (_viewRange.iStartLine <= mark.iEndLine && mark.iStartLine <= _viewRange.iEndLine)
-                    {
-                        Rectangle rect = GetVisibleRectangle(mark, _view, visibleClipBounds, _lineHeight);
-                        if (rect != Rectangle.Empty)
-                            rectList.Add((Rectangle)rect);
-                    }
-                }
-
-            return rectList;
         }
 
         private void ScrollChangedHandler(object sender, ViewScrollChangedEventArgs e)
@@ -346,35 +371,26 @@ namespace WordLight
 		{
 			TextSpan document = _buffer.CreateSpanForAllLines();
 
-			_freezeMarks1.Clear();
-			_freezeMarks1.AddRange(_freezeSearch1.SearchOccurrences(_freezeText1, _viewRange));
-			_freezeSearch1.SearchOccurrencesDelayed(_freezeText1, document);
+			_freezeMarks1.ReplaceMarks(_freezeSearch1.SearchOccurrences(_freezeText1, _viewRange));
+            _freezeSearch1.SearchOccurrencesDelayed(_freezeText1, document);
 
-			_freezeMarks2.Clear();
-			_freezeMarks2.AddRange(_freezeSearch2.SearchOccurrences(_freezeText2, _viewRange));
-			_freezeSearch2.SearchOccurrencesDelayed(_freezeText2, document);
+            _freezeMarks2.ReplaceMarks(_freezeSearch2.SearchOccurrences(_freezeText2, _viewRange));
+            _freezeSearch2.SearchOccurrencesDelayed(_freezeText2, document);
 
-			_freezeMarks3.Clear();
-			_freezeMarks3.AddRange(_freezeSearch3.SearchOccurrences(_freezeText3, _viewRange));
+            _freezeMarks3.ReplaceMarks(_freezeSearch3.SearchOccurrences(_freezeText3, _viewRange));
 			_freezeSearch3.SearchOccurrencesDelayed(_freezeText3, document);
 		}
 
         private void SelectionChanged(string text)
         {
 			_selectedText = text;
-
-            lock (_searchMarksSyncLock)
-            {
-                _searchMarks.Clear();
-            }
+            
+            _searchMarks.Clear();
 
 			if (!string.IsNullOrEmpty(_selectedText))
             {
 				var marks = _search.SearchOccurrences(_selectedText, _viewRange);
-				lock (_searchMarksSyncLock)
-				{
-					_searchMarks.AddRange(marks);
-				}
+				_searchMarks.AddMarks(marks);
 				_search.SearchOccurrencesDelayed(_selectedText, _buffer.CreateSpanForAllLines());
             }
             RepaintWindow();
@@ -384,74 +400,28 @@ namespace WordLight
         {
             if (e.Text == _selectedText)
             {
-                lock (_searchMarksSyncLock)
-                {
-                    _searchMarks.Clear();
-                    _searchMarks.AddRange(e.Marks);
-                }
-                UpdateVisibleMarks();
+                _searchMarks.ReplaceMarks(e.Marks);
+                UpdateVisibleMarks(_searchMarks);
             }
         }
 
 		private void FreezeSearchCompleted1(object sender, SearchCompletedEventArgs e)
 		{
-			lock (_freezeMarks1SyncLock)
-			{
-				_freezeMarks1.Clear();
-				_freezeMarks1.AddRange(e.Marks);
-			}
-			RepaintWindow();
+			_freezeMarks1.ReplaceMarks(e.Marks);
+            UpdateVisibleMarks(_freezeMarks1);
 		}
 
 		private void FreezeSearchCompleted2(object sender, SearchCompletedEventArgs e)
 		{
-			lock (_freezeMarks2SyncLock)
-			{
-				_freezeMarks2.Clear();
-				_freezeMarks2.AddRange(e.Marks);
-			}
-			RepaintWindow();
+			_freezeMarks2.ReplaceMarks(e.Marks);
+            UpdateVisibleMarks(_freezeMarks2);
 		}
 
 		private void FreezeSearchCompleted3(object sender, SearchCompletedEventArgs e)
 		{
-			lock (_freezeMarks3SyncLock)
-			{
-				_freezeMarks3.Clear();
-				_freezeMarks3.AddRange(e.Marks);
-			}
-			RepaintWindow();
+			_freezeMarks3.ReplaceMarks(e.Marks);
+            UpdateVisibleMarks(_freezeMarks3);
 		}
-
-        private Rectangle GetVisibleRectangle(TextSpan span, IVsTextView view, RectangleF visibleClipBounds, int lineHeight)
-        {
-            Rectangle rect = Rectangle.Empty;
-
-            Point startPoint = view.GetPointOfLineColumn(span.iStartLine, span.iStartIndex);
-            if (startPoint == Point.Empty)
-                return rect;
-
-            Point endPoint = view.GetPointOfLineColumn(span.iEndLine, span.iEndIndex);
-            if (endPoint == Point.Empty)
-                return rect;
-
-            bool isVisible =
-                visibleClipBounds.Left <= endPoint.X && startPoint.X <= visibleClipBounds.Right
-                && visibleClipBounds.Top <= endPoint.Y && startPoint.Y <= visibleClipBounds.Bottom;
-
-            if (isVisible)
-            {
-                int x = Math.Max(startPoint.X, (int)visibleClipBounds.Left);
-                int y = startPoint.Y;
-
-                int height = endPoint.Y - y + lineHeight;
-                int width = endPoint.X - x;                
-
-                rect = new Rectangle(x, y, width, height);
-            }
-
-            return rect;
-        }
 
 		private void GotFocusHandler(object sender, ViewFocusEventArgs e)
 		{
@@ -479,7 +449,9 @@ namespace WordLight
 					_freezeText3 = _selectedText;
 					break;
 			}
-			RefreshFreezeGroups();
+			
+            RefreshFreezeGroups();
+            RepaintWindow();
 		}
     }
 }
