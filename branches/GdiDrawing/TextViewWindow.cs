@@ -9,6 +9,7 @@ using System.Windows.Forms;
 using EnvDTE;
 using Microsoft.VisualStudio.TextManager.Interop;
 
+using WordLight.DllImport;
 using WordLight.EventAdapters;
 using WordLight.Extensions;
 using WordLight.Search;
@@ -17,28 +18,6 @@ namespace WordLight
 {
     public class TextViewWindow : NativeWindow, IDisposable
     {
-        [StructLayout(LayoutKind.Sequential)]
-        private struct RECT
-        {
-            public int Left;
-            public int Top;
-            public int Right;
-            public int Bottom;
-        }
-
-        [StructLayout(LayoutKind.Sequential)]
-        private struct PAINTSTRUCT
-        {
-            public IntPtr hdc;
-            public bool fErase;
-            public RECT rcPaint;
-            public bool fRestore;
-            public bool fIncUpdate;
-
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 32)]
-            public byte[] rgbReserved;
-        }
-
         #region WinProc Messages
 
         private const int WM_KEYDOWN = 0x0100;
@@ -59,28 +38,6 @@ namespace WordLight
 
         private const int WM_PAINT = 0x000F;
         private const int WM_ERASEBKGND = 0x0014;
-
-        #endregion
-
-        #region External methods
-
-        [DllImport("user32.dll", SetLastError = false)]
-        private static extern bool UpdateWindow(IntPtr hWnd);
-
-        [DllImport("user32.dll", SetLastError = false)]
-        private static extern bool InvalidateRect(IntPtr hWnd, IntPtr rect, bool erase);
-
-        [DllImport("user32.dll", SetLastError = false)]
-        private static extern bool ValidateRect(IntPtr hWnd, IntPtr rect);
-
-        [DllImport("user32.dll", SetLastError = false)]
-        private static extern bool GetUpdateRect(IntPtr hWnd, IntPtr rect, bool erase);
-
-        [DllImport("user32.dll")]
-        private static extern IntPtr BeginPaint(IntPtr hWnd, ref PAINTSTRUCT lpPaint);
-
-        [DllImport("user32.dll")]
-        private static extern IntPtr EndPaint(IntPtr hWnd, ref PAINTSTRUCT lpPaint);
 
         #endregion
         
@@ -115,6 +72,8 @@ namespace WordLight
 
 		public event EventHandler GotFocus;
 		public event EventHandler LostFocus;
+
+		private int _leftMarginWidth = 0;
 
         public TextViewWindow(IVsTextView view, IVsHiddenTextManager hiddenTextManager)
         {
@@ -185,8 +144,7 @@ namespace WordLight
                     break;
 
                 case WM_ERASEBKGND:
-                    //m.Msg = 0;
-                    base.WndProc(ref m);
+					base.WndProc(ref m);
                     break;
 
                 case WM_PAINT:
@@ -211,41 +169,127 @@ namespace WordLight
             }
         }
 
-        private void Paint()
-        {
-            PAINTSTRUCT ps = new PAINTSTRUCT();
-            IntPtr hdc = BeginPaint(Handle, ref ps);
+		//private void Paint()
+		//{
+		//    var ps = new User32.PAINTSTRUCT();
+		//    IntPtr hdc = User32.BeginPaint(Handle, ref ps);
 
-            if (hdc != IntPtr.Zero)
-            {
-                //using (Graphics g = Graphics.FromHdc(hdc))
-                using (Graphics g = Graphics.FromHwnd(Handle))
-                {
-                    DrawSearchMarks(g);
-                }
-            }
+		//    if (hdc != IntPtr.Zero)
+		//    {
+		//        //using (Graphics g = Graphics.FromHdc(hdc))
+		//        using (Graphics g = Graphics.FromHwnd(Handle))
+		//        {
+		//            DrawSearchMarks(g);
+		//        }
+		//    }
 
-            EndPaint(Handle, ref ps);
+		//    User32.EndPaint(Handle, ref ps);
 
-            //IntPtr pRect = Marshal.AllocHGlobal(Marshal.SizeOf(ps.rcPaint));
-            //try
-            //{
-            //    Marshal.StructureToPtr(ps.rcPaint, pRect, false);
-            //    InvalidateRect(Handle, pRect, false);
-            //}
-            //finally
-            //{
-            //    Marshal.FreeHGlobal(pRect);
-            //}
-        }
+		//    //IntPtr pRect = Marshal.AllocHGlobal(Marshal.SizeOf(ps.rcPaint));
+		//    //try
+		//    //{
+		//    //    Marshal.StructureToPtr(ps.rcPaint, pRect, false);
+		//    //    InvalidateRect(Handle, pRect, false);
+		//    //}
+		//    //finally
+		//    //{
+		//    //    Marshal.FreeHGlobal(pRect);
+		//    //}
+		//}
+
+		private void Paint()
+		{
+			IntPtr hdc = User32.GetDC(Handle);
+
+			if (hdc != IntPtr.Zero)
+			{
+				var clientRect = User32.GetClientRect(Handle);
+
+				int width = clientRect.Right - clientRect.Left;
+				int height = clientRect.Bottom - clientRect.Top;
+
+				IntPtr memDC = Gdi32.CreateCompatibleDC(hdc);
+
+				IntPtr bmp = Gdi32.CreateCompatibleBitmap(hdc, width, height);
+				Gdi32.SelectObject(memDC, bmp);
+
+				//Gdi32.BitBlt(memDC, 0, 0, width, height, hdc, 0, 0, Gdi32.TernaryRasterOperations.SRCCOPY);
+
+				DrawSearchMarks(memDC);
+
+				Gdi32.BitBlt(hdc, 0, 0, width, height, memDC, 0, 0, Gdi32.TernaryRasterOperations.SRCCOPY);
+
+				Gdi32.DeleteObject(bmp);
+				Gdi32.DeleteDC(memDC);
+
+				User32.ReleaseDC(Handle, hdc);
+			}
+		}
+
+		//private void Paint()
+		//{
+		//    IntPtr hdc = User32.GetDC(Handle);
+
+		//    if (hdc != IntPtr.Zero)
+		//    {
+		//        DrawSearchMarks(hdc);
+		//        User32.ReleaseDC(Handle, hdc);
+		//    }
+		//}
+
+		private void DrawSearchMarks(IntPtr hdc)
+		{
+			//Fix for clip bounds: take into account left margin pane during horizontal scrolling.
+			Point leftTop = _view.GetPointOfLineColumn(_viewRange.iStartLine, leftTextColumnInView);
+			if (!leftTop.IsEmpty)
+			{
+				_leftMarginWidth = leftTop.X;
+			}
+
+			//Rectangle visibleClipBounds =
+			//    new Rectangle(_leftMarginWidth, (int)g.VisibleClipBounds.Y, (int)g.VisibleClipBounds.Width, (int)g.VisibleClipBounds.Height);
+			var visibleClipBounds = new Rectangle(_leftMarginWidth, 0, int.MaxValue / 2, int.MaxValue / 2);
+
+			Rectangle[] searchMarks = _searchMarks.GetRectanglesForVisibleMarks(_viewRange, visibleClipBounds, _view, _lineHeight);
+			Rectangle[] freezed1 = _freezeMarks1.GetRectanglesForVisibleMarks(_viewRange, visibleClipBounds, _view, _lineHeight);
+			Rectangle[] freezed2 = _freezeMarks2.GetRectanglesForVisibleMarks(_viewRange, visibleClipBounds, _view, _lineHeight);
+			Rectangle[] freezed3 = _freezeMarks3.GetRectanglesForVisibleMarks(_viewRange, visibleClipBounds, _view, _lineHeight);
+
+			DrawRectangles(hdc, searchMarks, AddinSettings.Instance.SearchMarkBorderColor);
+			DrawRectangles(hdc, freezed1, Color.Aqua);
+			DrawRectangles(hdc, freezed2, Color.Lime);
+			DrawRectangles(hdc, freezed3, Color.Orange);
+		}
+
+		private void DrawRectangles(IntPtr hdc, Rectangle[] rectangles, Color penColor)
+		{
+			if (rectangles != null && rectangles.Length > 0)
+			{
+				IntPtr originalObject = Gdi32.SelectObject(hdc, Gdi32.GetStockObject(Gdi32.StockObjects.DC_PEN));
+
+				Gdi32.SelectObject(hdc, Gdi32.GetStockObject(Gdi32.StockObjects.NULL_BRUSH));
+				Gdi32.SelectObject(hdc, Gdi32.GetStockObject(Gdi32.StockObjects.DC_PEN));
+
+				int originalPenColor = Gdi32.SetDCPenColor(hdc, ColorTranslator.ToWin32(penColor));
+
+				for (int i = 0; i < rectangles.Length; i++)
+				{
+					var rect = rectangles[i];
+					Gdi32.Rectangle(hdc, rect.Left, rect.Top, rect.Right, rect.Bottom);
+				}
+
+				Gdi32.SetDCPenColor(hdc, originalPenColor);
+				Gdi32.SelectObject(hdc, originalObject);
+			}
+		}
 
         private void RepaintWindow()
         {
-            InvalidateRect(Handle, IntPtr.Zero, true);
-            UpdateWindow(Handle);
+			User32.InvalidateRect(Handle, IntPtr.Zero, true);
+			User32.UpdateWindow(Handle);
         }
 
-        private void UpdateVisibleMarks(MarkCollection marks)
+        private void InvalidateVisibleMarks(MarkCollection marks)
         {
             Rectangle maxClipBounds = new Rectangle(0, 0, int.MaxValue, int.MaxValue);
 
@@ -253,7 +297,7 @@ namespace WordLight
 
             if (rectList != null)
             {
-                RECT paintRect = new RECT();
+				var paintRect = new RECT();
 
                 for(int i = 0; i < rectList.Length; i++)
                 {
@@ -268,7 +312,7 @@ namespace WordLight
                     try
                     {
                         Marshal.StructureToPtr(paintRect, pRect, false);
-                        InvalidateRect(Handle, pRect, false);
+						User32.InvalidateRect(Handle, pRect, false);
                     }
                     finally
                     {
@@ -276,50 +320,8 @@ namespace WordLight
                     }
                 }
             }
-            UpdateWindow(Handle);
         }
-
-        private int _leftMarginWidth = 0;
-
-        private void DrawSearchMarks(Graphics g)
-        {
-            //Fix for clip bounds: take into account left margin pane during horizontal scrolling.
-            Point leftTop = _view.GetPointOfLineColumn(_viewRange.iStartLine, leftTextColumnInView);
-            if (!leftTop.IsEmpty)
-            {
-                _leftMarginWidth = leftTop.X;
-            }
-
-            Rectangle visibleClipBounds = 
-                new Rectangle(_leftMarginWidth, (int)g.VisibleClipBounds.Y, (int)g.VisibleClipBounds.Width, (int)g.VisibleClipBounds.Height);
-
-            Rectangle[] rectList = _searchMarks.GetRectanglesForVisibleMarks(_viewRange, visibleClipBounds, _view, _lineHeight);
-            Rectangle[] freezed1 = _freezeMarks1.GetRectanglesForVisibleMarks(_viewRange, visibleClipBounds, _view, _lineHeight);
-            Rectangle[] freezed2 = _freezeMarks2.GetRectanglesForVisibleMarks(_viewRange, visibleClipBounds, _view, _lineHeight);
-            Rectangle[] freezed3 = _freezeMarks3.GetRectanglesForVisibleMarks(_viewRange, visibleClipBounds, _view, _lineHeight);
-
-            if (rectList != null)
-            {
-                var pen = new Pen(AddinSettings.Instance.SearchMarkBorderColor);
-                g.DrawRectangles(pen, rectList);
-            }
-			if (freezed1 != null)
-			{
-				var pen = new Pen(Color.Blue);
-				g.DrawRectangles(pen, freezed1);
-			}
-			if (freezed2 != null)
-			{
-				var pen = new Pen(Color.Green);
-				g.DrawRectangles(pen, freezed2);
-			}
-			if (freezed3 != null)
-			{
-				var pen = new Pen(Color.Red);
-				g.DrawRectangles(pen, freezed3);
-			}
-        }
-
+        
         private void ScrollChangedHandler(object sender, ViewScrollChangedEventArgs e)
         {
             if (e.ScrollInfo.IsHorizontal)
@@ -369,6 +371,8 @@ namespace WordLight
 		private void StreamTextChangedHandler(object sender, EventArgs e)
 		{
 			RefreshFreezeGroups();
+
+			RepaintWindow();
 		}
 
 		private void RefreshFreezeGroups()
@@ -405,26 +409,39 @@ namespace WordLight
             if (e.Text == _selectedText)
             {
                 _searchMarks.ReplaceMarks(e.Marks);
-                UpdateVisibleMarks(_searchMarks);
+				//InvalidateVisibleMarks(_searchMarks);
+				//User32.UpdateWindow(Handle);
+
+				//if (_viewRange.iStartLine != e.Range.iStartLine || _viewRange.iEndLine != e.Range.iEndLine)
+				//    RepaintWindow();
             }
         }
 
 		private void FreezeSearchCompleted1(object sender, SearchCompletedEventArgs e)
 		{
 			_freezeMarks1.ReplaceMarks(e.Marks);
-            UpdateVisibleMarks(_freezeMarks1);
+            //InvalidateVisibleMarks(_freezeMarks1);
+			
+			//if (_viewRange.iStartLine != e.Range.iStartLine || _viewRange.iEndLine != e.Range.iEndLine)
+			//    RepaintWindow();
 		}
 
 		private void FreezeSearchCompleted2(object sender, SearchCompletedEventArgs e)
 		{
 			_freezeMarks2.ReplaceMarks(e.Marks);
-            UpdateVisibleMarks(_freezeMarks2);
+            //InvalidateVisibleMarks(_freezeMarks2);
+
+			//if (_viewRange.iStartLine != e.Range.iStartLine || _viewRange.iEndLine != e.Range.iEndLine)
+			//    RepaintWindow();
 		}
 
 		private void FreezeSearchCompleted3(object sender, SearchCompletedEventArgs e)
 		{
 			_freezeMarks3.ReplaceMarks(e.Marks);
-            UpdateVisibleMarks(_freezeMarks3);
+            //InvalidateVisibleMarks(_freezeMarks3);
+
+			//if (_viewRange.iStartLine != e.Range.iStartLine || _viewRange.iEndLine != e.Range.iEndLine)
+			//    RepaintWindow();
 		}
 
 		private void GotFocusHandler(object sender, ViewFocusEventArgs e)

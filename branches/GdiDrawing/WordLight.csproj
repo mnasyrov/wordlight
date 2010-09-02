@@ -46,6 +46,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AddinSettings.cs" />
+    <Compile Include="DllImport\Gdi32.cs" />
+    <Compile Include="DllImport\RECT.cs" />
+    <Compile Include="DllImport\User32.cs" />
     <Compile Include="EventAdapters\TextStreamEventAdapter.cs" />
     <Compile Include="EventAdapters\ViewScrollChangedEventArgs.cs" />
     <Compile Include="EventAdapters\ViewScrollInfo.cs" />
