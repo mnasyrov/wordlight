@@ -247,16 +247,18 @@ namespace WordLight
 
         private void UpdateVisibleMarks(MarkCollection marks)
         {
-            RectangleF maxClipBounds = new RectangleF(0, 0, float.MaxValue, float.MaxValue);
-            
-            List<Rectangle> rectList = marks.GetRectanglesForVisibleMarks(_viewRange, maxClipBounds, _view, _lineHeight);
+            Rectangle maxClipBounds = new Rectangle(0, 0, int.MaxValue, int.MaxValue);
 
-            if (rectList.Count > 0)
+            Rectangle[] rectList = marks.GetRectanglesForVisibleMarks(_viewRange, maxClipBounds, _view, _lineHeight);
+
+            if (rectList != null)
             {
                 RECT paintRect = new RECT();
 
-                foreach (var rect in rectList)
+                for(int i = 0; i < rectList.Length; i++)
                 {
+                    var rect = rectList[i];
+
                     paintRect.Bottom = rect.Bottom;
                     paintRect.Left = rect.Left;
                     paintRect.Right = rect.Right;
@@ -265,7 +267,7 @@ namespace WordLight
                     IntPtr pRect = Marshal.AllocHGlobal(Marshal.SizeOf(paintRect));
                     try
                     {
-                        Marshal.StructureToPtr(rect, pRect, false);
+                        Marshal.StructureToPtr(paintRect, pRect, false);
                         InvalidateRect(Handle, pRect, false);
                     }
                     finally
@@ -284,35 +286,37 @@ namespace WordLight
             //Fix for clip bounds: take into account left margin pane during horizontal scrolling.
             Point leftTop = _view.GetPointOfLineColumn(_viewRange.iStartLine, leftTextColumnInView);
             if (!leftTop.IsEmpty)
-                _leftMarginWidth = leftTop.X;
-            RectangleF visibleClipBounds = new RectangleF(
-                _leftMarginWidth, g.VisibleClipBounds.Y, g.VisibleClipBounds.Width, g.VisibleClipBounds.Height);
-
-            List<Rectangle> rectList = _searchMarks.GetRectanglesForVisibleMarks(_viewRange, visibleClipBounds, _view, _lineHeight);
-			List<Rectangle> freezed1 = _freezeMarks1.GetRectanglesForVisibleMarks(_viewRange, visibleClipBounds, _view, _lineHeight);
-			List<Rectangle> freezed2 = _freezeMarks2.GetRectanglesForVisibleMarks(_viewRange, visibleClipBounds, _view, _lineHeight);
-            List<Rectangle> freezed3 = _freezeMarks3.GetRectanglesForVisibleMarks(_viewRange, visibleClipBounds, _view, _lineHeight);
-
-            if (rectList.Count > 0)
             {
-                Pen pen = new Pen(AddinSettings.Instance.SearchMarkBorderColor);
-                g.DrawRectangles(pen, rectList.ToArray());
+                _leftMarginWidth = leftTop.X;
             }
 
-			if (freezed1.Count > 0)
+            Rectangle visibleClipBounds = 
+                new Rectangle(_leftMarginWidth, (int)g.VisibleClipBounds.Y, (int)g.VisibleClipBounds.Width, (int)g.VisibleClipBounds.Height);
+
+            Rectangle[] rectList = _searchMarks.GetRectanglesForVisibleMarks(_viewRange, visibleClipBounds, _view, _lineHeight);
+            Rectangle[] freezed1 = _freezeMarks1.GetRectanglesForVisibleMarks(_viewRange, visibleClipBounds, _view, _lineHeight);
+            Rectangle[] freezed2 = _freezeMarks2.GetRectanglesForVisibleMarks(_viewRange, visibleClipBounds, _view, _lineHeight);
+            Rectangle[] freezed3 = _freezeMarks3.GetRectanglesForVisibleMarks(_viewRange, visibleClipBounds, _view, _lineHeight);
+
+            if (rectList != null)
+            {
+                var pen = new Pen(AddinSettings.Instance.SearchMarkBorderColor);
+                g.DrawRectangles(pen, rectList);
+            }
+			if (freezed1 != null)
 			{
-				Pen pen = new Pen(Color.Blue);
-				g.DrawRectangles(pen, freezed1.ToArray());
+				var pen = new Pen(Color.Blue);
+				g.DrawRectangles(pen, freezed1);
 			}
-			if (freezed2.Count > 0)
+			if (freezed2 != null)
 			{
-				Pen pen = new Pen(Color.Green);
-				g.DrawRectangles(pen, freezed2.ToArray());
+				var pen = new Pen(Color.Green);
+				g.DrawRectangles(pen, freezed2);
 			}
-			if (freezed3.Count > 0)
+			if (freezed3 != null)
 			{
-				Pen pen = new Pen(Color.Red);
-				g.DrawRectangles(pen, freezed3.ToArray());
+				var pen = new Pen(Color.Red);
+				g.DrawRectangles(pen, freezed3);
 			}
         }
 
@@ -390,7 +394,7 @@ namespace WordLight
 			if (!string.IsNullOrEmpty(_selectedText))
             {
 				var marks = _search.SearchOccurrences(_selectedText, _viewRange);
-				_searchMarks.AddMarks(marks);
+                _searchMarks.ReplaceMarks(marks);
 				_search.SearchOccurrencesDelayed(_selectedText, _buffer.CreateSpanForAllLines());
             }
             RepaintWindow();

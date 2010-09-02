@@ -76,41 +76,41 @@ namespace WordLight.Search
             return results;
         }
 
-        public IList<TextSpan> SearchOccurrences(string value, TextSpan searchRange)
+        public TextSpan[] SearchOccurrences(string value, TextSpan searchRange)
         {
             List<TextSpan> marks = new List<TextSpan>();
 
-			if (!string.IsNullOrEmpty(value))
-			{
-				string text = _buffer.GetText();
-				if (!string.IsNullOrEmpty(text))
-				{
-					int searchStart = _buffer.GetPositionOfLineIndex(searchRange.iStartLine, searchRange.iStartIndex);
-					int searchEnd = _buffer.GetPositionOfLineIndex(searchRange.iEndLine, searchRange.iEndIndex);
+            if (!string.IsNullOrEmpty(value))
+            {
+                string text = _buffer.GetText();
+                if (!string.IsNullOrEmpty(text))
+                {
+                    int searchStart = _buffer.GetPositionOfLineIndex(searchRange.iStartLine, searchRange.iStartIndex);
+                    int searchEnd = _buffer.GetPositionOfLineIndex(searchRange.iEndLine, searchRange.iEndIndex);
 
-					int length = value.Length;
+                    int length = value.Length;
 
-					if (searchEnd > searchStart && length > 0)
-					{
-						List<int> positions = SearchOccurrencesInText(text, value, searchStart, searchEnd);
+                    if (searchEnd > searchStart && length > 0)
+                    {
+                        List<int> positions = SearchOccurrencesInText(text, value, searchStart, searchEnd);
 
-						foreach (int pos in positions)
-						{
-							TextSpan span = new TextSpan();
-							_buffer.GetLineIndexOfPosition(pos, out span.iStartLine, out span.iStartIndex);
-							_buffer.GetLineIndexOfPosition(pos + length, out span.iEndLine, out span.iEndIndex);
+                        foreach (int pos in positions)
+                        {
+                            TextSpan span = new TextSpan();
+                            _buffer.GetLineIndexOfPosition(pos, out span.iStartLine, out span.iStartIndex);
+                            _buffer.GetLineIndexOfPosition(pos + length, out span.iEndLine, out span.iEndIndex);
 
-							//Do not process multi-line selections
-							if (span.iStartLine == span.iEndLine)
-							{
-								marks.Add(span);
-							}
-						}
-					}
-				}
-			}
+                            //Do not process multi-line selections
+                            if (span.iStartLine == span.iEndLine)
+                            {
+                                marks.Add(span);
+                            }
+                        }
+                    }
+                }
+            }
 
-            return marks;
+            return marks.ToArray();
         }
 
         #region Delayed searching
@@ -123,7 +123,7 @@ namespace WordLight.Search
             {
                 lock (_delayedSearchSyncLock)
                 {
-                    _delayedJob.Value= value;
+                    _delayedJob.Value = value;
                     _delayedJob.Range = searchRange;
                 }
                 _searchTimer.Start();
@@ -141,7 +141,7 @@ namespace WordLight.Search
                 searchRange = _delayedJob.Range;
             }
 
-            IList<TextSpan> marks = SearchOccurrences(value, searchRange);
+            TextSpan[] marks = SearchOccurrences(value, searchRange);
 
             EventHandler<SearchCompletedEventArgs> evt = SearchCompleted;
             if (evt != null)
@@ -156,18 +156,15 @@ namespace WordLight.Search
 
         public void SearchOccurrencesAsync(string value, TextSpan searchRange)
         {
-            //if (!string.IsNullOrEmpty(value))
-            //{
-                lock (_asyncJobsSyncRoot)
-                {
-                    _asyncJobs.Enqueue(new SearchJob() { Value = value, Range = searchRange });
-                }
+            lock (_asyncJobsSyncRoot)
+            {
+                _asyncJobs.Enqueue(new SearchJob() { Value = value, Range = searchRange });
+            }
 
-                if (!_isThreadWorking)
-                {
-                    ThreadPool.QueueUserWorkItem(new WaitCallback(SearchThreadWorker));
-                }
-            //}
+            if (!_isThreadWorking)
+            {
+                ThreadPool.QueueUserWorkItem(new WaitCallback(SearchThreadWorker));
+            }
         }
 
         private void SearchThreadWorker(object stateInfo)
@@ -192,7 +189,7 @@ namespace WordLight.Search
 
                 if (job != null)
                 {
-                    IList<TextSpan> marks = SearchOccurrences(job.Value, job.Range);
+                    TextSpan[] marks = SearchOccurrences(job.Value, job.Range);
 
                     EventHandler<SearchCompletedEventArgs> evt = SearchCompleted;
                     if (evt != null)
