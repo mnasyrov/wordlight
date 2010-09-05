@@ -141,13 +141,7 @@ namespace WordLight.Search
                 searchRange = _delayedJob.Range;
             }
 
-            TextSpan[] marks = SearchOccurrences(value, searchRange);
-
-            EventHandler<SearchCompletedEventArgs> evt = SearchCompleted;
-            if (evt != null)
-            {
-                evt(this, new SearchCompletedEventArgs(value, searchRange, marks));
-            }
+			SearchOccurrencesAsync(value, searchRange);
         }
 
         #endregion
