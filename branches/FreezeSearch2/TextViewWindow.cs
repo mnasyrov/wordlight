@@ -78,6 +78,8 @@ namespace WordLight
 		private int _visibleTextStart;
 		private int _visibleTextEnd;
 
+		private UpdateRectangle _markUpdateRect;
+
 		public TextViewWindow(IVsTextView view, IVsHiddenTextManager hiddenTextManager)
 		{
 			if (view == null) throw new ArgumentNullException("view");
@@ -108,16 +110,19 @@ namespace WordLight
 			_viewEvents.GotFocus += new EventHandler<ViewFocusEventArgs>(GotFocusHandler);
 			_viewEvents.LostFocus += new EventHandler<ViewFocusEventArgs>(LostFocusHandler);
 
-			_searchMarks.MarkAdded += new EventHandler<MarkEventArgs>(MarkAddedHandler);
+			_searchMarks.MarkAdded += new EventHandler<MarkEventArgs>(MarkModifiedHandler);
 			_searchMarks.MarkDeleted += new EventHandler<MarkEventArgs>(MarkDeletedHandler);
-			_freezeMarks1.MarkAdded += new EventHandler<MarkEventArgs>(MarkAddedHandler);
+			_freezeMarks1.MarkAdded += new EventHandler<MarkEventArgs>(MarkModifiedHandler);
 			_freezeMarks1.MarkDeleted += new EventHandler<MarkEventArgs>(MarkDeletedHandler);
-			_freezeMarks2.MarkAdded += new EventHandler<MarkEventArgs>(MarkAddedHandler);
+			_freezeMarks2.MarkAdded += new EventHandler<MarkEventArgs>(MarkModifiedHandler);
 			_freezeMarks2.MarkDeleted += new EventHandler<MarkEventArgs>(MarkDeletedHandler);
-			_freezeMarks3.MarkAdded += new EventHandler<MarkEventArgs>(MarkAddedHandler);
+			_freezeMarks3.MarkAdded += new EventHandler<MarkEventArgs>(MarkModifiedHandler);
 			_freezeMarks3.MarkDeleted += new EventHandler<MarkEventArgs>(MarkDeletedHandler);
 
-			AssignHandle(view.GetWindowHandle());
+			IntPtr hWnd = view.GetWindowHandle();
+			_markUpdateRect = new UpdateRectangle(hWnd);
+
+			AssignHandle(hWnd);
 		}
 
 		public void Dispose()
@@ -132,6 +137,8 @@ namespace WordLight
 			_viewEvents.Dispose();
 			ReleaseHandle();
 		}
+
+		//Rectangle clipRect = Rectangle.Empty;
 
 		protected override void WndProc(ref Message m)
 		{
@@ -155,14 +162,33 @@ namespace WordLight
 					HandleUserInput();
 					break;
 
-				case WM_ERASEBKGND:
-					base.WndProc(ref m);
-					break;
+				//case WM_ERASEBKGND:
+				//    base.WndProc(ref m);
+
+				//    IntPtr hdc = m.WParam;
+
+				//    if (hdc != IntPtr.Zero)
+				//    {
+				//        using (Graphics g = Graphics.FromHdc(hdc))
+				//        {
+				//            g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.None;
+				//            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.None;
+				//            g.CompositingQuality = System.Drawing.Drawing2D.CompositingQuality.HighSpeed;
+				//            g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.NearestNeighbor;
+
+				//            DrawSearchMarks(g, clipRect);
+
+
+				//            g.FillRectangle(Brushes.Green, clipRect);
+				//        }
+				//    }
+
+				//    break;
 
 				case WM_PAINT:
-					Rectangle updateRect = User32.GetUpdateRect(Handle, false).ToRectangle();					
+					Rectangle clipRect = User32.GetUpdateRect(Handle, false).ToRectangle();
 					base.WndProc(ref m);
-					Paint(updateRect);
+					Paint(clipRect);
 					break;
 
 				default:
@@ -184,12 +210,6 @@ namespace WordLight
 
 		private void Paint(Rectangle clipRect)
 		{
-			//var ps = new User32.PAINTSTRUCT();
-			//IntPtr hdc = User32.BeginPaint(Handle, ref ps);
-
-			//if (hdc != IntPtr.Zero)
-			//{
-			//using (Graphics g = Graphics.FromHdc(hdc))
 			using (Graphics g = Graphics.FromHwnd(Handle))
 			{
 				g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.None;
@@ -199,9 +219,21 @@ namespace WordLight
 
 				DrawSearchMarks(g, clipRect);
 			}
-			//}
 
-			//User32.EndPaint(Handle, ref ps);
+			_markUpdateRect.Validate();
+
+			//IntPtr hdc = User32.GetDC(Handle);
+			//if (hdc != IntPtr.Zero)
+			//{
+			//    using (Graphics g = Graphics.FromHdc(hdc))
+			//    {
+			//        DrawSearchMarks(g, clipRect);
+			//    }
+
+			//    User32.ReleaseDC(Handle, hdc);
+
+			//    _markUpdateRect.Validate();
+			//}
 		}
 
 		private void DrawSearchMarks(Graphics g, Rectangle clipRect)
@@ -215,13 +247,7 @@ namespace WordLight
 
 			if (clipRect == Rectangle.Empty)
 			{
-				clipRect = new Rectangle()
-				{
-					X = (int)g.VisibleClipBounds.X,
-					Y = (int)g.VisibleClipBounds.Y,
-					Width = (int)g.VisibleClipBounds.Width,
-					Height = (int)g.VisibleClipBounds.Height
-				};
+				clipRect = Rectangle.Truncate(g.VisibleClipBounds);
 			}
 
 			clipRect.X = Math.Max(clipRect.X, _leftMarginWidth);
@@ -247,7 +273,7 @@ namespace WordLight
 			}
 		}
 
-		private void MarkAddedHandler(object sender, MarkEventArgs e)
+		private void MarkModifiedHandler(object sender, MarkEventArgs e)
 		{
 			InvalidateMark(e.Mark);
 		}
@@ -262,10 +288,7 @@ namespace WordLight
 			if (mark.IsVisible(_visibleTextStart, _visibleTextEnd))
 			{
 				Rectangle rect = mark.GetRectangle(_view, _lineHeight, _buffer);
-				if (rect != Rectangle.Empty)
-				{
-					User32.InvalidateRect(Handle, rect, false);
-				}
+				_markUpdateRect.IncludeRectangle(rect);
 			}
 		}
 
@@ -324,6 +347,8 @@ namespace WordLight
 			SearchInChangedText(_freezeSearch1, _freezeMarks1, e, _freezeText1);
 			SearchInChangedText(_freezeSearch2, _freezeMarks2, e, _freezeText2);
 			SearchInChangedText(_freezeSearch3, _freezeMarks3, e, _freezeText3);
+
+			_markUpdateRect.Invalidate();
 		}
 
 		private void SearchInChangedText(TextSearch searcher, MarkCollection marks, StreamTextChangedEventArgs e, string searchText)
@@ -351,6 +376,8 @@ namespace WordLight
 			_freezeSearch1.SearchOccurrencesDelayed(_freezeText1, 0, int.MaxValue);
 			_freezeSearch2.SearchOccurrencesDelayed(_freezeText2, 0, int.MaxValue);
 			_freezeSearch3.SearchOccurrencesDelayed(_freezeText3, 0, int.MaxValue);
+
+			_markUpdateRect.Invalidate();
 		}
 
 		private void SelectionChanged(string text)
@@ -365,6 +392,8 @@ namespace WordLight
 				_searchMarks.ReplaceMarks(marks);
 				_search.SearchOccurrencesDelayed(_selectedText, 0, int.MaxValue);
 			}
+
+			_markUpdateRect.Invalidate();
 		}
 
 		private void searcher_SearchCompleted(object sender, SearchCompletedEventArgs e)
@@ -372,22 +401,26 @@ namespace WordLight
 			if (e.Text == _selectedText)
 			{
 				_searchMarks.ReplaceMarks(e.Marks);
+				_markUpdateRect.Invalidate();
 			}
 		}
 
 		private void FreezeSearchCompleted1(object sender, SearchCompletedEventArgs e)
 		{
 			_freezeMarks1.ReplaceMarks(e.Marks);
+			_markUpdateRect.Invalidate();
 		}
 
 		private void FreezeSearchCompleted2(object sender, SearchCompletedEventArgs e)
 		{
 			_freezeMarks2.ReplaceMarks(e.Marks);
+			_markUpdateRect.Invalidate();
 		}
 
 		private void FreezeSearchCompleted3(object sender, SearchCompletedEventArgs e)
 		{
 			_freezeMarks3.ReplaceMarks(e.Marks);
+			_markUpdateRect.Invalidate();
 		}
 
 		private void GotFocusHandler(object sender, ViewFocusEventArgs e)

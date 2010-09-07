@@ -76,5 +76,13 @@ namespace WordLight.DllImport
 		[DllImport("user32.dll")]
 		public static extern bool ValidateRect(IntPtr hWnd, IntPtr rect);
 
+		[DllImport("user32.dll")]
+		public static extern bool ValidateRect(IntPtr hWnd, ref RECT rect);
+
+		public static bool ValidateRect(IntPtr hWnd, System.Drawing.Rectangle rectangle)
+		{
+			RECT rect = RECT.FromRectangle(rectangle);
+			return ValidateRect(hWnd, ref rect);
+		}
 	}
 }

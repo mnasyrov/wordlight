@@ -82,6 +82,7 @@
     <Compile Include="EventAdapters\ViewRegistrationEventArgs.cs" />
     <Compile Include="TextViewWindow.cs" />
     <Compile Include="Extensions\IVsTextViewExtensions.cs" />
+    <Compile Include="UpdateRectangle.cs" />
     <Compile Include="WindowWatcher.cs" />
   </ItemGroup>
   <ItemGroup>
