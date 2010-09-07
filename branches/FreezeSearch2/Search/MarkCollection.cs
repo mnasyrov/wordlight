@@ -11,13 +11,39 @@ namespace WordLight.Search
 {
 	public class MarkCollection
 	{
+        public event EventHandler<MarkEventArgs> MarkDeleted;
+        public event EventHandler<MarkEventArgs> MarkAdded;
+
 		private LinkedList<TextMark> _marks = new LinkedList<TextMark>();
 		private object _marksSyncRoot = new object();
+
+        private void OnDeleteMark(TextMark mark)
+        {
+            EventHandler<MarkEventArgs> evt = MarkDeleted;
+            if (evt != null)
+            {
+                evt(this, new MarkEventArgs(mark));
+            }
+        }
+
+        private void OnAddMark(TextMark mark)
+        {
+            EventHandler<MarkEventArgs> evt = MarkAdded;
+            if (evt != null)
+            {
+                evt(this, new MarkEventArgs(mark));
+            }
+        }
 
 		public void Clear()
 		{
 			lock (_marksSyncRoot)
 			{
+                foreach (var mark in _marks)
+                {
+                    OnDeleteMark(mark);
+                }
+
 				_marks.Clear();
 			}
 		}
@@ -26,10 +52,23 @@ namespace WordLight.Search
 		{
 			lock (_marksSyncRoot)
 			{
-				if (newMarks == null || newMarks.Length == 0)
-					_marks.Clear();
-				else
-					_marks = new LinkedList<TextMark>(newMarks);
+                foreach (var mark in _marks)
+                {
+                    OnDeleteMark(mark);
+                }
+
+                if (newMarks == null || newMarks.Length == 0)
+                {
+                    _marks.Clear();
+                }
+                else
+                {
+                    _marks = new LinkedList<TextMark>(newMarks);
+                    foreach (var mark in _marks)
+                    {
+                        OnAddMark(mark);
+                    }
+                }
 			}
 		}
 
@@ -43,6 +82,7 @@ namespace WordLight.Search
 					return;
 				}
 
+                //Determine left and right bounds
 				var left = _marks.First;
 				var right = _marks.Last;
 
@@ -63,16 +103,20 @@ namespace WordLight.Search
 					right = node;
 				}
 
+                //Delete deprecated marks
 				for (var node = left.Next; node != null && node != right; node = node.Next)
 				{
+                    OnDeleteMark(node.Value);
 					_marks.Remove(node);
 				}
 
+                //Add new marks instead of old ones
 				if (newMarks != null)
 				{
 					for (int i = 0; i < newMarks.Length; i++)
 					{
 						left = _marks.AddAfter(left, newMarks[i]);
+                        OnAddMark(newMarks[i]);
 					}
 				}
 			}
