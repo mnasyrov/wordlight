@@ -163,26 +163,15 @@ namespace WordLight
 					break;
 
 				//case WM_ERASEBKGND:
-				//    base.WndProc(ref m);
-
 				//    IntPtr hdc = m.WParam;
-
+				//    base.WndProc(ref m);
 				//    if (hdc != IntPtr.Zero)
 				//    {
 				//        using (Graphics g = Graphics.FromHdc(hdc))
 				//        {
-				//            g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.None;
-				//            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.None;
-				//            g.CompositingQuality = System.Drawing.Drawing2D.CompositingQuality.HighSpeed;
-				//            g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.NearestNeighbor;
-
 				//            DrawSearchMarks(g, clipRect);
-
-
-				//            g.FillRectangle(Brushes.Green, clipRect);
 				//        }
 				//    }
-
 				//    break;
 
 				case WM_PAINT:
@@ -200,7 +189,7 @@ namespace WordLight
 		private void HandleUserInput()
 		{
 			string text = _view.GetSelectedText();
-
+			
 			if (text != _previousSelectedText)
 			{
 				_previousSelectedText = text;
@@ -210,6 +199,8 @@ namespace WordLight
 
 		private void Paint(Rectangle clipRect)
 		{
+			User32.HideCaret(Handle);
+
 			using (Graphics g = Graphics.FromHwnd(Handle))
 			{
 				g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.None;
@@ -220,8 +211,6 @@ namespace WordLight
 				DrawSearchMarks(g, clipRect);
 			}
 
-			_markUpdateRect.Validate();
-
 			//IntPtr hdc = User32.GetDC(Handle);
 			//if (hdc != IntPtr.Zero)
 			//{
@@ -231,9 +220,11 @@ namespace WordLight
 			//    }
 
 			//    User32.ReleaseDC(Handle, hdc);
-
-			//    _markUpdateRect.Validate();
 			//}
+
+			User32.ShowCaret(Handle);
+
+			_markUpdateRect.Validate();
 		}
 
 		private void DrawSearchMarks(Graphics g, Rectangle clipRect)

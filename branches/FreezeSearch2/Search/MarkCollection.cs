@@ -95,10 +95,9 @@ namespace WordLight.Search
 
 				for (var node = _marks.Last; node != null && node != left; node = node.Previous)
 				{
-					node.Value.Start += tailOffset;
-					node.Value.End += tailOffset;
+					node.Value.Position += tailOffset;
 
-					if (node.Value.Start <= end)
+					if (node.Value.Position <= end)
 						break;
 					right = node;
 				}

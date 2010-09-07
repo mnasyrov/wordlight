@@ -12,13 +12,13 @@ namespace WordLight.Search
     {
 		public static bool IsVisible(this TextMark mark, int visibleTextStart, int visibleTextEnd)
         {
-			return visibleTextStart <= mark.End && mark.Start <= visibleTextEnd;
+			return visibleTextStart <= mark.End && mark.Position <= visibleTextEnd;
 		}
 
         public static Rectangle GetRectangle(this TextMark mark, IVsTextView view, int lineHeight, IVsTextBuffer buffer)
         {
             TextSpan span = new TextSpan();
-            buffer.GetLineIndexOfPosition(mark.Start, out span.iStartLine, out span.iStartIndex);
+            buffer.GetLineIndexOfPosition(mark.Position, out span.iStartLine, out span.iStartIndex);
             buffer.GetLineIndexOfPosition(mark.End, out span.iEndLine, out span.iEndIndex);
 
             Point startPoint = view.GetPointOfLineColumn(span.iStartLine, span.iStartIndex);

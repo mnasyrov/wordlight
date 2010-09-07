@@ -94,7 +94,7 @@ namespace WordLight.Search
 
                         foreach (int pos in positions)
                         {
-							marks.Add(new TextMark {Start = pos, End = pos + length });
+							marks.Add(new TextMark(pos, length));
                         }
                     }
                 }

@@ -51,6 +51,9 @@ namespace WordLight.DllImport
 		}
 
 		[DllImport("user32.dll")]
+		public static extern bool HideCaret(IntPtr hWnd);
+
+		[DllImport("user32.dll")]
 		public static extern bool InvalidateRect(IntPtr hWnd, IntPtr lpRect, bool bErase);
 
 		[DllImport("user32.dll")]
@@ -69,6 +72,9 @@ namespace WordLight.DllImport
 
 		[DllImport("user32.dll")]
 		public static extern bool ReleaseDC(IntPtr hWnd, IntPtr hDC);
+
+		[DllImport("user32.dll")]
+		public static extern bool ShowCaret(IntPtr hWnd);
 
 		[DllImport("user32.dll")]
 		public static extern bool UpdateWindow(IntPtr hWnd);
