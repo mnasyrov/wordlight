@@ -122,7 +122,7 @@ namespace WordLight.Search
 			}
 		}
 
-		public Rectangle[] GetRectanglesForVisibleMarks(int viewStart, int viewEnd, Rectangle visibleClipBounds, IVsTextView view, int lineHeight, IVsTextBuffer buffer)
+		public Rectangle[] GetRectanglesForVisibleMarks(int visibleTextStart, int visibleTextEnd, IVsTextView view, int lineHeight, IVsTextBuffer buffer)
 		{
 			List<Rectangle> rectList = null;
 
@@ -130,44 +130,21 @@ namespace WordLight.Search
 			{
 				for (var node = _marks.First; node != null; node = node.Next)
 				{
-					if (node.Value.End < viewStart || node.Value.Start > viewEnd)
-						continue;
+					TextMark mark = node.Value;
 
-					TextSpan mark = new TextSpan();
-					buffer.GetLineIndexOfPosition(node.Value.Start, out mark.iStartLine, out mark.iStartIndex);
-					buffer.GetLineIndexOfPosition(node.Value.End, out mark.iEndLine, out mark.iEndIndex);
-
-					//Do not process multi-line selections
-					if (mark.iStartLine != mark.iEndLine)
+					if (mark.IsVisible(visibleTextStart, visibleTextEnd))
 					{
-						continue;
-					}
+						Rectangle rect = mark.GetRectangle(view, lineHeight, buffer);
+						if (rect != Rectangle.Empty)
+						{
+							if (rectList == null)
+								rectList = new List<Rectangle>();
 
-					//GetVisibleRectangle
-					Point startPoint = view.GetPointOfLineColumn(mark.iStartLine, mark.iStartIndex);
-					if (startPoint == Point.Empty)
-						continue;
+							rect.Width -= 1;
+							rect.Height -= 1;
 
-					Point endPoint = view.GetPointOfLineColumn(mark.iEndLine, mark.iEndIndex);
-					if (endPoint == Point.Empty)
-						continue;
-
-					bool isVisible =
-						visibleClipBounds.Left <= endPoint.X && startPoint.X <= visibleClipBounds.Right
-						&& visibleClipBounds.Top <= endPoint.Y && startPoint.Y <= visibleClipBounds.Bottom;
-
-					if (isVisible)
-					{
-						int x = Math.Max(startPoint.X, visibleClipBounds.Left);
-						int y = startPoint.Y;
-
-						int height = endPoint.Y - y + lineHeight;
-						int width = endPoint.X - x;
-
-						if (rectList == null)
-							rectList = new List<Rectangle>();
-
-						rectList.Add(new Rectangle(x, y, width, height));
+							rectList.Add(rect);
+						}
 					}
 				}
 			}

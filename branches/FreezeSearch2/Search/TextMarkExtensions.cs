@@ -10,6 +10,11 @@ namespace WordLight.Search
 {
     public static class TextMarkExtensions
     {
+		public static bool IsVisible(this TextMark mark, int visibleTextStart, int visibleTextEnd)
+        {
+			return visibleTextStart <= mark.End && mark.Start <= visibleTextEnd;
+		}
+
         public static Rectangle GetRectangle(this TextMark mark, IVsTextView view, int lineHeight, IVsTextBuffer buffer)
         {
             TextSpan span = new TextSpan();

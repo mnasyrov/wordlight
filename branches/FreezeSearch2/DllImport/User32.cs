@@ -6,29 +6,20 @@ using System.Text;
 
 namespace WordLight.DllImport
 {
-	public class User32
+	public static partial class User32
 	{
-        [StructLayout(LayoutKind.Sequential)]
-        public struct PAINTSTRUCT
-        {
-            public IntPtr hdc;
-            public bool fErase;
-            public RECT rcPaint;
-            public bool fRestore;
-            public bool fIncUpdate;
+		[StructLayout(LayoutKind.Sequential)]
+		public struct PAINTSTRUCT
+		{
+			public IntPtr hdc;
+			public bool fErase;
+			public RECT rcPaint;
+			public bool fRestore;
+			public bool fIncUpdate;
 
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 32)]
-            public byte[] rgbReserved;
-        }
-
-        [StructLayout(LayoutKind.Sequential)]
-        public struct RECT
-        {
-            public int Left;
-            public int Top;
-            public int Right;
-            public int Bottom;
-        }
+			[MarshalAs(UnmanagedType.ByValArray, SizeConst = 32)]
+			public byte[] rgbReserved;
+		}
 
 		[DllImport("user32.dll")]
 		public static extern IntPtr BeginPaint(IntPtr hWnd, ref PAINTSTRUCT lpPaint);
@@ -50,17 +41,31 @@ namespace WordLight.DllImport
 		public static extern IntPtr GetDC(IntPtr hWnd);
 
 		[DllImport("user32.dll")]
-        public static extern bool GetUpdateRect(IntPtr hWnd, out RECT lpRect, bool erase);
+		public static extern bool GetUpdateRect(IntPtr hWnd, out RECT lpRect, bool erase);
 
-        public static RECT GetUpdateRect(IntPtr hWnd, bool erase)
-        {
-            RECT result = new RECT();
-            GetUpdateRect(hWnd, out result, erase);
-            return result;
-        }
+		public static RECT GetUpdateRect(IntPtr hWnd, bool erase)
+		{
+			RECT result = new RECT();
+			GetUpdateRect(hWnd, out result, erase);
+			return result;
+		}
 
 		[DllImport("user32.dll")]
-		public static extern bool InvalidateRect(IntPtr hWnd, IntPtr rect, bool erase);
+		public static extern bool InvalidateRect(IntPtr hWnd, IntPtr lpRect, bool bErase);
+
+		[DllImport("user32.dll")]
+		public static extern bool InvalidateRect(IntPtr hWnd, ref RECT lpRect, bool bErase);
+
+		public static bool InvalidateRect(IntPtr hWnd, bool bErase)
+		{
+			return InvalidateRect(hWnd, IntPtr.Zero, bErase);
+		}
+
+		public static bool InvalidateRect(IntPtr hWnd, System.Drawing.Rectangle rectangle, bool bErase)
+		{
+			RECT rect = RECT.FromRectangle(rectangle);
+			return InvalidateRect(hWnd, ref rect, bErase);
+		}
 
 		[DllImport("user32.dll")]
 		public static extern bool ReleaseDC(IntPtr hWnd, IntPtr hDC);
