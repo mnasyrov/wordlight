@@ -20,8 +20,13 @@ namespace WordLight
     {
         private class TextPoint
         {
-            public int Line { get; set; }
-            public int Column { get; set; }
+			public int Line;
+			public int Column;
+
+			public override int GetHashCode()
+			{
+				return Line.GetHashCode() ^ Column.GetHashCode();
+			}
         }
 
         private IVsTextView _view;
