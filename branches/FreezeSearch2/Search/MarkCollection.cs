@@ -121,7 +121,7 @@ namespace WordLight.Search
 			}
 		}
 
-		public Rectangle[] GetRectanglesForVisibleMarks(int visibleTextStart, int visibleTextEnd, IVsTextView view, int lineHeight, IVsTextBuffer buffer)
+		public Rectangle[] GetRectanglesForVisibleMarks(int visibleTextStart, int visibleTextEnd, TextView view)
 		{
 			List<Rectangle> rectList = null;
 
@@ -133,7 +133,7 @@ namespace WordLight.Search
 
 					if (mark.IsVisible(visibleTextStart, visibleTextEnd))
 					{
-						Rectangle rect = mark.GetRectangle(view, lineHeight, buffer);
+						Rectangle rect = mark.GetRectangle(view);
 						if (rect != Rectangle.Empty)
 						{
 							if (rectList == null)

@@ -15,11 +15,11 @@ namespace WordLight.Search
 			return visibleTextStart <= mark.End && mark.Position <= visibleTextEnd;
 		}
 
-        public static Rectangle GetRectangle(this TextMark mark, IVsTextView view, int lineHeight, IVsTextBuffer buffer)
+        public static Rectangle GetRectangle(this TextMark mark, TextView view)
         {
             TextSpan span = new TextSpan();
-            buffer.GetLineIndexOfPosition(mark.Position, out span.iStartLine, out span.iStartIndex);
-            buffer.GetLineIndexOfPosition(mark.End, out span.iEndLine, out span.iEndIndex);
+            view.Buffer.GetLineIndexOfPosition(mark.Position, out span.iStartLine, out span.iStartIndex);
+            view.Buffer.GetLineIndexOfPosition(mark.End, out span.iEndLine, out span.iEndIndex);
 
             Point startPoint = view.GetPointOfLineColumn(span.iStartLine, span.iStartIndex);
             if (startPoint == Point.Empty)
@@ -32,7 +32,7 @@ namespace WordLight.Search
             int x = startPoint.X;
             int y = startPoint.Y;
 
-            int height = endPoint.Y - y + lineHeight;
+            int height = endPoint.Y - y + view.LineHeight;
             int width = endPoint.X - x;
 
             return new Rectangle(x, y, width, height);

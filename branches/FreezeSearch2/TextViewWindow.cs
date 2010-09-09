@@ -41,8 +41,8 @@ namespace WordLight
 
 		#endregion
 
-		private IVsTextView _view;
-		private IVsTextLines _buffer;
+        private TextView _textView;
+
 		private IVsHiddenTextManager _hiddenTextManager;
 		private string _previousSelectedText;
 
@@ -50,8 +50,6 @@ namespace WordLight
 		private MarkCollection _freezeMarks1 = new MarkCollection();
 		private MarkCollection _freezeMarks2 = new MarkCollection();
 		private MarkCollection _freezeMarks3 = new MarkCollection();
-
-		private int _lineHeight;
 
 		private string _selectedText;
 		private TextViewEventAdapter _viewEvents;
@@ -85,27 +83,26 @@ namespace WordLight
 			if (view == null) throw new ArgumentNullException("view");
 			if (hiddenTextManager == null) throw new ArgumentNullException("hiddenTextManager");
 
-			_view = view;
+            _textView = new TextView(view);
+
 			_hiddenTextManager = hiddenTextManager;
 
-			_lineHeight = _view.GetLineHeight();
-			_buffer = view.GetBuffer();
-			_textStreamEvents = new TextStreamEventAdapter(_buffer);
+            _textStreamEvents = new TextStreamEventAdapter(_textView.Buffer);
 			_textStreamEvents.StreamTextChanged += new EventHandler<StreamTextChangedEventArgs>(StreamTextChangedHandler);
 
-			_search = new TextSearch(_buffer);
+            _search = new TextSearch(_textView.Buffer);
 			_search.SearchCompleted += new EventHandler<SearchCompletedEventArgs>(searcher_SearchCompleted);
 
-			_freezeSearch1 = new TextSearch(_buffer);
+            _freezeSearch1 = new TextSearch(_textView.Buffer);
 			_freezeSearch1.SearchCompleted += new EventHandler<SearchCompletedEventArgs>(FreezeSearchCompleted1);
 
-			_freezeSearch2 = new TextSearch(_buffer);
+            _freezeSearch2 = new TextSearch(_textView.Buffer);
 			_freezeSearch2.SearchCompleted += new EventHandler<SearchCompletedEventArgs>(FreezeSearchCompleted2);
 
-			_freezeSearch3 = new TextSearch(_buffer);
+            _freezeSearch3 = new TextSearch(_textView.Buffer);
 			_freezeSearch3.SearchCompleted += new EventHandler<SearchCompletedEventArgs>(FreezeSearchCompleted3);
 
-			_viewEvents = new TextViewEventAdapter(_view);
+            _viewEvents = new TextViewEventAdapter(_textView.View);
 			_viewEvents.ScrollChanged += new EventHandler<ViewScrollChangedEventArgs>(ScrollChangedHandler);
 			_viewEvents.GotFocus += new EventHandler<ViewFocusEventArgs>(GotFocusHandler);
 			_viewEvents.LostFocus += new EventHandler<ViewFocusEventArgs>(LostFocusHandler);
@@ -188,7 +185,7 @@ namespace WordLight
 
 		private void HandleUserInput()
 		{
-			string text = _view.GetSelectedText();
+            string text = _textView.View.GetSelectedText();
 			
 			if (text != _previousSelectedText)
 			{
@@ -230,7 +227,7 @@ namespace WordLight
 		private void DrawSearchMarks(Graphics g, Rectangle clipRect)
 		{
 			//Fix for clip bounds: take into account left margin pane during horizontal scrolling.
-			Point leftTop = _view.GetPointOfLineColumn(_viewRange.iStartLine, leftTextColumnInView);
+            Point leftTop = _textView.GetPointOfLineColumn(_viewRange.iStartLine, leftTextColumnInView);
 			if (!leftTop.IsEmpty)
 			{
 				_leftMarginWidth = leftTop.X;
@@ -246,14 +243,14 @@ namespace WordLight
 			g.SetClip(clipRect);
 
 			DrawRectangles(_searchMarks, AddinSettings.Instance.SearchMarkBorderColor, g);
-			DrawRectangles(_freezeMarks1, Color.Aqua, g);
-			DrawRectangles(_freezeMarks2, Color.Lime, g);
-			DrawRectangles(_freezeMarks3, Color.Orange, g);
+            DrawRectangles(_freezeMarks1, AddinSettings.Instance.FreezeMark1BorderColor, g);
+            DrawRectangles(_freezeMarks2, AddinSettings.Instance.FreezeMark2BorderColor, g);
+            DrawRectangles(_freezeMarks3, AddinSettings.Instance.FreezeMark3BorderColor, g);
 		}
 
 		private void DrawRectangles(MarkCollection marks, Color penColor, Graphics g)
 		{
-			Rectangle[] rectangles = marks.GetRectanglesForVisibleMarks(_visibleTextStart, _visibleTextEnd, _view, _lineHeight, _buffer);
+            Rectangle[] rectangles = marks.GetRectanglesForVisibleMarks(_visibleTextStart, _visibleTextEnd, _textView);
 
 			if (rectangles != null && rectangles.Length > 0)
 			{
@@ -278,13 +275,15 @@ namespace WordLight
 		{
 			if (mark.IsVisible(_visibleTextStart, _visibleTextEnd))
 			{
-				Rectangle rect = mark.GetRectangle(_view, _lineHeight, _buffer);
+                Rectangle rect = mark.GetRectangle(_textView);
 				_markUpdateRect.IncludeRectangle(rect);
 			}
 		}
 
 		private void ScrollChangedHandler(object sender, ViewScrollChangedEventArgs e)
 		{
+            _textView.ResetPointCache();
+
 			if (e.ScrollInfo.IsHorizontal)
 			{
 				leftTextColumnInView = e.ScrollInfo.firstVisibleUnit;
@@ -295,9 +294,9 @@ namespace WordLight
 				int topTextLineInView = 0;
 				int bottomTextLineInView = 0;
 
-				IVsLayeredTextView viewLayer = _view as IVsLayeredTextView;
+                IVsLayeredTextView viewLayer = _textView.View as IVsLayeredTextView;
 				IVsTextLayer topLayer = null;
-				IVsTextLayer bufferLayer = _buffer as IVsTextLayer;
+                IVsTextLayer bufferLayer = _textView.Buffer as IVsTextLayer;
 
 				if (viewLayer != null)
 				{
@@ -313,12 +312,12 @@ namespace WordLight
 				}
 				else
 				{
-					TextSpan entireSpan = _buffer.CreateSpanForAllLines();
+                    TextSpan entireSpan = _textView.Buffer.CreateSpanForAllLines();
 					topTextLineInView = entireSpan.iStartLine;
 					bottomTextLineInView = entireSpan.iEndLine;
 				}
 
-				TextSpan viewRange = _buffer.CreateSpanForAllLines();
+                TextSpan viewRange = _textView.Buffer.CreateSpanForAllLines();
 				viewRange.iStartLine = topTextLineInView;
 				if (bottomTextLineInView < viewRange.iEndLine)
 				{
@@ -328,8 +327,8 @@ namespace WordLight
 
 				_viewRange = viewRange;
 
-				_visibleTextStart = _buffer.GetPositionOfLineIndex(_viewRange.iStartLine, _viewRange.iStartIndex);
-				_visibleTextEnd = _buffer.GetPositionOfLineIndex(_viewRange.iEndLine, _viewRange.iEndIndex);
+                _visibleTextStart = _textView.Buffer.GetPositionOfLineIndex(_viewRange.iStartLine, _viewRange.iStartIndex);
+                _visibleTextEnd = _textView.Buffer.GetPositionOfLineIndex(_viewRange.iEndLine, _viewRange.iEndIndex);
 			}
 		}
 
