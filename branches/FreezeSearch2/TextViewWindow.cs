@@ -241,11 +241,11 @@ namespace WordLight
 			clipRect.X = Math.Max(clipRect.X, _leftMarginWidth);
 
 			g.SetClip(clipRect);
-
-			DrawRectangles(_searchMarks, AddinSettings.Instance.SearchMarkBorderColor, g);
+			
             DrawRectangles(_freezeMarks1, AddinSettings.Instance.FreezeMark1BorderColor, g);
             DrawRectangles(_freezeMarks2, AddinSettings.Instance.FreezeMark2BorderColor, g);
             DrawRectangles(_freezeMarks3, AddinSettings.Instance.FreezeMark3BorderColor, g);
+			DrawRectangles(_searchMarks, AddinSettings.Instance.SearchMarkBorderColor, g);
 		}
 
 		private void DrawRectangles(MarkCollection marks, Color penColor, Graphics g)
