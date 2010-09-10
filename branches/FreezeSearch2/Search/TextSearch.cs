@@ -56,19 +56,18 @@ namespace WordLight.Search
         {
             List<int> results = new List<int>();
 
-            //int[] badChars = new int[char.MaxValue + 1];
-            int valueLength = value.Length;
-
             /* Preprocessing */
-			//for (int i = 0; i < badChars.Length; i++)
-			//    badChars[i] = valueLength + 1;
-
-			//for (int i = 0; i < valueLength; i++)
-			//    badChars[value[i]] = valueLength - i;
-
-			var store = new Dictionary<int, int>(valueLength);
-			for (int i = 0; i < valueLength; i++)
-			    store.Add(value[i], valueLength - i);
+            int valueLength = value.Length;            
+			var badChars = new Dictionary<int, int>(valueLength);
+            
+            for (int i = 0; i < valueLength; i++)
+            {
+                int key = value[i];
+                if (badChars.ContainsKey(key))
+                    badChars[key] = valueLength - i;
+                else
+                    badChars.Add(key, valueLength - i);
+            }
 
             /* Searching */
             searchEnd = Math.Min(searchEnd, text.Length) - valueLength - 1;
@@ -78,8 +77,8 @@ namespace WordLight.Search
                     results.Add(i);
 
 				int key = text[i + valueLength];
-				if (store.ContainsKey(key))
-					i += store[key];
+				if (badChars.ContainsKey(key))
+					i += badChars[key];
 				else
 					i += valueLength + 1;
             }

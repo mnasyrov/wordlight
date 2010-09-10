@@ -121,7 +121,7 @@ namespace WordLight.Search
 			}
 		}
 
-		public Rectangle[] GetRectanglesForVisibleMarks(int visibleTextStart, int visibleTextEnd, TextView view)
+		public Rectangle[] GetRectanglesForVisibleMarks(int visibleTextStart, int visibleTextEnd, TextView view, Rectangle clip)
 		{
 			List<Rectangle> rectList = null;
 
@@ -142,7 +142,9 @@ namespace WordLight.Search
 							rect.Width -= 1;
 							rect.Height -= 1;
 
-							rectList.Add(rect);
+                            Rectangle r = Rectangle.Intersect(clip, rect);
+                            if (r != Rectangle.Empty)
+                                rectList.Add(rect);
 						}
 					}
 				}

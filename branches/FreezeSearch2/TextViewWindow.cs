@@ -159,22 +159,11 @@ namespace WordLight
 					HandleUserInput();
 					break;
 
-				//case WM_ERASEBKGND:
-				//    IntPtr hdc = m.WParam;
-				//    base.WndProc(ref m);
-				//    if (hdc != IntPtr.Zero)
-				//    {
-				//        using (Graphics g = Graphics.FromHdc(hdc))
-				//        {
-				//            DrawSearchMarks(g, clipRect);
-				//        }
-				//    }
-				//    break;
-
 				case WM_PAINT:
 					Rectangle clipRect = User32.GetUpdateRect(Handle, false).ToRectangle();
 					base.WndProc(ref m);
-					Paint(clipRect);
+                    if (clipRect != Rectangle.Empty)
+                        Paint(clipRect);
 					break;
 
 				default:
@@ -200,11 +189,6 @@ namespace WordLight
 
 			using (Graphics g = Graphics.FromHwnd(Handle))
 			{
-				g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.None;
-				g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.None;
-				g.CompositingQuality = System.Drawing.Drawing2D.CompositingQuality.HighSpeed;
-				g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.NearestNeighbor;
-
 				DrawSearchMarks(g, clipRect);
 			}
 
@@ -222,6 +206,7 @@ namespace WordLight
 			User32.ShowCaret(Handle);
 
 			_markUpdateRect.Validate();
+            //User32.ValidateRect(Handle, IntPtr.Zero);
 		}
 
 		private void DrawSearchMarks(Graphics g, Rectangle clipRect)
@@ -241,23 +226,24 @@ namespace WordLight
 			clipRect.X = Math.Max(clipRect.X, _leftMarginWidth);
 
 			g.SetClip(clipRect);
-			
-            DrawRectangles(_freezeMarks1, AddinSettings.Instance.FreezeMark1BorderColor, g);
-            DrawRectangles(_freezeMarks2, AddinSettings.Instance.FreezeMark2BorderColor, g);
-            DrawRectangles(_freezeMarks3, AddinSettings.Instance.FreezeMark3BorderColor, g);
-			DrawRectangles(_searchMarks, AddinSettings.Instance.SearchMarkBorderColor, g);
+
+            DrawRectangles(_searchMarks, AddinSettings.Instance.SearchMarkBorderColor, g, clipRect);
+            DrawRectangles(_freezeMarks1, AddinSettings.Instance.FreezeMark1BorderColor, g, clipRect);
+            DrawRectangles(_freezeMarks2, AddinSettings.Instance.FreezeMark2BorderColor, g, clipRect);
+            DrawRectangles(_freezeMarks3, AddinSettings.Instance.FreezeMark3BorderColor, g, clipRect);			
 		}
 
-		private void DrawRectangles(MarkCollection marks, Color penColor, Graphics g)
+		private void DrawRectangles(MarkCollection marks, Color penColor, Graphics g, Rectangle clip)
 		{
-            Rectangle[] rectangles = marks.GetRectanglesForVisibleMarks(_visibleTextStart, _visibleTextEnd, _textView);
+            Rectangle[] rectangles = marks.GetRectanglesForVisibleMarks(_visibleTextStart, _visibleTextEnd, _textView, clip);
 
 			if (rectangles != null && rectangles.Length > 0)
 			{
-				using (var pen = new Pen(penColor))
-				{
+                using (var b = new SolidBrush(Color.FromArgb(16, penColor)))
+                    g.FillRectangles(b, rectangles);
+			
+                using (var pen = new Pen(penColor))
 					g.DrawRectangles(pen, rectangles);
-				}
 			}
 		}
 
