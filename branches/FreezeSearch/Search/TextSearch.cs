@@ -15,7 +15,8 @@ namespace WordLight.Search
         private class SearchJob
         {
             public string Value { get; set; }
-            public TextSpan Range { get; set; }
+			public int SearchStart { get; set; }
+			public int SearchEnd { get; set; }
         }
 
         const int SearchDelay = 250; //ms
@@ -55,39 +56,45 @@ namespace WordLight.Search
         {
             List<int> results = new List<int>();
 
-            int[] badChars = new int[char.MaxValue + 1];
-            int valueLength = value.Length;
-
             /* Preprocessing */
-            for (int i = 0; i < badChars.Length; i++)
-                badChars[i] = valueLength + 1;
-
+            int valueLength = value.Length;            
+			var badChars = new Dictionary<int, int>(valueLength);
+            
             for (int i = 0; i < valueLength; i++)
-                badChars[value[i]] = valueLength - i;
+            {
+                int key = value[i];
+                if (badChars.ContainsKey(key))
+                    badChars[key] = valueLength - i;
+                else
+                    badChars.Add(key, valueLength - i);
+            }
 
             /* Searching */
-            searchEnd = Math.Min(searchEnd, text.Length) - valueLength;
-            for (int i = searchStart; i < searchEnd; i += badChars[text[i + valueLength]])
+            searchEnd = Math.Min(searchEnd, text.Length) - valueLength - 1;
+            for (int i = searchStart; i < searchEnd; )
             {
                 if (text.Substring(i, valueLength).StartsWith(value, StringComparison.InvariantCultureIgnoreCase))
                     results.Add(i);
+
+				int key = text[i + valueLength];
+				if (badChars.ContainsKey(key))
+					i += badChars[key];
+				else
+					i += valueLength + 1;
             }
 
             return results;
         }
 
-        public TextSpan[] SearchOccurrences(string value, TextSpan searchRange)
+		public TextMark[] SearchOccurrences(string value, int searchStart, int searchEnd)
         {
-            List<TextSpan> marks = new List<TextSpan>();
+            var marks = new List<TextMark>();
 
             if (!string.IsNullOrEmpty(value))
             {
                 string text = _buffer.GetText();
                 if (!string.IsNullOrEmpty(text))
                 {
-                    int searchStart = _buffer.GetPositionOfLineIndex(searchRange.iStartLine, searchRange.iStartIndex);
-                    int searchEnd = _buffer.GetPositionOfLineIndex(searchRange.iEndLine, searchRange.iEndIndex);
-
                     int length = value.Length;
 
                     if (searchEnd > searchStart && length > 0)
@@ -96,15 +103,7 @@ namespace WordLight.Search
 
                         foreach (int pos in positions)
                         {
-                            TextSpan span = new TextSpan();
-                            _buffer.GetLineIndexOfPosition(pos, out span.iStartLine, out span.iStartIndex);
-                            _buffer.GetLineIndexOfPosition(pos + length, out span.iEndLine, out span.iEndIndex);
-
-                            //Do not process multi-line selections
-                            if (span.iStartLine == span.iEndLine)
-                            {
-                                marks.Add(span);
-                            }
+							marks.Add(new TextMark(pos, length));
                         }
                     }
                 }
@@ -115,7 +114,7 @@ namespace WordLight.Search
 
         #region Delayed searching
 
-        public void SearchOccurrencesDelayed(string value, TextSpan searchRange)
+		public void SearchOccurrencesDelayed(string value, int searchStart, int searchEnd)
         {
             _searchTimer.Stop();
 
@@ -124,7 +123,8 @@ namespace WordLight.Search
                 lock (_delayedSearchSyncLock)
                 {
                     _delayedJob.Value = value;
-                    _delayedJob.Range = searchRange;
+					_delayedJob.SearchStart = searchStart;
+					_delayedJob.SearchEnd = searchEnd;
                 }
                 _searchTimer.Start();
             }
@@ -133,26 +133,28 @@ namespace WordLight.Search
         private void searchTimer_Elapsed(object sender, ElapsedEventArgs e)
         {
             string value;
-            TextSpan searchRange;
+            int searchStart;
+			int searchEnd;
 
             lock (_delayedSearchSyncLock)
             {
                 value = _delayedJob.Value;
-                searchRange = _delayedJob.Range;
+                searchStart = _delayedJob.SearchStart;
+				searchEnd = _delayedJob.SearchEnd;
             }
 
-			SearchOccurrencesAsync(value, searchRange);
+			SearchOccurrencesAsync(value, searchStart, searchEnd);
         }
 
         #endregion
 
         #region Async searching
 
-        public void SearchOccurrencesAsync(string value, TextSpan searchRange)
+		public void SearchOccurrencesAsync(string value, int searchStart, int searchEnd)
         {
             lock (_asyncJobsSyncRoot)
             {
-                _asyncJobs.Enqueue(new SearchJob() { Value = value, Range = searchRange });
+                _asyncJobs.Enqueue(new SearchJob() { Value = value, SearchStart = searchStart, SearchEnd = searchEnd });
             }
 
             if (!_isThreadWorking)
@@ -183,12 +185,12 @@ namespace WordLight.Search
 
                 if (job != null)
                 {
-                    TextSpan[] marks = SearchOccurrences(job.Value, job.Range);
+                    var marks = SearchOccurrences(job.Value, job.SearchStart, job.SearchEnd);
 
                     EventHandler<SearchCompletedEventArgs> evt = SearchCompleted;
                     if (evt != null)
                     {
-                        evt(this, new SearchCompletedEventArgs(job.Value, job.Range, marks));
+						evt(this, new SearchCompletedEventArgs(job.Value, job.SearchStart, job.SearchEnd, marks));
                     }
                 }
             }

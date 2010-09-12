@@ -15,7 +15,7 @@ namespace WordLight.EventAdapters
 		private uint _connectionCookie;
 		private IConnectionPoint _connectionPoint;
 
-		public event EventHandler StreamTextChanged;
+		public event EventHandler<StreamTextChangedEventArgs> StreamTextChanged;
 
 		public TextStreamEventAdapter(IVsTextBuffer buffer)
 		{
@@ -47,9 +47,9 @@ namespace WordLight.EventAdapters
 		public void OnChangeStreamText(int iPos, int iOldLen, int iNewLen, int fLast)
 		{
 			//Make a basic notification only.
-			EventHandler evt = StreamTextChanged;
+			var evt = StreamTextChanged;
 			if (evt != null)
-				evt(this, EventArgs.Empty);
+				evt(this, new StreamTextChangedEventArgs(iPos, iOldLen, iNewLen));
 		}
 
 		/// <summary>

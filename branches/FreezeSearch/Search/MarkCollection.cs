@@ -9,76 +9,151 @@ using Microsoft.VisualStudio.TextManager.Interop;
 
 namespace WordLight.Search
 {
-    public class MarkCollection
-    {
-        private TextSpan[] _marks = null;
-        private object _marksSyncRoot = new object();
+	public class MarkCollection
+	{
+        public event EventHandler<MarkEventArgs> MarkDeleted;
+        public event EventHandler<MarkEventArgs> MarkAdded;
 
-        public void Clear()
+		private LinkedList<TextMark> _marks = new LinkedList<TextMark>();
+		private object _marksSyncRoot = new object();
+
+        private void OnDeleteMark(TextMark mark)
         {
-            lock (_marksSyncRoot)
+            EventHandler<MarkEventArgs> evt = MarkDeleted;
+            if (evt != null)
             {
-                _marks = null;
+                evt(this, new MarkEventArgs(mark));
             }
         }
 
-        public void ReplaceMarks(TextSpan[] newMarks)
+        private void OnAddMark(TextMark mark)
         {
-            lock (_marksSyncRoot)
+            EventHandler<MarkEventArgs> evt = MarkAdded;
+            if (evt != null)
             {
-                _marks = newMarks;
+                evt(this, new MarkEventArgs(mark));
             }
         }
 
-        public Rectangle[] GetRectanglesForVisibleMarks(TextSpan viewRange, Rectangle visibleClipBounds, IVsTextView view, int lineHeight)
-        {
-            List<Rectangle> rectList = null;
-
-            lock (_marksSyncRoot)
-            {
-                if (_marks != null)
+		public void Clear()
+		{
+			lock (_marksSyncRoot)
+			{
+                foreach (var mark in _marks)
                 {
-                    for (int i = 0; i < _marks.Length && _marks[i].iStartLine <= viewRange.iEndLine; i++)
+                    OnDeleteMark(mark);
+                }
+
+				_marks.Clear();
+			}
+		}
+
+		public void ReplaceMarks(TextMark[] newMarks)
+		{
+			lock (_marksSyncRoot)
+			{
+                foreach (var mark in _marks)
+                {
+                    OnDeleteMark(mark);
+                }
+
+                if (newMarks == null || newMarks.Length == 0)
+                {
+                    _marks.Clear();
+                }
+                else
+                {
+                    _marks = new LinkedList<TextMark>(newMarks);
+                    foreach (var mark in _marks)
                     {
-                        TextSpan mark = _marks[i];
-
-                        if (mark.iEndLine < viewRange.iStartLine)
-                            continue;
-
-                        //GetVisibleRectangle
-                        Point startPoint = view.GetPointOfLineColumn(mark.iStartLine, mark.iStartIndex);
-                        if (startPoint == Point.Empty)
-                            continue;
-
-                        Point endPoint = view.GetPointOfLineColumn(mark.iEndLine, mark.iEndIndex);
-                        if (endPoint == Point.Empty)
-                            continue;
-
-                        bool isVisible =
-                            visibleClipBounds.Left <= endPoint.X && startPoint.X <= visibleClipBounds.Right
-                            && visibleClipBounds.Top <= endPoint.Y && startPoint.Y <= visibleClipBounds.Bottom;
-
-                        if (isVisible)
-                        {
-                            int x = Math.Max(startPoint.X, visibleClipBounds.Left);
-                            int y = startPoint.Y;
-
-                            int height = endPoint.Y - y + lineHeight;
-                            int width = endPoint.X - x;
-
-                            if (rectList == null)
-                                rectList = new List<Rectangle>();
-
-                            rectList.Add(new Rectangle(x, y, width, height));
-                        }
+                        OnAddMark(mark);
                     }
                 }
-            }
+			}
+		}
 
-            if (rectList != null)
-                return rectList.ToArray();
+		public void ReplaceMarks(TextMark[] newMarks, int start, int end, int tailOffset)
+		{
+			lock (_marksSyncRoot)
+			{
+				if (_marks.Count == 0)
+				{
+					ReplaceMarks(newMarks);
+					return;
+				}
 
-            return null;
-        }
-    }
+                //Determine left and right bounds
+				var left = _marks.First;
+				var right = _marks.Last;
+
+				for (var node = _marks.First; node != null; node = node.Next)
+				{
+					if (node.Value.End >= start)
+						break;
+					left = node;
+				}
+
+				for (var node = _marks.Last; node != null && node != left; node = node.Previous)
+				{
+					node.Value.Position += tailOffset;
+
+					if (node.Value.Position <= end)
+						break;
+					right = node;
+				}
+
+                //Delete deprecated marks
+				for (var node = left.Next; node != null && node != right; node = node.Next)
+				{
+                    OnDeleteMark(node.Value);
+					_marks.Remove(node);
+				}
+
+                //Add new marks instead of old ones
+				if (newMarks != null)
+				{
+					for (int i = 0; i < newMarks.Length; i++)
+					{
+						left = _marks.AddAfter(left, newMarks[i]);
+                        OnAddMark(newMarks[i]);
+					}
+				}
+			}
+		}
+
+		public Rectangle[] GetRectanglesForVisibleMarks(int visibleTextStart, int visibleTextEnd, TextView view, Rectangle clip)
+		{
+			List<Rectangle> rectList = null;
+
+			lock (_marksSyncRoot)
+			{
+				for (var node = _marks.First; node != null; node = node.Next)
+				{
+					TextMark mark = node.Value;
+
+					if (mark.IsVisible(visibleTextStart, visibleTextEnd))
+					{
+						Rectangle rect = mark.GetRectangle(view);
+						if (rect != Rectangle.Empty)
+						{
+							if (rectList == null)
+								rectList = new List<Rectangle>();
+
+							rect.Width -= 1;
+							rect.Height -= 1;
+
+                            Rectangle r = Rectangle.Intersect(clip, rect);
+                            if (r != Rectangle.Empty)
+                                rectList.Add(rect);
+						}
+					}
+				}
+			}
+
+			if (rectList != null)
+				return rectList.ToArray();
+
+			return null;
+		}
+	}
 }
