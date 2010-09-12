@@ -18,29 +18,6 @@ namespace WordLight
 {
 	public class TextViewWindow : NativeWindow, IDisposable
 	{
-		#region WinProc Messages
-
-		private const int WM_KEYDOWN = 0x0100;
-		private const int WM_KEYUP = 0x101;
-		private const int WM_LBUTTONUP = 0x202;
-		private const int WM_RBUTTONUP = 0x205;
-		private const int WM_MBUTTONUP = 0x208;
-		private const int WM_XBUTTONUP = 0x20C;
-		private const int WM_LBUTTONDOWN = 0x201;
-		private const int WM_RBUTTONDOWN = 0x204;
-		private const int WM_MBUTTONDOWN = 0x207;
-		private const int WM_XBUTTONDOWN = 0x20B;
-		private const int WM_LBUTTONDBLCLK = 0x0203;
-		private const int WM_MBUTTONDBLCLK = 0x0209;
-		private const int WM_RBUTTONDBLCLK = 0x0206;
-		private const int WM_XBUTTONDBLCLK = 0x020D;
-		private const int WM_PARENTNOTIFY = 0x0210;
-
-		private const int WM_PAINT = 0x000F;
-		private const int WM_ERASEBKGND = 0x0014;
-
-		#endregion
-
         private TextView _textView;
 
 		private IVsHiddenTextManager _hiddenTextManager;
@@ -136,41 +113,65 @@ namespace WordLight
 		}
 
 		//Rectangle clipRect = Rectangle.Empty;
+		//private bool isWindowScrolled;
 
 		protected override void WndProc(ref Message m)
 		{
 			switch (m.Msg)
 			{
-				case WM_KEYUP:
-				case WM_KEYDOWN:
-				case WM_LBUTTONUP:
-				case WM_RBUTTONUP:
-				case WM_MBUTTONUP:
-				case WM_XBUTTONUP:
-				case WM_LBUTTONDOWN:
-				case WM_MBUTTONDOWN:
-				case WM_RBUTTONDOWN:
-				case WM_XBUTTONDOWN:
-				case WM_LBUTTONDBLCLK:
-				case WM_MBUTTONDBLCLK:
-				case WM_RBUTTONDBLCLK:
-				case WM_XBUTTONDBLCLK:
+				case WinProcMessages.WM_KEYUP:
+				case WinProcMessages.WM_KEYDOWN:
+				case WinProcMessages.WM_LBUTTONUP:
+				case WinProcMessages.WM_RBUTTONUP:
+				case WinProcMessages.WM_MBUTTONUP:
+				case WinProcMessages.WM_XBUTTONUP:
+				case WinProcMessages.WM_LBUTTONDOWN:
+				case WinProcMessages.WM_MBUTTONDOWN:
+				case WinProcMessages.WM_RBUTTONDOWN:
+				case WinProcMessages.WM_XBUTTONDOWN:
+				case WinProcMessages.WM_LBUTTONDBLCLK:
+				case WinProcMessages.WM_MBUTTONDBLCLK:
+				case WinProcMessages.WM_RBUTTONDBLCLK:
+				case WinProcMessages.WM_XBUTTONDBLCLK:
 					base.WndProc(ref m);
 					HandleUserInput();
 					break;
 
-				case WM_PAINT:
+				//case WinProcMessages.WM_HSCROLL:
+				//case WinProcMessages.WM_VSCROLL:
+				//    //Debugger("WM_?SCROLL " + m.Result);
+				//    isWindowScrolled = true;
+				//    break;
+
+				case WinProcMessages.WM_PAINT:
+					//Debugger("WM_PAINT " + m.Result);
+
 					Rectangle clipRect = User32.GetUpdateRect(Handle, false).ToRectangle();
 					base.WndProc(ref m);
-                    if (clipRect != Rectangle.Empty)
-                        Paint(clipRect);
+
+					if (clipRect != Rectangle.Empty)
+					{
+						Paint(clipRect);
+					}
+
 					break;
 
+				//case WinProcMessages.WM_ERASEBKGND:
+				//    Debugger("WM_ERASEBKGND " +m.Result);
+				//    base.WndProc(ref m);
+				//    break;
+
 				default:
+					//Debugger(m.Msg.ToString());
 					base.WndProc(ref m);
 					break;
 			}
 		}
+
+		//private void Debugger(string message)
+		//{
+		//    System.Diagnostics.Debugger.Log(0, "WordLight", message + "\n");
+		//}
 
 		private void HandleUserInput()
 		{
@@ -189,6 +190,12 @@ namespace WordLight
 
 			using (Graphics g = Graphics.FromHwnd(Handle))
 			{
+				//using (var b = new SolidBrush(Color.FromArgb(16, Color.Yellow)))
+				//    g.FillRectangle(b, clipRect);
+				
+				//using (var p = new Pen(Color.Yellow))
+				//    g.DrawRectangle(p, clipRect);
+
 				DrawSearchMarks(g, clipRect);
 			}
 
@@ -266,6 +273,21 @@ namespace WordLight
 			}
 		}
 
+		private void InvalidateVisibleMarks(MarkCollection marks)
+		{
+			var clip = new Rectangle(0, 0, int.MaxValue, int.MaxValue);
+
+			var rectangles = marks.GetRectanglesForVisibleMarks(_visibleTextStart, _visibleTextEnd, _textView, clip);
+
+			if (rectangles != null && rectangles.Length > 0)
+			{
+				foreach (Rectangle rect in rectangles)
+				{
+					_markUpdateRect.IncludeRectangle(rect);
+				}				
+			}
+		}
+
 		private void ScrollChangedHandler(object sender, ViewScrollChangedEventArgs e)
 		{
             _textView.ResetPointCache();
@@ -316,6 +338,12 @@ namespace WordLight
                 _visibleTextStart = _textView.Buffer.GetPositionOfLineIndex(_viewRange.iStartLine, _viewRange.iStartIndex);
                 _visibleTextEnd = _textView.Buffer.GetPositionOfLineIndex(_viewRange.iEndLine, _viewRange.iEndIndex);
 			}
+
+			InvalidateVisibleMarks(_searchMarks);
+			InvalidateVisibleMarks(_freezeMarks1);
+			InvalidateVisibleMarks(_freezeMarks2);
+			InvalidateVisibleMarks(_freezeMarks3);
+			_markUpdateRect.Invalidate();
 		}
 
 		private void StreamTextChangedHandler(object sender, StreamTextChangedEventArgs e)
