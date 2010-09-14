@@ -136,11 +136,8 @@ namespace WordLight
                 case WinProcMessages.WM_PAINT:
                     Rectangle clipRect = User32.GetUpdateRect(Handle, false).ToRectangle();
                     base.WndProc(ref m);
-
-                    if (clipRect != Rectangle.Empty)
-                    {
+                    //if (clipRect != Rectangle.Empty)
                         Paint(clipRect);
-                    }
 
                     break;
 
@@ -370,26 +367,26 @@ namespace WordLight
         {
             if (e.Text == _selectedText)
             {
-                _searchMarks.ReplaceMarks(e.Marks);
+                _searchMarks.AddMarks(e.Marks);
                 _markUpdateRect.Invalidate();
             }
         }
 
         private void FreezeSearchCompleted1(object sender, SearchCompletedEventArgs e)
         {
-            _freezeMarks1.ReplaceMarks(e.Marks);
+            _freezeMarks1.AddMarks(e.Marks);
             _markUpdateRect.Invalidate();
         }
 
         private void FreezeSearchCompleted2(object sender, SearchCompletedEventArgs e)
         {
-            _freezeMarks2.ReplaceMarks(e.Marks);
+            _freezeMarks2.AddMarks(e.Marks);
             _markUpdateRect.Invalidate();
         }
 
         private void FreezeSearchCompleted3(object sender, SearchCompletedEventArgs e)
         {
-            _freezeMarks3.ReplaceMarks(e.Marks);
+            _freezeMarks3.AddMarks(e.Marks);
             _markUpdateRect.Invalidate();
         }
 

@@ -92,7 +92,7 @@ namespace WordLight
         public Rectangle GetRectangle(TextMark mark)
         {
             TextSpan span = new TextSpan();
-            _buffer.GetLineIndexOfPosition(mark.Position, out span.iStartLine, out span.iStartIndex);
+            _buffer.GetLineIndexOfPosition(mark.Start, out span.iStartLine, out span.iStartIndex);
             _buffer.GetLineIndexOfPosition(mark.End, out span.iEndLine, out span.iEndIndex);
 
             //Don't display multiline marks
@@ -142,7 +142,7 @@ namespace WordLight
 
         public bool IsVisible(TextMark mark, int visibleTextStart, int visibleTextEnd)
         {
-            return visibleTextStart <= mark.End && mark.Position <= visibleTextEnd;
+            return visibleTextStart <= mark.End && mark.Start <= visibleTextEnd;
         }
 
         public void ResetCaches()

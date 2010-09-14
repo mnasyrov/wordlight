@@ -8,17 +8,17 @@ namespace WordLight.Search
 {
     public class TextMark
     {
-        public int Position { get; set; }
+        public int Start { get; set; }
 		public int Length { get; set; }
 
 		public int End
 		{
-			get { return Position + Length; }
+			get { return Start + Length; }
 		}
 
 		public TextMark(int position, int length)
 		{
-			this.Position = position;
+			this.Start = position;
 			this.Length = length;
 		}
     }
