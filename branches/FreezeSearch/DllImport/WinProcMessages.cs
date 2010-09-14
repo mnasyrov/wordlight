@@ -28,5 +28,7 @@ namespace WordLight.DllImport
 
 		public const int WM_HSCROLL = 0x0114;
 		public const int WM_VSCROLL = 0x0115;
+
+        public const int WM_SETREDRAW = 0x000B;
 	}
 }

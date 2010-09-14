@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Globalization;
 using System.Text;
 
 using EnvDTE;
@@ -68,9 +69,26 @@ namespace WordLight
             return defaultColor;
         }
 
+        public bool GetBoolSetting(string key, bool defaultValue)
+        {
+            string value = GetSetting(key);
+
+            bool parsedValue;
+            if (bool.TryParse(value, out parsedValue))
+            {
+                return parsedValue;
+            }
+            return defaultValue;
+        }
+
         public void SetColorSetting(string key, Color value)
         {
-            SetSetting(key, value.ToArgb().ToString());
+            SetSetting(key, value.ToArgb().ToString(CultureInfo.InvariantCulture));
+        }
+
+        public void SetBoolSetting(string key, bool value)
+        {
+            SetSetting(key, value.ToString(CultureInfo.InvariantCulture));
         }
     }
 }

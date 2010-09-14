@@ -54,6 +54,11 @@ namespace WordLight
         public string FreezeMark3Hotkey { get; set; }
 
 
+        [Category("Experemental")]
+        [DisplayName("Filled marks"), Description("Fills marks with semitransparent color")]
+        public bool FilledMarks { get; set; }
+
+
         protected AddinSettings()
         {
             ResetToDefaults();
@@ -70,6 +75,8 @@ namespace WordLight
             FreezeMark1Hotkey = "Global::ctrl+`";
             FreezeMark2Hotkey = "Global::ctrl+1";
             FreezeMark3Hotkey = "Global::ctrl+2";
+
+            FilledMarks = false;
         }
 
         public void Load(SettingRepository repository)
@@ -91,6 +98,12 @@ namespace WordLight
                 FreezeMark1BorderColor = settings.GetColorSetting("FreezeMark1BorderColor", FreezeMark1BorderColor);
                 FreezeMark2BorderColor = settings.GetColorSetting("FreezeMark2BorderColor", FreezeMark2BorderColor);
                 FreezeMark3BorderColor = settings.GetColorSetting("FreezeMark3BorderColor", FreezeMark3BorderColor);
+
+                FreezeMark1Hotkey = settings.GetSetting("FreezeMark1Hotkey", FreezeMark1Hotkey);
+                FreezeMark2Hotkey = settings.GetSetting("FreezeMark2Hotkey", FreezeMark2Hotkey);
+                FreezeMark3Hotkey = settings.GetSetting("FreezeMark3Hotkey", FreezeMark3Hotkey);
+
+                FilledMarks = settings.GetBoolSetting("FilledMarks", FilledMarks);
             }
         }
 
@@ -104,6 +117,12 @@ namespace WordLight
                 settings.SetColorSetting("FreezeMark1BorderColor", FreezeMark1BorderColor);
                 settings.SetColorSetting("FreezeMark2BorderColor", FreezeMark2BorderColor);
                 settings.SetColorSetting("FreezeMark3BorderColor", FreezeMark3BorderColor);
+
+                settings.SetSetting("FreezeMark1Hotkey", FreezeMark1Hotkey);
+                settings.SetSetting("FreezeMark2Hotkey", FreezeMark2Hotkey);
+                settings.SetSetting("FreezeMark3Hotkey", FreezeMark3Hotkey);
+
+                settings.SetBoolSetting("FilledMarks", FilledMarks);
             }
         }
     }    

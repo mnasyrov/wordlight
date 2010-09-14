@@ -73,6 +73,9 @@ namespace WordLight.DllImport
 		[DllImport("user32.dll")]
 		public static extern bool ReleaseDC(IntPtr hWnd, IntPtr hDC);
 
+        [DllImport("user32.dll")]
+        public static extern IntPtr SendMessage(IntPtr hWnd, int Msg, IntPtr wParam, IntPtr lParam);
+
 		[DllImport("user32.dll")]
 		public static extern bool ShowCaret(IntPtr hWnd);
 
@@ -89,6 +92,20 @@ namespace WordLight.DllImport
 		{
 			RECT rect = RECT.FromRectangle(rectangle);
 			return ValidateRect(hWnd, ref rect);
-		}
-	}
+        }
+
+        #region Helpers
+
+        public static void TurnOffRedrawing(IntPtr hWnd)
+        {
+            SendMessage(hWnd, WinProcMessages.WM_SETREDRAW, IntPtr.Zero, IntPtr.Zero);
+        }
+
+        public static void TurnOnRedrawing(IntPtr hWnd)
+        {
+            SendMessage(hWnd, WinProcMessages.WM_SETREDRAW, (IntPtr) 1, IntPtr.Zero);
+        }
+
+        #endregion
+    }
 }

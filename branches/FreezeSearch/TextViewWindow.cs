@@ -87,14 +87,14 @@ namespace WordLight
             _viewEvents.GotFocus += new EventHandler<ViewFocusEventArgs>(GotFocusHandler);
             _viewEvents.LostFocus += new EventHandler<ViewFocusEventArgs>(LostFocusHandler);
 
-            _searchMarks.MarkAdded += new EventHandler<MarkEventArgs>(MarkModifiedHandler);
-            _searchMarks.MarkDeleted += new EventHandler<MarkEventArgs>(MarkDeletedHandler);
-            _freezeMarks1.MarkAdded += new EventHandler<MarkEventArgs>(MarkModifiedHandler);
-            _freezeMarks1.MarkDeleted += new EventHandler<MarkEventArgs>(MarkDeletedHandler);
-            _freezeMarks2.MarkAdded += new EventHandler<MarkEventArgs>(MarkModifiedHandler);
-            _freezeMarks2.MarkDeleted += new EventHandler<MarkEventArgs>(MarkDeletedHandler);
-            _freezeMarks3.MarkAdded += new EventHandler<MarkEventArgs>(MarkModifiedHandler);
-            _freezeMarks3.MarkDeleted += new EventHandler<MarkEventArgs>(MarkDeletedHandler);
+            _searchMarks.MarkAdded += new EventHandler<MarkEventArgs>(MarkChangedHandler);
+            _searchMarks.MarkDeleted += new EventHandler<MarkEventArgs>(MarkChangedHandler);
+            _freezeMarks1.MarkAdded += new EventHandler<MarkEventArgs>(MarkChangedHandler);
+            _freezeMarks1.MarkDeleted += new EventHandler<MarkEventArgs>(MarkChangedHandler);
+            _freezeMarks2.MarkAdded += new EventHandler<MarkEventArgs>(MarkChangedHandler);
+            _freezeMarks2.MarkDeleted += new EventHandler<MarkEventArgs>(MarkChangedHandler);
+            _freezeMarks3.MarkAdded += new EventHandler<MarkEventArgs>(MarkChangedHandler);
+            _freezeMarks3.MarkDeleted += new EventHandler<MarkEventArgs>(MarkChangedHandler);
 
             IntPtr hWnd = view.GetWindowHandle();
             _markUpdateRect = new UpdateRectangle(hWnd);
@@ -114,9 +114,6 @@ namespace WordLight
             _viewEvents.Dispose();
             ReleaseHandle();
         }
-
-        //Rectangle clipRect = Rectangle.Empty;
-        //private bool isWindowScrolled;
 
         protected override void WndProc(ref Message m)
         {
@@ -140,15 +137,7 @@ namespace WordLight
                     HandleUserInput();
                     break;
 
-                //case WinProcMessages.WM_HSCROLL:
-                //case WinProcMessages.WM_VSCROLL:
-                //    //Debugger("WM_?SCROLL " + m.Result);
-                //    isWindowScrolled = true;
-                //    break;
-
                 case WinProcMessages.WM_PAINT:
-                    //Debugger("WM_PAINT " + m.Result);
-
                     Rectangle clipRect = User32.GetUpdateRect(Handle, false).ToRectangle();
                     base.WndProc(ref m);
 
@@ -159,22 +148,11 @@ namespace WordLight
 
                     break;
 
-                //case WinProcMessages.WM_ERASEBKGND:
-                //    Debugger("WM_ERASEBKGND " +m.Result);
-                //    base.WndProc(ref m);
-                //    break;
-
                 default:
-                    //Debugger(m.Msg.ToString());
                     base.WndProc(ref m);
                     break;
             }
         }
-
-        //private void Debugger(string message)
-        //{
-        //    System.Diagnostics.Debugger.Log(0, "WordLight", message + "\n");
-        //}
 
         private void HandleUserInput()
         {
@@ -202,51 +180,6 @@ namespace WordLight
 
             _markUpdateRect.Validate();
 
-            Monitor.Exit(_paintSync);
-        }
-
-        private void Paint2Buf(Rectangle clip)
-        {
-            Monitor.Enter(_paintSync);
-            User32.HideCaret(Handle);
-
-            BufferedGraphicsContext myContext = BufferedGraphicsManager.Current;
-            using (Graphics g = Graphics.FromHwnd(Handle))
-            using (BufferedGraphics buf = myContext.Allocate(g, new Rectangle(0, 0, clip.Width, clip.Height)))
-            {
-                buf.Graphics.Clear(Color.Transparent);
-
-                buf.Graphics.CompositingMode = System.Drawing.Drawing2D.CompositingMode.SourceOver;                
-
-                buf.Graphics.SetClip(clip);
-                DrawSearchMarks(buf.Graphics, clip);
-                buf.Render(g);
-            }
-
-            //Rectangle inner = new Rectangle(Point.Empty, clip.Size);
-            //using (Graphics g = Graphics.FromHwnd(Handle))
-            //using (BufferedGraphics bg = BufferedGraphicsManager.Current.Allocate(g, inner))
-            //{
-            //    using (Bitmap bmp = new Bitmap(inner.Width, inner.Height, bg.Graphics))
-            //    {
-            //        using (Graphics bmpg = Graphics.FromImage(bmp))
-            //        {
-            //            bg.Graphics.Clear(Color.Transparent);
-
-            //            DrawSearchMarks(bg.Graphics, clip);
-
-            //            bg.Graphics.CompositingMode = System.Drawing.Drawing2D.CompositingMode.SourceCopy;
-            //            g.CompositingMode = System.Drawing.Drawing2D.CompositingMode.SourceCopy;
-            //            bmpg.CompositingMode = System.Drawing.Drawing2D.CompositingMode.SourceCopy;
-
-            //            bg.Render(bmpg);
-            //            g.DrawImageUnscaledAndClipped(bmp, clip);
-            //        }
-            //    }
-            //}
-
-            User32.ShowCaret(Handle);
-            _markUpdateRect.Validate();
             Monitor.Exit(_paintSync);
         }
 
@@ -280,20 +213,18 @@ namespace WordLight
 
             if (rectangles != null && rectangles.Length > 0)
             {
-                using (var b = new SolidBrush(Color.FromArgb(16, penColor)))
-                    g.FillRectangles(b, rectangles);
+                if (AddinSettings.Instance.FilledMarks)
+                {
+                    using (var b = new SolidBrush(Color.FromArgb(16, penColor)))
+                        g.FillRectangles(b, rectangles);
+                }
 
                 using (var pen = new Pen(penColor))
                     g.DrawRectangles(pen, rectangles);
             }
         }
 
-        private void MarkModifiedHandler(object sender, MarkEventArgs e)
-        {
-            InvalidateMark(e.Mark);
-        }
-
-        private void MarkDeletedHandler(object sender, MarkEventArgs e)
+        private void MarkChangedHandler(object sender, MarkEventArgs e)
         {
             InvalidateMark(e.Mark);
         }
@@ -378,7 +309,8 @@ namespace WordLight
                 InvalidateVisibleMarks(_searchMarks);
                 InvalidateVisibleMarks(_freezeMarks1);
                 InvalidateVisibleMarks(_freezeMarks2);
-                InvalidateVisibleMarks(_freezeMarks3);
+                InvalidateVisibleMarks(_freezeMarks3);                
+
                 _markUpdateRect.Invalidate();
                 Monitor.Exit(_paintSync);
             }
