@@ -304,16 +304,16 @@ namespace WordLight
                 _visibleTextEnd = _textView.Buffer.GetPositionOfLineIndex(_viewRange.iEndLine, _viewRange.iEndIndex);
             }
 
-            if (Monitor.TryEnter(_paintSync))
-            {
-                InvalidateVisibleMarks(_searchMarks);
-                InvalidateVisibleMarks(_freezeMarks1);
-                InvalidateVisibleMarks(_freezeMarks2);
-                InvalidateVisibleMarks(_freezeMarks3);                
+            //if (Monitor.TryEnter(_paintSync))
+            //{
+            //    InvalidateVisibleMarks(_searchMarks);
+            //    InvalidateVisibleMarks(_freezeMarks1);
+            //    InvalidateVisibleMarks(_freezeMarks2);
+            //    InvalidateVisibleMarks(_freezeMarks3);                
 
-                _markUpdateRect.Invalidate();
-                Monitor.Exit(_paintSync);
-            }
+            //    _markUpdateRect.Invalidate();
+            //    Monitor.Exit(_paintSync);
+            //}
         }
 
         private void StreamTextChangedHandler(object sender, StreamTextChangedEventArgs e)

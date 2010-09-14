@@ -73,7 +73,12 @@ namespace WordLight
                 }
                 else
                 {
-                    screenPoint = View.GetPointOfLineColumn(line, column);
+                    var p = new Microsoft.VisualStudio.OLE.Interop.POINT[1];
+                    _view.GetPointOfLineColumn(line, column, p);
+
+                    screenPoint.X = p[0].x;
+                    screenPoint.Y = p[0].y;
+
                     _pointCache.Add(textPos, screenPoint);
                 }
             }
