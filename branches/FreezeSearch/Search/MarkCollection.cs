@@ -131,9 +131,9 @@ namespace WordLight.Search
 				{
 					TextMark mark = node.Value;
 
-					if (mark.IsVisible(visibleTextStart, visibleTextEnd))
+                    if (view.IsVisible(mark, visibleTextStart, visibleTextEnd))
 					{
-						Rectangle rect = mark.GetRectangle(view);
+                        Rectangle rect = view.GetRectangle(mark);
 						if (rect != Rectangle.Empty)
 						{
 							if (rectList == null)

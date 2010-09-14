@@ -21,7 +21,6 @@ namespace WordLight
     {
         private TextView _textView;
 
-        private IVsHiddenTextManager _hiddenTextManager;
         private string _previousSelectedText;
 
         private MarkCollection _searchMarks = new MarkCollection();
@@ -58,14 +57,11 @@ namespace WordLight
 
         private object _paintSync = new object();
 
-        public TextViewWindow(IVsTextView view, IVsHiddenTextManager hiddenTextManager)
+        public TextViewWindow(IVsTextView view)
         {
             if (view == null) throw new ArgumentNullException("view");
-            if (hiddenTextManager == null) throw new ArgumentNullException("hiddenTextManager");
 
             _textView = new TextView(view);
-
-            _hiddenTextManager = hiddenTextManager;
 
             _textStreamEvents = new TextStreamEventAdapter(_textView.Buffer);
             _textStreamEvents.StreamTextChanged += new EventHandler<StreamTextChangedEventArgs>(StreamTextChangedHandler);
@@ -186,7 +182,7 @@ namespace WordLight
         private void DrawSearchMarks(Graphics g, Rectangle clipRect)
         {
             //Fix for clip bounds: take into account left margin pane during horizontal scrolling.
-            Point leftTop = _textView.GetPointOfLineColumn(_viewRange.iStartLine, leftTextColumnInView);
+            Point leftTop = _textView.GetScreenPoint(_viewRange.iStartLine, leftTextColumnInView);
             if (!leftTop.IsEmpty)
             {
                 _leftMarginWidth = leftTop.X;
@@ -231,9 +227,9 @@ namespace WordLight
 
         private void InvalidateMark(TextMark mark)
         {
-            if (mark.IsVisible(_visibleTextStart, _visibleTextEnd))
+            if (_textView.IsVisible(mark, _visibleTextStart, _visibleTextEnd))
             {
-                Rectangle rect = mark.GetRectangle(_textView);
+                Rectangle rect = _textView.GetRectangle(mark);
                 _markUpdateRect.IncludeRectangle(rect);
             }
         }
@@ -255,7 +251,7 @@ namespace WordLight
 
         private void ScrollChangedHandler(object sender, ViewScrollChangedEventArgs e)
         {
-            _textView.ResetPointCache();
+            _textView.ResetCaches();
 
             if (e.ScrollInfo.IsHorizontal)
             {

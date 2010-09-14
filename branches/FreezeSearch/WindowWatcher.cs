@@ -48,16 +48,16 @@ namespace WordLight
 			IntPtr windowHandle = e.View.GetWindowHandle();
 			if (windowHandle != IntPtr.Zero && !_textViews.ContainsKey(windowHandle))
 			{
-                TextViewWindow view = new TextViewWindow(e.View, (IVsHiddenTextManager)_textManager);
-				_textViews.Add(windowHandle, view);
-				view.GotFocus += new EventHandler(ViewGotFocusHandler);
-				view.LostFocus += new EventHandler(ViewLostFocusHandler);
+                var viewWindow = new TextViewWindow(e.View);
+				_textViews.Add(windowHandle, viewWindow);
+				viewWindow.GotFocus += new EventHandler(ViewGotFocusHandler);
+				viewWindow.LostFocus += new EventHandler(ViewLostFocusHandler);
 
 				lock (_currentViewSyncRoot)
 				{
 					if (_textViews.Count == 1)
 					{
-						_currentView = view;
+						_currentView = viewWindow;
 					}
 				}
 			}

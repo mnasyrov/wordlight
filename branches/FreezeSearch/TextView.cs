@@ -20,13 +20,13 @@ namespace WordLight
     {
         private class TextPoint
         {
-			public int Line;
-			public int Column;
+            public int Line;
+            public int Column;
 
-			public override int GetHashCode()
-			{
-				return Line.GetHashCode() ^ Column.GetHashCode();
-			}
+            public override int GetHashCode()
+            {
+                return Line.GetHashCode() ^ Column.GetHashCode();
+            }
         }
 
         private IVsTextView _view;
@@ -35,6 +35,9 @@ namespace WordLight
 
         private Dictionary<TextPoint, Point> _pointCache = new Dictionary<TextPoint, Point>();
         private object _pointCacheSync = new object();
+
+        private Dictionary<TextSpan, Rectangle> _rectangleCache = new Dictionary<TextSpan, Rectangle>();
+        private object _rectSpanCacheSync = new object();
 
         public IVsTextView View
         {
@@ -60,11 +63,11 @@ namespace WordLight
             _lineHeight = _view.GetLineHeight();
         }
 
-        public Point GetPointOfLineColumn(int line, int column)
+        public Point GetScreenPoint(int line, int column)
         {
-            var textPos = new TextPoint{Line = line, Column = column};
+            var textPos = new TextPoint { Line = line, Column = column };
             var screenPoint = Point.Empty;
-            
+
             lock (_pointCacheSync)
             {
                 if (_pointCache.ContainsKey(textPos))
@@ -86,11 +89,71 @@ namespace WordLight
             return screenPoint;
         }
 
-        public void ResetPointCache()
+        public Rectangle GetRectangle(TextMark mark)
+        {
+            TextSpan span = new TextSpan();
+            _buffer.GetLineIndexOfPosition(mark.Position, out span.iStartLine, out span.iStartIndex);
+            _buffer.GetLineIndexOfPosition(mark.End, out span.iEndLine, out span.iEndIndex);
+
+            //Don't display multiline marks
+            if (span.iStartLine != span.iEndLine)
+                return Rectangle.Empty;
+
+            return GetRectangle(span);
+        }
+
+        public Rectangle GetRectangle(TextSpan span)
+        {
+            var rect = Rectangle.Empty;
+
+            lock (_rectSpanCacheSync)
+            {
+                if (_rectangleCache.ContainsKey(span))
+                {
+                    rect = _rectangleCache[span];
+                }
+                else
+                {
+                    rect = GetRectangleForSpanInternal(span);
+                    _rectangleCache.Add(span, rect);
+                }
+            }
+
+            return rect;
+        }
+
+        private Rectangle GetRectangleForSpanInternal(TextSpan span)
+        {
+            Point startPoint = GetScreenPoint(span.iStartLine, span.iStartIndex);
+            if (startPoint == Point.Empty)
+                return Rectangle.Empty;
+
+            Point endPoint = GetScreenPoint(span.iEndLine, span.iEndIndex);
+            if (endPoint == Point.Empty)
+                return Rectangle.Empty;
+
+            int x = startPoint.X;
+            int y = startPoint.Y;
+            int height = endPoint.Y - y + LineHeight;
+            int width = endPoint.X - x;
+
+            return new Rectangle(x, y, width, height);
+        }
+
+        public bool IsVisible(TextMark mark, int visibleTextStart, int visibleTextEnd)
+        {
+            return visibleTextStart <= mark.End && mark.Position <= visibleTextEnd;
+        }
+
+        public void ResetCaches()
         {
             lock (_pointCacheSync)
             {
-                _pointCache.Clear();
+                lock (_rectSpanCacheSync)
+                {
+                    _pointCache.Clear();
+                    _rectangleCache.Clear();
+                }
             }
         }
     }
