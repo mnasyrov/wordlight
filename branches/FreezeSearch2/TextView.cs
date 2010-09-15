@@ -98,10 +98,6 @@ namespace WordLight
             _buffer.GetLineIndexOfPosition(mark.Start, out span.iStartLine, out span.iStartIndex);
             _buffer.GetLineIndexOfPosition(mark.End, out span.iEndLine, out span.iEndIndex);
 
-            //Don't display multiline marks
-            if (span.iStartLine != span.iEndLine)
-                return Rectangle.Empty;
-
             return GetRectangle(span);
         }
 

@@ -71,8 +71,11 @@ namespace WordLight
             end = Math.Min(end, _view.VisibleTextEnd);
 
             var rect = _view.GetRectangle(new TextMark(start, end - start));
-            rect.X = 0;
-            rect.Width = 1280;
+			if (rect != Rectangle.Empty)
+			{
+				rect.X = 0;
+				rect.Width = 1280;
+			}
             return rect;
         }
     }
