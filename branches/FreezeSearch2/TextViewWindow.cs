@@ -29,10 +29,7 @@ namespace WordLight
         private MarkCollection _freezeMarks3 = new MarkCollection();
 
         private string _selectedText;
-        private TextViewEventAdapter _viewEvents;
-        private TextStreamEventAdapter _textStreamEvents;
-
-        private int leftTextColumnInView = 0;
+        private TextStreamEventAdapter _textStreamEvents;        
 
         private TextSearch _search;
         private TextSearch _freezeSearch1;
@@ -41,9 +38,7 @@ namespace WordLight
 
         private string _freezeText1;
         private string _freezeText2;
-        private string _freezeText3;
-
-        private TextSpan _viewRange = new TextSpan();
+        private string _freezeText3;		        
 
         public event EventHandler GotFocus;
         public event EventHandler LostFocus;
@@ -75,10 +70,10 @@ namespace WordLight
             _freezeSearch3 = new TextSearch(_textView.Buffer);
             _freezeSearch3.SearchCompleted += new EventHandler<SearchCompletedEventArgs>(FreezeSearchCompleted3);
 
-            _viewEvents = new TextViewEventAdapter(_textView.View);
-            _viewEvents.ScrollChanged += new EventHandler<ViewScrollChangedEventArgs>(ScrollChangedHandler);
-            _viewEvents.GotFocus += new EventHandler<ViewFocusEventArgs>(GotFocusHandler);
-            _viewEvents.LostFocus += new EventHandler<ViewFocusEventArgs>(LostFocusHandler);
+
+			_textView.ViewEvents.ScrollChanged += new EventHandler<ViewScrollChangedEventArgs>(ScrollChangedHandler);
+			_textView.ViewEvents.GotFocus += new EventHandler<ViewFocusEventArgs>(GotFocusHandler);
+			_textView.ViewEvents.LostFocus += new EventHandler<ViewFocusEventArgs>(LostFocusHandler);
 
             _searchMarks.MarkAdded += new EventHandler<MarkEventArgs>(MarkChangedHandler);
             _searchMarks.MarkDeleted += new EventHandler<MarkEventArgs>(MarkChangedHandler);
@@ -100,11 +95,12 @@ namespace WordLight
             _textStreamEvents.StreamTextChanged -= StreamTextChangedHandler;
             _textStreamEvents.Dispose();
 
-            _viewEvents.GotFocus -= GotFocusHandler;
-            _viewEvents.LostFocus -= LostFocusHandler;
-            _viewEvents.ScrollChanged -= ScrollChangedHandler;
+			_textView.ViewEvents.GotFocus -= GotFocusHandler;
+			_textView.ViewEvents.LostFocus -= LostFocusHandler;
+			_textView.ViewEvents.ScrollChanged -= ScrollChangedHandler;
 
-            _viewEvents.Dispose();
+			_textView.Dispose();
+
             ReleaseHandle();
         }
 
@@ -179,7 +175,7 @@ namespace WordLight
         private void DrawSearchMarks(Graphics g, Rectangle clipRect)
         {
             //Fix for clip bounds: take into account left margin pane during horizontal scrolling.
-            Point leftTop = _textView.GetScreenPoint(_viewRange.iStartLine, leftTextColumnInView);
+			Point leftTop = _textView.GetScreenPoint(_textView.VisibleSpan.iStartLine, _textView.VisibleLeftTextColumn);
             if (!leftTop.IsEmpty)
             {
                 _leftMarginWidth = leftTop.X;
@@ -241,55 +237,6 @@ namespace WordLight
 
         private void ScrollChangedHandler(object sender, ViewScrollChangedEventArgs e)
         {
-            _textView.ResetCaches();
-
-            if (e.ScrollInfo.IsHorizontal)
-            {
-                leftTextColumnInView = e.ScrollInfo.firstVisibleUnit;
-            }
-
-            if (e.ScrollInfo.IsVertical)
-            {
-                int topTextLineInView = 0;
-                int bottomTextLineInView = 0;
-
-                IVsLayeredTextView viewLayer = _textView.View as IVsLayeredTextView;
-                IVsTextLayer topLayer = null;
-                IVsTextLayer bufferLayer = _textView.Buffer as IVsTextLayer;
-
-                if (viewLayer != null)
-                {
-                    viewLayer.GetTopmostLayer(out topLayer);
-                }
-
-                if (topLayer != null && bufferLayer != null)
-                {
-                    int temp;
-                    topLayer.LocalLineIndexToDeeperLayer(bufferLayer, e.ScrollInfo.firstVisibleUnit, 0, out topTextLineInView, out temp);
-                    topLayer.LocalLineIndexToDeeperLayer(bufferLayer, e.ScrollInfo.firstVisibleUnit + e.ScrollInfo.visibleUnits, 0, out bottomTextLineInView, out temp);
-                    bottomTextLineInView++;
-                }
-                else
-                {
-                    TextSpan entireSpan = _textView.Buffer.CreateSpanForAllLines();
-                    topTextLineInView = entireSpan.iStartLine;
-                    bottomTextLineInView = entireSpan.iEndLine;
-                }
-
-                TextSpan viewRange = _textView.Buffer.CreateSpanForAllLines();
-                viewRange.iStartLine = topTextLineInView;
-                if (bottomTextLineInView < viewRange.iEndLine)
-                {
-                    viewRange.iEndLine = bottomTextLineInView;
-                    viewRange.iEndIndex = 0;
-                }
-
-                _viewRange = viewRange;
-
-                _textView.VisibleTextStart = _textView.Buffer.GetPositionOfLineIndex(_viewRange.iStartLine, _viewRange.iStartIndex);
-                _textView.VisibleTextEnd = _textView.Buffer.GetPositionOfLineIndex(_viewRange.iEndLine, _viewRange.iEndIndex);
-            }
-
             //if (Monitor.TryEnter(_paintSync))
             //{
             //    InvalidateVisibleMarks(_searchMarks);
