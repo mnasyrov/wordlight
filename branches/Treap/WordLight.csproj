@@ -47,7 +47,7 @@
   <ItemGroup>
     <Compile Include="AddinSettings.cs" />
     <Compile Include="DllImport\WinProcMessages.cs" />
-    <Compile Include="Search\MarkTree.cs" />
+    <Compile Include="Search\Treap.cs" />
     <Compile Include="TextView.cs" />
     <Compile Include="DllImport\Gdi32.cs" />
     <Compile Include="DllImport\RECT.cs" />

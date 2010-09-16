@@ -18,28 +18,14 @@ namespace WordLight
 {
 	public class TextView : IDisposable
 	{
-		private class TextPoint
-		{
-			public int Line;
-			public int Column;
-
-			public override int GetHashCode()
-			{
-				return Line.GetHashCode() ^ Column.GetHashCode();
-			}
-		}
-
 		private IVsTextView _view;
 		private IVsTextLines _buffer;
 		private TextViewEventAdapter _viewEvents;
 
 		private int _lineHeight;
 
-		private Dictionary<TextPoint, Point> _pointCache = new Dictionary<TextPoint, Point>();
+		private Dictionary<long, Point> _pointCache = new Dictionary<long, Point>();
 		private object _pointCacheSync = new object();
-
-		private Dictionary<TextSpan, Rectangle> _rectangleCache = new Dictionary<TextSpan, Rectangle>();
-		private object _rectSpanCacheSync = new object();
 
 		private TextSpan _visibleSpan = new TextSpan();
 		private int _visibleTextStart;
@@ -111,14 +97,14 @@ namespace WordLight
 
 		public Point GetScreenPoint(int line, int column)
 		{
-			var textPos = new TextPoint { Line = line, Column = column };
+			long pointKey = ((_visibleSpan.iStartLine & 0xFFFFL) << 32) | ((line & 0xFFFFL) << 16) | (column & 0xFFFFL);
 			var screenPoint = Point.Empty;
 
 			lock (_pointCacheSync)
 			{
-				if (_pointCache.ContainsKey(textPos))
+				if (_pointCache.ContainsKey(pointKey))
 				{
-					screenPoint = _pointCache[textPos];
+					screenPoint = _pointCache[pointKey];
 				}
 				else
 				{
@@ -128,11 +114,38 @@ namespace WordLight
 					screenPoint.X = p[0].x;
 					screenPoint.Y = p[0].y;
 
-					_pointCache.Add(textPos, screenPoint);
+					_pointCache.Add(pointKey, screenPoint);
 				}
 			}
 
 			return screenPoint;
+		}
+
+		public Point GetScreenPointForTextPosition(int position)
+		{
+			int line;
+			int column;
+			_buffer.GetLineIndexOfPosition(position, out line, out column);
+			return GetScreenPoint(line, column);
+		}
+
+		public Rectangle GetRectangleForMark(int markStart, int markLength)
+		{
+			Point startPoint = GetScreenPointForTextPosition(markStart);
+			if (startPoint != Point.Empty)
+			{
+				Point endPoint = GetScreenPointForTextPosition(markStart + markLength);
+				if (endPoint != Point.Empty)
+				{
+					int x = startPoint.X;
+					int y = startPoint.Y;
+					int height = endPoint.Y - y + LineHeight;
+					int width = endPoint.X - startPoint.X;
+
+					return new Rectangle(x, y, width, height);
+				}
+			}
+			return Rectangle.Empty;
 		}
 
 		public Rectangle GetRectangle(TextMark mark)
@@ -142,29 +155,24 @@ namespace WordLight
 			_buffer.GetLineIndexOfPosition(mark.End, out span.iEndLine, out span.iEndIndex);
 
 			return GetRectangle(span);
+
+			//int line;
+			//int column;
+			//_buffer.GetLineIndexOfPosition(mark.Start, out line, out column);
+
+			//Point startPoint = GetScreenPoint(line, column);
+			//if (startPoint == Point.Empty)
+			//    return Rectangle.Empty;
+
+			//int x = startPoint.X;
+			//int y = startPoint.Y;
+			//int height = LineHeight;
+			//int width = x + mark.Length * _charWidth;
+
+			//return new Rectangle(x, y, width, height);
 		}
 
 		public Rectangle GetRectangle(TextSpan span)
-		{
-			var rect = Rectangle.Empty;
-
-			lock (_rectSpanCacheSync)
-			{
-				if (_rectangleCache.ContainsKey(span))
-				{
-					rect = _rectangleCache[span];
-				}
-				else
-				{
-					rect = GetRectangleForSpanInternal(span);
-					_rectangleCache.Add(span, rect);
-				}
-			}
-
-			return rect;
-		}
-
-		private Rectangle GetRectangleForSpanInternal(TextSpan span)
 		{
 			Point startPoint = GetScreenPoint(span.iStartLine, span.iStartIndex);
 			if (startPoint == Point.Empty)
@@ -191,11 +199,7 @@ namespace WordLight
 		{
 			lock (_pointCacheSync)
 			{
-				lock (_rectSpanCacheSync)
-				{
-					_pointCache.Clear();
-					_rectangleCache.Clear();
-				}
+				_pointCache.Clear();
 			}
 		}
 
