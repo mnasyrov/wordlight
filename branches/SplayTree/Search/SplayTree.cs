@@ -50,12 +50,12 @@ namespace WordLight.Search
          * @param x the item to insert.
          * @throws DuplicateItemException if x is already present.
          */        
-        public void Add(T key)
+        public bool Add(T key)
         {
             if (_root == null)
             {
                 _root = new SplayTreeNode<T>(key);
-                return;
+                return true;
             }
             
             Splay(key);
@@ -64,7 +64,7 @@ namespace WordLight.Search
             if (c == 0)
             {
                 //	    throw new DuplicateItemException(x.toString());	    
-                return;
+                return false;
             }
 
             SplayTreeNode<T> n = new SplayTreeNode<T>(key);
@@ -81,6 +81,8 @@ namespace WordLight.Search
                 _root.Right = null;
             }
             _root = n;
+
+            return true;
         }
 
         /**

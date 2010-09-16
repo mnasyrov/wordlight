@@ -47,10 +47,22 @@ namespace WordLight.Search
 			}
 		}
 
-        public void ReplaceMarks(TextMark[] newMarks)
+        public void AddMarks(TextMark[] newMarks)
         {
             lock (_marksSyncRoot)
             {
+                foreach (var mark in newMarks)
+                {
+                    if (_marks.Add(mark))
+                        OnAddMark(mark);
+                }
+            }
+        }
+
+		public void ReplaceMarks(TextMark[] newMarks)
+		{
+			lock (_marksSyncRoot)
+			{
                 while (!_marks.IsEmpty)
                 {
                     OnDeleteMark(_marks.Root.Key);
@@ -79,19 +91,7 @@ namespace WordLight.Search
                 {
                     _marks.Add(mark);
                     OnAddMark(mark);
-                }
-            }
-        }
-
-		public void AddMarks(TextMark[] newMarks)
-		{
-			lock (_marksSyncRoot)
-			{
-                foreach (var mark in newMarks)
-                {
-                    _marks.Add(mark);
-                    OnAddMark(mark);
-                }
+                }                
 			}
 		}
 
@@ -163,13 +163,13 @@ namespace WordLight.Search
         //    }
         //}
 
-		public Rectangle[] GetRectanglesForVisibleMarks(int visibleTextStart, int visibleTextEnd, TextView view, Rectangle clip)
+		public Rectangle[] GetRectanglesForVisibleMarks(TextView view, Rectangle clip)
 		{
 			List<Rectangle> rectangles = null;
 
 			lock (_marksSyncRoot)
 			{
-                for (int pos = visibleTextStart; pos <= visibleTextEnd; pos++ )
+                for (int pos = view.VisibleTextStart; pos <= view.VisibleTextEnd; pos++ )
                 {
                     var temp = new TextMark(pos, 0);
                     TextMark mark = _marks.Find(temp);
@@ -198,5 +198,22 @@ namespace WordLight.Search
 
 			return null;
 		}
+
+        //public IList<TextMark> GetVisibleMarks(TextView view)
+        //{
+        //    List<TextMark> result = new List<TextMark>();
+
+        //    lock (_marksSyncRoot)
+        //    {
+        //        for (var node = _marks.First; node != null; node = node.Next)
+        //        {
+        //            TextMark mark = node.Value;
+        //            if (view.IsVisible(mark))
+        //                result.Add(mark);
+        //        }
+        //    }
+
+        //    return result;
+        //}
 	}
 }
