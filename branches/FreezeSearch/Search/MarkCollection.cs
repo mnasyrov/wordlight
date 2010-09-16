@@ -17,8 +17,6 @@ namespace WordLight.Search
 		private LinkedList<TextMark> _marks = new LinkedList<TextMark>();
 		private object _marksSyncRoot = new object();
 
-        private HashSet<int> _markSet = new HashSet<int>();
-
         private void OnDeleteMark(TextMark mark)
         {
             EventHandler<MarkEventArgs> evt = MarkDeleted;
@@ -47,42 +45,27 @@ namespace WordLight.Search
                 }
 
 				_marks.Clear();
-                _markSet.Clear();
 			}
 		}
 
-        public void ReplaceMarks(TextMark[] newMarks)
-        {
-            lock (_marksSyncRoot)
-            {
+		public void ReplaceMarks(TextMark[] newMarks)
+		{
+			lock (_marksSyncRoot)
+			{
                 foreach (var mark in _marks)
                 {
                     OnDeleteMark(mark);
                 }
 
-                _marks.Clear();
-                _markSet.Clear();
-
-                foreach (var mark in newMarks)
+                if (newMarks == null || newMarks.Length == 0)
                 {
-                    if (_markSet.Add(mark.Start))
-                    {
-                        _marks.AddLast(mark);
-                        OnAddMark(mark);
-                    }
+                    _marks.Clear();
                 }
-            }
-        }
-
-		public void AddMarks(TextMark[] newMarks)
-		{
-			lock (_marksSyncRoot)
-			{
-                foreach (var mark in newMarks)
+                else
                 {
-                    if (_markSet.Add(mark.Start))
+                    _marks = new LinkedList<TextMark>(newMarks);
+                    foreach (var mark in _marks)
                     {
-                        _marks.AddLast(mark);
                         OnAddMark(mark);
                     }
                 }
@@ -108,7 +91,7 @@ namespace WordLight.Search
 					if (node.Value.End > start)
 						break;
 					left = node;
-				}                
+				}
 
 				for (var node = _marks.Last; node != null && node != left; node = node.Previous)
 				{
@@ -120,33 +103,25 @@ namespace WordLight.Search
 				}
 
                 //Delete deprecated marks
-                for (var node = left.Next; node != null && node != right; node = node.Next)
-                {
+				for (var node = left.Next; node != null && node != right; node = node.Next)
+				{
                     OnDeleteMark(node.Value);
-                    _marks.Remove(node);
-                }
-                
-                //rebuild index
-                _markSet.Clear();
-                foreach (var mark in _marks)
-                    _markSet.Add(mark.Start);
+					_marks.Remove(node);
+				}
 
                 //Add new marks instead of old ones
 				if (newMarks != null)
 				{
 					for (int i = 0; i < newMarks.Length; i++)
 					{
-                        if (_markSet.Add(newMarks[i].Start))
-                        {
-						    left = _marks.AddAfter(left, newMarks[i]);
-                            OnAddMark(newMarks[i]);
-                        }
+						left = _marks.AddAfter(left, newMarks[i]);
+                        OnAddMark(newMarks[i]);
 					}
 				}
 			}
 		}
 
-		public Rectangle[] GetRectanglesForVisibleMarks(int visibleTextStart, int visibleTextEnd, TextView view, Rectangle clip)
+		public Rectangle[] GetRectanglesForVisibleMarks(TextView view, Rectangle clip)
 		{
 			List<Rectangle> rectList = null;
 
@@ -156,7 +131,7 @@ namespace WordLight.Search
 				{
 					TextMark mark = node.Value;
 
-                    if (view.IsVisible(mark, visibleTextStart, visibleTextEnd))
+                    if (view.IsVisible(mark))
 					{
                         Rectangle rect = view.GetRectangle(mark);
 						if (rect != Rectangle.Empty)
@@ -180,5 +155,22 @@ namespace WordLight.Search
 
 			return null;
 		}
+
+        public IList<TextMark> GetVisibleMarks(TextView view)
+        {
+            List<TextMark> result = new List<TextMark>();
+
+            lock (_marksSyncRoot)
+            {
+                for (var node = _marks.First; node != null; node = node.Next)
+                {
+                    TextMark mark = node.Value;
+                    if (view.IsVisible(mark))
+                        result.Add(mark);
+                }
+            }
+
+            return result;
+        }
 	}
 }

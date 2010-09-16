@@ -5,45 +5,36 @@ using System.Linq;
 using System.Text;
 
 using WordLight.DllImport;
+using WordLight.Search;
 
 namespace WordLight
 {
     public class UpdateRectangle
     {
+        private const int MaxScreenWidth = 10000;
+
         private IntPtr _hWnd;
-        private Rectangle _updateRect = Rectangle.Empty;
+        private TextView _view;
         private object _updateRectSync = new object();
 
-        public Rectangle Rect
-        {
-            get { return _updateRect; }
-        }
+        private int _start = int.MaxValue;
+        private int _end = int.MinValue;
 
-        public UpdateRectangle(IntPtr hWnd)
+        public UpdateRectangle(IntPtr hWnd, TextView view)
         {
             _hWnd = hWnd;
+            _view = view;
         }
 
-        public void IncludeRectangle(Rectangle rect)
+        public void Include(TextMark mark)
         {
-            if (rect == Rectangle.Empty)
-                return;
-
             lock (_updateRectSync)
             {
-                if (_updateRect == Rectangle.Empty)
-                {
-                    _updateRect = rect;
-                }
-                else
-                {
-                    _updateRect = Rectangle.FromLTRB(
-                        Math.Min(_updateRect.Left, rect.Left),
-                        Math.Min(_updateRect.Top, rect.Top),
-                        Math.Max(_updateRect.Right, rect.Right),
-                        Math.Max(_updateRect.Bottom, rect.Bottom)
-                    );
-                }
+                if (mark.Start < _start)
+                    _start = mark.Start;
+
+                if (mark.End > _end)
+                    _end = mark.End;
             }
         }
 
@@ -51,10 +42,14 @@ namespace WordLight
         {
             lock (_updateRectSync)
             {
-                if (_updateRect != Rectangle.Empty)
+                if (_start != int.MaxValue)
                 {
-                    User32.ValidateRect(_hWnd, _updateRect);
-                    _updateRect = Rectangle.Empty;
+                    var rect = GetRect(_start, _end);
+                    if (rect != Rectangle.Empty)
+                        User32.ValidateRect(_hWnd, rect);
+
+                    _start = int.MaxValue;
+                    _end = int.MinValue;
                 }
             }
         }
@@ -63,11 +58,28 @@ namespace WordLight
         {
             lock (_updateRectSync)
             {
-                if (_updateRect != Rectangle.Empty)
+                if (_start != int.MaxValue)
                 {
-                    User32.InvalidateRect(_hWnd, _updateRect, false);
+                    var rect = GetRect(_start, _end);
+                    if (rect != Rectangle.Empty)
+                        User32.InvalidateRect(_hWnd, rect, false);
                 }
             }
         }
+
+        private Rectangle GetRect(int start, int end)
+        {
+            start = Math.Max(start, _view.VisibleTextStart);
+            end = Math.Min(end, _view.VisibleTextEnd);
+
+            var rect = _view.GetRectangle(new TextMark(start, end - start));
+			if (rect != Rectangle.Empty)
+			{
+				rect.X = 0;
+                rect.Width = MaxScreenWidth;
+			}
+            return rect;
+        }
     }
 }
+
