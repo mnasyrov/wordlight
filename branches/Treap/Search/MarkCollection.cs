@@ -90,20 +90,17 @@ namespace WordLight.Search
 
 					var n = Treap.Build(xs);
 
-					if (_root != null && n != null)
+					if (n != null)
 					{
-						int oldMinX = _root.GetMinX();
-						int oldMaxX = _root.GetMaxX();
-							
-						n.ForEachLessThan(oldMinX, (x) => 
-						{ 
-							OnAddMark(new TextMark(x, _markLength));
-						});
-						
-						n.ForEachGreaterThan(oldMaxX, (x) => 
-						{ 
-							OnAddMark(new TextMark(x, _markLength)); 
-						});
+						if (_root != null)
+						{
+							n.ForEachLessThan(_root.GetMinX(), (x) => { OnAddMark(new TextMark(x, _markLength)); });
+							n.ForEachGreaterThan(_root.GetMaxX(), (x) => { OnAddMark(new TextMark(x, _markLength)); });
+						}
+						else
+						{
+							n.ForEachInOrder((x) => { OnAddMark(new TextMark(x, _markLength)); });
+						}
 					}
 
 					_root = n;
@@ -169,7 +166,7 @@ namespace WordLight.Search
 								rect.Width -= 1;
 								rect.Height -= 1;
 
-								var intersectedRect = rect;// Rectangle.Intersect(clip, rect);
+								var intersectedRect = Rectangle.Intersect(clip, rect);
 								if (intersectedRect != Rectangle.Empty)								
 								{
 									if (rectList == null) 

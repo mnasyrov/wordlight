@@ -63,18 +63,18 @@ namespace WordLight.Search
             for (int i = 0; i < valueLength; i++)
             {
                 int key = value[i];
-                if (badChars.ContainsKey(key))
-                    badChars[key] = valueLength - i;
-                else
-                    badChars.Add(key, valueLength - i);
+				badChars[key] = valueLength - i;
             }
 
             /* Searching */
-            searchEnd = Math.Min(searchEnd, text.Length) - valueLength - 1;
+			searchEnd = Math.Min(searchEnd, text.Length) - (valueLength - 1);
             for (int i = searchStart; i < searchEnd; )
             {
                 if (text.Substring(i, valueLength).StartsWith(value, StringComparison.InvariantCultureIgnoreCase))
                     results.Add(i);
+
+				if (i + valueLength >= searchEnd)
+					break;
 
 				int key = text[i + valueLength];
 				if (badChars.ContainsKey(key))
@@ -97,7 +97,7 @@ namespace WordLight.Search
                 {
                     int length = value.Length;
 
-                    if (searchEnd > searchStart && length > 0)
+                    if (searchEnd >= searchStart && length > 0)
                     {
                         List<int> positions = SearchOccurrencesInText(text, value, searchStart, searchEnd);
 

@@ -89,13 +89,16 @@ namespace WordLight.Search
 				Right.ForEachInOrder(action);
 		}
 
-        public void ForEachInOrderBetween(int minX, int maxX, NodeValueAction action)
+        public void ForEachInOrderBetween(int min, int max, NodeValueAction action)
         {
-            if (Left != null && Left.x >= minX)
-                Left.ForEachInOrderBetween(minX, maxX, action);
-            action(x);
-            if (Right != null && Right.x <= maxX)
-                Right.ForEachInOrderBetween(minX, maxX, action);
+			if (Left != null && min <= Left.x)
+                Left.ForEachInOrderBetween(min, max, action);
+            
+			if (min <= x && x <= max)
+				action(x);
+
+            if (Right != null && Right.x <= max)
+                Right.ForEachInOrderBetween(min, max, action);
         }
 
         public void ForEachLessThan(int max, NodeValueAction action)

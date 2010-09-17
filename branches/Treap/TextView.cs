@@ -226,9 +226,10 @@ namespace WordLight
 
 				if (topLayer != null && bufferLayer != null)
 				{
+					int lastVisibleUnit = Math.Min(e.ScrollInfo.firstVisibleUnit + e.ScrollInfo.visibleUnits, e.ScrollInfo.maxUnit);
 					int temp;
 					topLayer.LocalLineIndexToDeeperLayer(bufferLayer, e.ScrollInfo.firstVisibleUnit, 0, out topTextLineInView, out temp);
-					topLayer.LocalLineIndexToDeeperLayer(bufferLayer, e.ScrollInfo.firstVisibleUnit + e.ScrollInfo.visibleUnits, 0, out bottomTextLineInView, out temp);
+					topLayer.LocalLineIndexToDeeperLayer(bufferLayer, lastVisibleUnit, 0, out bottomTextLineInView, out temp);
 					bottomTextLineInView++;
 				}
 				else
