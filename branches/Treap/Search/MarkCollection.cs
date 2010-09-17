@@ -95,12 +95,12 @@ namespace WordLight.Search
 						int oldMinX = _root.GetMinX();
 						int oldMaxX = _root.GetMaxX();
 							
-						n.ForEachInOrderBounded(int.MinValue, oldMinX - 1, (x) => 
+						n.ForEachLessThan(oldMinX, (x) => 
 						{ 
 							OnAddMark(new TextMark(x, _markLength));
 						});
 						
-						n.ForEachInOrderBounded(oldMaxX + 1, int.MaxValue, (x) => 
+						n.ForEachGreaterThan(oldMaxX, (x) => 
 						{ 
 							OnAddMark(new TextMark(x, _markLength)); 
 						});
@@ -158,7 +158,7 @@ namespace WordLight.Search
 			{
 				if (_root != null)
 				{
-					_root.ForEachInOrderBounded(
+					_root.ForEachInOrderBetween(
 						view.VisibleTextStart - _markLength,
 						view.VisibleTextEnd + _markLength,
 						(x) =>

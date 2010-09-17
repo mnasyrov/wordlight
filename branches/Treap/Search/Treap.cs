@@ -89,14 +89,34 @@ namespace WordLight.Search
 				Right.ForEachInOrder(action);
 		}
 
-		public void ForEachInOrderBounded(int minX, int maxX, NodeValueAction action)
-		{
-			if (Left != null && Left.x >= minX)
-				Left.ForEachInOrderBounded(minX, maxX, action);
-			action(x);
-			if (Right != null && Right.x <= maxX)
-				Right.ForEachInOrderBounded(minX, maxX, action);
-		}
+        public void ForEachInOrderBetween(int minX, int maxX, NodeValueAction action)
+        {
+            if (Left != null && Left.x >= minX)
+                Left.ForEachInOrderBetween(minX, maxX, action);
+            action(x);
+            if (Right != null && Right.x <= maxX)
+                Right.ForEachInOrderBetween(minX, maxX, action);
+        }
+
+        public void ForEachLessThan(int max, NodeValueAction action)
+        {
+            if (Left != null)
+                Left.ForEachLessThan(max, action);
+            if (x < max)
+                action(x);
+            if (Right != null && Right.x < max)
+                Right.ForEachLessThan(max, action);
+        }
+
+        public void ForEachGreaterThan(int min, NodeValueAction action)
+        {
+            if (Left != null && Left.x > min)
+                Left.ForEachGreaterThan(min, action);
+            if (x > min)
+                action(x);
+            if (Right != null)
+                Right.ForEachGreaterThan(min, action);
+        }
 
 		public static Treap Merge(Treap L, Treap R)
 		{
