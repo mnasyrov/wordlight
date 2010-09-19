@@ -155,9 +155,12 @@ namespace WordLight
 
 			User32.HideCaret(Handle);
 
-			using (Graphics g = Graphics.FromHwnd(Handle))
+			IntPtr hdc = User32.GetDC(Handle);
+
+			if (hdc != IntPtr.Zero)
 			{
-				DrawSearchMarks(g, clipRect);
+				DrawSearchMarks(hdc, clipRect);
+				User32.ReleaseDC(Handle, hdc);
 			}
 
 			User32.ShowCaret(Handle);
@@ -167,7 +170,7 @@ namespace WordLight
 			Monitor.Exit(_paintSync);
 		}
 
-		private void DrawSearchMarks(Graphics g, Rectangle clipRect)
+		private void DrawSearchMarks(IntPtr hdc, Rectangle clipRect)
 		{
 			//Fix for clip bounds: take into account left margin pane during horizontal scrolling.
 			Point leftTop = _textView.GetScreenPoint(_textView.VisibleSpan.iStartLine, _textView.VisibleLeftTextColumn);
@@ -178,33 +181,46 @@ namespace WordLight
 
 			if (clipRect == Rectangle.Empty)
 			{
-				clipRect = Rectangle.Truncate(g.VisibleClipBounds);
+				//clipRect = Rectangle.Truncate(g.VisibleClipBounds);
 			}
 
 			clipRect.X = Math.Max(clipRect.X, _leftMarginWidth);
 
-			g.SetClip(clipRect);
+			//g.SetClip(clipRect);
 
-			DrawRectangles(_searchMarks, AddinSettings.Instance.SearchMarkBorderColor, g, clipRect);
-			DrawRectangles(_freezeMarks1, AddinSettings.Instance.FreezeMark1BorderColor, g, clipRect);
-			DrawRectangles(_freezeMarks2, AddinSettings.Instance.FreezeMark2BorderColor, g, clipRect);
-			DrawRectangles(_freezeMarks3, AddinSettings.Instance.FreezeMark3BorderColor, g, clipRect);
+			DrawRectangles(_searchMarks, AddinSettings.Instance.SearchMarkBorderColor, hdc, clipRect);
+			DrawRectangles(_freezeMarks1, AddinSettings.Instance.FreezeMark1BorderColor, hdc, clipRect);
+			DrawRectangles(_freezeMarks2, AddinSettings.Instance.FreezeMark2BorderColor, hdc, clipRect);
+			DrawRectangles(_freezeMarks3, AddinSettings.Instance.FreezeMark3BorderColor, hdc, clipRect);
 		}
 
-		private void DrawRectangles(MarkCollection marks, Color penColor, Graphics g, Rectangle clip)
+		private void DrawRectangles(MarkCollection marks, Color penColor, IntPtr hdc, Rectangle clip)
 		{
 			Rectangle[] rectangles = marks.GetRectanglesForVisibleMarks(_textView, clip);
 
 			if (rectangles != null && rectangles.Length > 0)
 			{
-				if (AddinSettings.Instance.FilledMarks)
+				//if (AddinSettings.Instance.FilledMarks)
+				//{
+				//    using (var b = new SolidBrush(Color.FromArgb(16, penColor)))
+				//        g.FillRectangles(b, rectangles);
+				//}
+
+				IntPtr originalObject = Gdi32.SelectObject(hdc, Gdi32.GetStockObject(Gdi32.StockObjects.DC_PEN));
+
+				Gdi32.SelectObject(hdc, Gdi32.GetStockObject(Gdi32.StockObjects.NULL_BRUSH));
+				Gdi32.SelectObject(hdc, Gdi32.GetStockObject(Gdi32.StockObjects.DC_PEN));
+
+				int originalPenColor = Gdi32.SetDCPenColor(hdc, ColorTranslator.ToWin32(penColor));
+
+				for (int i = 0; i < rectangles.Length; i++)
 				{
-					using (var b = new SolidBrush(Color.FromArgb(16, penColor)))
-						g.FillRectangles(b, rectangles);
+					var rect = rectangles[i];
+					Gdi32.Rectangle(hdc, rect.Left, rect.Top, rect.Right, rect.Bottom);
 				}
 
-				using (var pen = new Pen(penColor))
-					g.DrawRectangles(pen, rectangles);
+				Gdi32.SetDCPenColor(hdc, originalPenColor);
+				Gdi32.SelectObject(hdc, originalObject);
 			}
 		}
 

@@ -162,8 +162,8 @@ namespace WordLight.Search
                             Rectangle rect = view.GetRectangleForMark(x, _markLength);
                             if (rect != Rectangle.Empty)
                             {
-                                rect.Width -= 1;
-                                rect.Height -= 1;
+                                //rect.Width -= 1;
+                                //rect.Height -= 1;
 
                                 var intersectedRect = Rectangle.Intersect(clip, rect);
                                 if (intersectedRect != Rectangle.Empty)
