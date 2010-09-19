@@ -31,7 +31,7 @@ namespace WordLight.Search
                 {
                     _positions.ForEachInOrder((x) => 
                     {
-                        _screenUpdater.IncludeMark((new TextMark(x, _markLength)));
+                        _screenUpdater.IncludeText(x, _markLength);
                     });
                     _positions = null;
                     _markLength = 0;
@@ -49,7 +49,7 @@ namespace WordLight.Search
                 {
                     _positions.ForEachInOrder((x) =>
                     {
-                        _screenUpdater.IncludeMark((new TextMark(x, _markLength)));
+                        _screenUpdater.IncludeText(x, _markLength);
                     });
                     _positions = null;
                 }
@@ -60,7 +60,7 @@ namespace WordLight.Search
 
                     occurences.Positions.ForEachInOrder((x) =>
                     {
-                        _screenUpdater.IncludeMark((new TextMark(x, occurences.TextLength)));
+                        _screenUpdater.IncludeText(x, occurences.TextLength);
                     });
 
                     _positions = occurences.Positions;
@@ -85,17 +85,17 @@ namespace WordLight.Search
                         {
                             n.ForEachLessThan(_positions.GetMinX(), (x) => 
                             {
-                                _screenUpdater.IncludeMark((new TextMark(x, _markLength))); 
+                                _screenUpdater.IncludeText(x, _markLength); 
                             });
                             n.ForEachGreaterThan(_positions.GetMaxX(), (x) => 
                             {
-                                _screenUpdater.IncludeMark((new TextMark(x, _markLength))); 
+                                _screenUpdater.IncludeText(x, _markLength); 
                             });
                         }
                         else
                         {
                             n.ForEachInOrder((x) => {
-                                _screenUpdater.IncludeMark((new TextMark(x, _markLength)));
+                                _screenUpdater.IncludeText(x, _markLength);
                             });
                         }
                     }
@@ -123,14 +123,14 @@ namespace WordLight.Search
 
                 if (garbage != null)
                     garbage.ForEachInOrder((x) => {
-                        _screenUpdater.IncludeMark((new TextMark(x, _markLength))); 
+                        _screenUpdater.IncludeText(x, _markLength); 
                     });
 
                 if (occurences != TextOccurences.Empty && occurences.Count > 0)
                 {
                     occurences.Positions.ForEachInOrder((x) =>
                     {
-                        _screenUpdater.IncludeMark((new TextMark(x, occurences.TextLength)));
+                        _screenUpdater.IncludeText(x, occurences.TextLength);
                     });
 
                     _markLength = occurences.TextLength;
