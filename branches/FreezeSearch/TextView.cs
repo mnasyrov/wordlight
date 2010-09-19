@@ -9,7 +9,7 @@ using System.Windows.Forms;
 using EnvDTE;
 using Microsoft.VisualStudio.TextManager.Interop;
 
-using WordLight.DllImport;
+using WordLight.NativeMethods;
 using WordLight.EventAdapters;
 using WordLight.Extensions;
 using WordLight.Search;
@@ -18,28 +18,14 @@ namespace WordLight
 {
 	public class TextView : IDisposable
 	{
-		private class TextPoint
-		{
-			public int Line;
-			public int Column;
-
-			public override int GetHashCode()
-			{
-				return Line.GetHashCode() ^ Column.GetHashCode();
-			}
-		}
-
 		private IVsTextView _view;
 		private IVsTextLines _buffer;
 		private TextViewEventAdapter _viewEvents;
 
 		private int _lineHeight;
 
-		private Dictionary<TextPoint, Point> _pointCache = new Dictionary<TextPoint, Point>();
+		private Dictionary<long, Point> _pointCache = new Dictionary<long, Point>();
 		private object _pointCacheSync = new object();
-
-		private Dictionary<TextSpan, Rectangle> _rectangleCache = new Dictionary<TextSpan, Rectangle>();
-		private object _rectSpanCacheSync = new object();
 
 		private TextSpan _visibleSpan = new TextSpan();
 		private int _visibleTextStart;
@@ -111,14 +97,14 @@ namespace WordLight
 
 		public Point GetScreenPoint(int line, int column)
 		{
-			var textPos = new TextPoint { Line = line, Column = column };
+			long pointKey = ((_visibleSpan.iStartLine & 0xFFFFL) << 32) | ((line & 0xFFFFL) << 16) | (column & 0xFFFFL);
 			var screenPoint = Point.Empty;
 
 			lock (_pointCacheSync)
 			{
-				if (_pointCache.ContainsKey(textPos))
+				if (_pointCache.ContainsKey(pointKey))
 				{
-					screenPoint = _pointCache[textPos];
+					screenPoint = _pointCache[pointKey];
 				}
 				else
 				{
@@ -128,11 +114,38 @@ namespace WordLight
 					screenPoint.X = p[0].x;
 					screenPoint.Y = p[0].y;
 
-					_pointCache.Add(textPos, screenPoint);
+					_pointCache.Add(pointKey, screenPoint);
 				}
 			}
 
 			return screenPoint;
+		}
+
+		public Point GetScreenPointForTextPosition(int position)
+		{
+			int line;
+			int column;
+			_buffer.GetLineIndexOfPosition(position, out line, out column);
+			return GetScreenPoint(line, column);
+		}
+
+		public Rectangle GetRectangleForMark(int markStart, int markLength)
+		{
+			Point startPoint = GetScreenPointForTextPosition(markStart);
+			if (startPoint != Point.Empty)
+			{
+				Point endPoint = GetScreenPointForTextPosition(markStart + markLength);
+				if (endPoint != Point.Empty)
+				{
+					int x = startPoint.X;
+					int y = startPoint.Y;
+					int height = endPoint.Y - y + LineHeight;
+					int width = endPoint.X - startPoint.X;
+
+					return new Rectangle(x, y, width, height);
+				}
+			}
+			return Rectangle.Empty;
 		}
 
 		public Rectangle GetRectangle(TextMark mark)
@@ -145,26 +158,6 @@ namespace WordLight
 		}
 
 		public Rectangle GetRectangle(TextSpan span)
-		{
-			var rect = Rectangle.Empty;
-
-			lock (_rectSpanCacheSync)
-			{
-				if (_rectangleCache.ContainsKey(span))
-				{
-					rect = _rectangleCache[span];
-				}
-				else
-				{
-					rect = GetRectangleForSpanInternal(span);
-					_rectangleCache.Add(span, rect);
-				}
-			}
-
-			return rect;
-		}
-
-		private Rectangle GetRectangleForSpanInternal(TextSpan span)
 		{
 			Point startPoint = GetScreenPoint(span.iStartLine, span.iStartIndex);
 			if (startPoint == Point.Empty)
@@ -187,15 +180,16 @@ namespace WordLight
 			return VisibleTextStart <= mark.End && mark.Start <= VisibleTextEnd;
 		}
 
-		public void ResetCaches()
+        public bool IsVisibleText(int position, int length)
+        {
+            return VisibleTextStart <= (position + length) && position <= VisibleTextEnd;
+        }
+
+		private void ResetCaches()
 		{
 			lock (_pointCacheSync)
 			{
-				lock (_rectSpanCacheSync)
-				{
-					_pointCache.Clear();
-					_rectangleCache.Clear();
-				}
+				_pointCache.Clear();
 			}
 		}
 
@@ -222,9 +216,10 @@ namespace WordLight
 
 				if (topLayer != null && bufferLayer != null)
 				{
+					int lastVisibleUnit = Math.Min(e.ScrollInfo.firstVisibleUnit + e.ScrollInfo.visibleUnits, e.ScrollInfo.maxUnit);
 					int temp;
 					topLayer.LocalLineIndexToDeeperLayer(bufferLayer, e.ScrollInfo.firstVisibleUnit, 0, out topTextLineInView, out temp);
-					topLayer.LocalLineIndexToDeeperLayer(bufferLayer, e.ScrollInfo.firstVisibleUnit + e.ScrollInfo.visibleUnits, 0, out bottomTextLineInView, out temp);
+					topLayer.LocalLineIndexToDeeperLayer(bufferLayer, lastVisibleUnit, 0, out bottomTextLineInView, out temp);
 					bottomTextLineInView++;
 				}
 				else

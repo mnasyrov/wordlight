@@ -9,168 +9,179 @@ using Microsoft.VisualStudio.TextManager.Interop;
 
 namespace WordLight.Search
 {
-	public class MarkCollection
-	{
-        public event EventHandler<MarkEventArgs> MarkDeleted;
-        public event EventHandler<MarkEventArgs> MarkAdded;
+    public class MarkCollection
+    {
+        private object _marksSyncRoot = new object();
+        private ScreenUpdateManager _screenUpdater;
+        private int _markLength;
+        private Treap _positions;
 
-		private LinkedList<TextMark> _marks = new LinkedList<TextMark>();
-		private object _marksSyncRoot = new object();
-
-        private void OnDeleteMark(TextMark mark)
+        public MarkCollection(ScreenUpdateManager screenUpdater)
         {
-            EventHandler<MarkEventArgs> evt = MarkDeleted;
-            if (evt != null)
-            {
-                evt(this, new MarkEventArgs(mark));
-            }
+            if (screenUpdater == null) throw new ArgumentNullException("screenUpdater");
+
+            _screenUpdater = screenUpdater;
         }
 
-        private void OnAddMark(TextMark mark)
+        public void Clear()
         {
-            EventHandler<MarkEventArgs> evt = MarkAdded;
-            if (evt != null)
+            lock (_marksSyncRoot)
             {
-                evt(this, new MarkEventArgs(mark));
-            }
-        }
-
-		public void Clear()
-		{
-			lock (_marksSyncRoot)
-			{
-                foreach (var mark in _marks)
+                if (_positions != null)
                 {
-                    OnDeleteMark(mark);
-                }
-
-				_marks.Clear();
-			}
-		}
-
-		public void ReplaceMarks(TextMark[] newMarks)
-		{
-			lock (_marksSyncRoot)
-			{
-                foreach (var mark in _marks)
-                {
-                    OnDeleteMark(mark);
-                }
-
-                if (newMarks == null || newMarks.Length == 0)
-                {
-                    _marks.Clear();
-                }
-                else
-                {
-                    _marks = new LinkedList<TextMark>(newMarks);
-                    foreach (var mark in _marks)
+                    _positions.ForEachInOrder((x) => 
                     {
-                        OnAddMark(mark);
-                    }
+                        _screenUpdater.IncludeText(x, _markLength);
+                    });
+                    _positions = null;
+                    _markLength = 0;
                 }
-			}
-		}
+            }
+        }
 
-		public void ReplaceMarks(TextMark[] newMarks, int start, int end, int tailOffset)
-		{
-			lock (_marksSyncRoot)
-			{
-				if (_marks.Count == 0)
-				{
-					ReplaceMarks(newMarks);
-					return;
-				}
-
-                //Determine left and right bounds
-				var left = _marks.First;
-				var right = _marks.Last;
-
-				for (var node = _marks.First; node != null; node = node.Next)
-				{
-					if (node.Value.End > start)
-						break;
-					left = node;
-				}
-
-				for (var node = _marks.Last; node != null && node != left; node = node.Previous)
-				{
-					node.Value.Start += tailOffset;
-
-					if (node.Value.Start < end)
-						break;
-					right = node;
-				}
-
-                //Delete deprecated marks
-				for (var node = left.Next; node != null && node != right; node = node.Next)
-				{
-                    OnDeleteMark(node.Value);
-					_marks.Remove(node);
-				}
-
-                //Add new marks instead of old ones
-				if (newMarks != null)
-				{
-					for (int i = 0; i < newMarks.Length; i++)
-					{
-						left = _marks.AddAfter(left, newMarks[i]);
-                        OnAddMark(newMarks[i]);
-					}
-				}
-			}
-		}
-
-		public Rectangle[] GetRectanglesForVisibleMarks(TextView view, Rectangle clip)
-		{
-			List<Rectangle> rectList = null;
-
-			lock (_marksSyncRoot)
-			{
-				for (var node = _marks.First; node != null; node = node.Next)
-				{
-					TextMark mark = node.Value;
-
-                    if (view.IsVisible(mark))
-					{
-                        Rectangle rect = view.GetRectangle(mark);
-						if (rect != Rectangle.Empty)
-						{
-							if (rectList == null)
-								rectList = new List<Rectangle>();
-
-							rect.Width -= 1;
-							rect.Height -= 1;
-
-                            Rectangle r = Rectangle.Intersect(clip, rect);
-                            if (r != Rectangle.Empty)
-                                rectList.Add(rect);
-						}
-					}
-				}
-			}
-
-			if (rectList != null)
-				return rectList.ToArray();
-
-			return null;
-		}
-
-        public IList<TextMark> GetVisibleMarks(TextView view)
+        public void ReplaceMarks(TextOccurences occurences)
         {
-            List<TextMark> result = new List<TextMark>();
+            if (occurences == null) throw new ArgumentNullException("occurences");
 
             lock (_marksSyncRoot)
             {
-                for (var node = _marks.First; node != null; node = node.Next)
+                if (_positions != null)
                 {
-                    TextMark mark = node.Value;
-                    if (view.IsVisible(mark))
-                        result.Add(mark);
+                    _positions.ForEachInOrder((x) =>
+                    {
+                        _screenUpdater.IncludeText(x, _markLength);
+                    });
+                    _positions = null;
+                }
+
+                if (occurences != TextOccurences.Empty && occurences.Count > 0)
+                {
+                    _markLength = occurences.TextLength;
+
+                    occurences.Positions.ForEachInOrder((x) =>
+                    {
+                        _screenUpdater.IncludeText(x, occurences.TextLength);
+                    });
+
+                    _positions = occurences.Positions;
+                }
+            }
+        }
+
+        public void AddMarks(TextOccurences occurences)
+        {
+            if (occurences == null) throw new ArgumentNullException("occurences");
+
+            lock (_marksSyncRoot)
+            {
+                if (occurences != TextOccurences.Empty && occurences.Count > 0)
+                {
+                    _markLength = occurences.TextLength;
+                    
+                    var n = occurences.Positions;
+                    if (n != null)
+                    {
+                        if (_positions != null)
+                        {
+                            n.ForEachLessThan(_positions.GetMinX(), (x) => 
+                            {
+                                _screenUpdater.IncludeText(x, _markLength); 
+                            });
+                            n.ForEachGreaterThan(_positions.GetMaxX(), (x) => 
+                            {
+                                _screenUpdater.IncludeText(x, _markLength); 
+                            });
+                        }
+                        else
+                        {
+                            n.ForEachInOrder((x) => {
+                                _screenUpdater.IncludeText(x, _markLength);
+                            });
+                        }
+                    }
+
+                    _positions = n;
+                }
+            }
+        }
+
+        public void ReplaceMarks(TextOccurences occurences, int start, int end, int tailOffset)
+        {
+            if (occurences == null) throw new ArgumentNullException("occurences");
+
+            lock (_marksSyncRoot)
+            {
+                if (_positions == null)
+                {
+                    ReplaceMarks(occurences);
+                    return;
+                }
+
+                Treap right, garbage;
+                _positions.Split(start - 1, out _positions, out right);
+                right.Split(end, out garbage, out right);
+
+                if (garbage != null)
+                    garbage.ForEachInOrder((x) => {
+                        _screenUpdater.IncludeText(x, _markLength); 
+                    });
+
+                if (occurences != TextOccurences.Empty && occurences.Count > 0)
+                {
+                    occurences.Positions.ForEachInOrder((x) =>
+                    {
+                        _screenUpdater.IncludeText(x, occurences.TextLength);
+                    });
+
+                    _markLength = occurences.TextLength;
+                    _positions = Treap.Merge(_positions, occurences.Positions);
+                }
+
+                if (right != null)
+                {
+                    TreapBuilder shiftedMarks = new TreapBuilder();
+                    right.ForEachInOrder((x) => { shiftedMarks.Add(x + tailOffset); });
+                    _positions = Treap.Merge(_positions, shiftedMarks.ToTreap());
+                }
+            }
+        }
+
+        public Rectangle[] GetRectanglesForVisibleMarks(TextView view, Rectangle clip)
+        {
+            List<Rectangle> rectList = null;
+
+            lock (_marksSyncRoot)
+            {
+                if (_positions != null)
+                {
+                    _positions.ForEachInOrderBetween(
+                        view.VisibleTextStart - _markLength,
+                        view.VisibleTextEnd + _markLength,
+                        (x) =>
+                        {
+                            Rectangle rect = view.GetRectangleForMark(x, _markLength);
+                            if (rect != Rectangle.Empty)
+                            {
+                                rect.Width -= 1;
+                                rect.Height -= 1;
+
+                                var intersectedRect = Rectangle.Intersect(clip, rect);
+                                if (intersectedRect != Rectangle.Empty)
+                                {
+                                    if (rectList == null)
+                                        rectList = new List<Rectangle>();
+                                    rectList.Add(intersectedRect);
+                                }
+                            }
+                        }
+                    );
                 }
             }
 
-            return result;
+            if (rectList != null)
+                return rectList.ToArray();
+
+            return null;
         }
-	}
+    }
 }

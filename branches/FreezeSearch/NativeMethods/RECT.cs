@@ -5,7 +5,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace WordLight.DllImport
+namespace WordLight.NativeMethods
 {
 	public static partial class User32
 	{

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace WordLight.DllImport
+namespace WordLight.NativeMethods
 {
 	public class WinProcMessages
 	{
