@@ -43,7 +43,7 @@ namespace WordLight.Search
             _searchTimer = new System.Timers.Timer();
             _searchTimer.AutoReset = false;
             _searchTimer.Interval = SearchDelay;
-            _searchTimer.Elapsed += new ElapsedEventHandler(searchTimer_Elapsed);
+            _searchTimer.Elapsed += new ElapsedEventHandler(SearchTimer_Elapsed);
 
             _asyncJobs = new Queue<SearchJob>();
         }
@@ -52,10 +52,10 @@ namespace WordLight.Search
         /// Modification of Boyer–Moore string search
         /// Based on http://algolist.manual.ru/search/esearch/qsearch.php
         /// </remarks>
-        private List<int> SearchOccurrencesInText(string text, string value, int searchStart, int searchEnd)
+        private TextOccurences SearchOccurrencesInText(string text, string value, int searchStart, int searchEnd)
         {
-            List<int> results = new List<int>();
-
+            var positions = new TreapBuilder();
+            
             /* Preprocessing */
             int valueLength = value.Length;            
 			var badChars = new Dictionary<int, int>(valueLength);
@@ -71,7 +71,7 @@ namespace WordLight.Search
             for (int i = searchStart; i < searchEnd; )
             {
                 if (text.Substring(i, valueLength).StartsWith(value, StringComparison.InvariantCultureIgnoreCase))
-                    results.Add(i);
+                    positions.Add(i);
 
 				if (i + valueLength >= searchEnd)
 					break;
@@ -83,13 +83,11 @@ namespace WordLight.Search
 					i += valueLength + 1;
             }
 
-            return results;
+            return new TextOccurences(value, positions);
         }
 
-		public TextMark[] SearchOccurrences(string value, int searchStart, int searchEnd)
+		public TextOccurences SearchOccurrences(string value, int searchStart, int searchEnd)
         {
-            var marks = new List<TextMark>();
-
             if (!string.IsNullOrEmpty(value))
             {
                 string text = _buffer.GetText();
@@ -99,17 +97,12 @@ namespace WordLight.Search
 
                     if (searchEnd >= searchStart && length > 0)
                     {
-                        List<int> positions = SearchOccurrencesInText(text, value, searchStart, searchEnd);
-
-                        foreach (int pos in positions)
-                        {
-							marks.Add(new TextMark(pos, length));
-                        }
+                        return SearchOccurrencesInText(text, value, searchStart, searchEnd);
                     }
                 }
             }
 
-            return marks.ToArray();
+            return TextOccurences.Empty;
         }
 
         #region Delayed searching
@@ -130,7 +123,7 @@ namespace WordLight.Search
             }
         }
 
-        private void searchTimer_Elapsed(object sender, ElapsedEventArgs e)
+        private void SearchTimer_Elapsed(object sender, ElapsedEventArgs e)
         {
             string value;
             int searchStart;
@@ -185,12 +178,12 @@ namespace WordLight.Search
 
                 if (job != null)
                 {
-                    var marks = SearchOccurrences(job.Value, job.SearchStart, job.SearchEnd);
+                    var occurences = SearchOccurrences(job.Value, job.SearchStart, job.SearchEnd);
 
                     EventHandler<SearchCompletedEventArgs> evt = SearchCompleted;
                     if (evt != null)
                     {
-						evt(this, new SearchCompletedEventArgs(job.Value, job.SearchStart, job.SearchEnd, marks));
+						evt(this, new SearchCompletedEventArgs(occurences));
                     }
                 }
             }

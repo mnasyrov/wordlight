@@ -10,7 +10,7 @@ using System.Threading;
 using EnvDTE;
 using Microsoft.VisualStudio.TextManager.Interop;
 
-using WordLight.DllImport;
+using WordLight.NativeMethods;
 using WordLight.EventAdapters;
 using WordLight.Extensions;
 using WordLight.Search;
@@ -23,10 +23,10 @@ namespace WordLight
 
 		private string _previousSelectedText;
 
-		private MarkCollection _searchMarks = new MarkCollection();
-		private MarkCollection _freezeMarks1 = new MarkCollection();
-		private MarkCollection _freezeMarks2 = new MarkCollection();
-		private MarkCollection _freezeMarks3 = new MarkCollection();
+		private MarkCollection _searchMarks;
+		private MarkCollection _freezeMarks1;
+		private MarkCollection _freezeMarks2;
+		private MarkCollection _freezeMarks3;
 
 		private string _selectedText;
 		private TextStreamEventAdapter _textStreamEvents;
@@ -45,7 +45,7 @@ namespace WordLight
 
 		private int _leftMarginWidth = 0;
 
-		private UpdateRectangle _markUpdateRect;
+		private ScreenUpdateManager _screenUpdater;
 
 		private object _paintSync = new object();
 
@@ -55,8 +55,15 @@ namespace WordLight
 
 			_textView = new TextView(view);
 
+            IntPtr hWnd = view.GetWindowHandle();
+            _screenUpdater = new ScreenUpdateManager(hWnd, _textView);
+
 			_textStreamEvents = new TextStreamEventAdapter(_textView.Buffer);
 			_textStreamEvents.StreamTextChanged += new EventHandler<StreamTextChangedEventArgs>(StreamTextChangedHandler);
+
+            _textView.ViewEvents.ScrollChanged += new EventHandler<ViewScrollChangedEventArgs>(ScrollChangedHandler);
+            _textView.ViewEvents.GotFocus += new EventHandler<ViewFocusEventArgs>(GotFocusHandler);
+            _textView.ViewEvents.LostFocus += new EventHandler<ViewFocusEventArgs>(LostFocusHandler);
 
 			_search = new TextSearch(_textView.Buffer);
 			_search.SearchCompleted += new EventHandler<SearchCompletedEventArgs>(searcher_SearchCompleted);
@@ -70,23 +77,11 @@ namespace WordLight
 			_freezeSearch3 = new TextSearch(_textView.Buffer);
 			_freezeSearch3.SearchCompleted += new EventHandler<SearchCompletedEventArgs>(FreezeSearchCompleted3);
 
-
-			_textView.ViewEvents.ScrollChanged += new EventHandler<ViewScrollChangedEventArgs>(ScrollChangedHandler);
-			_textView.ViewEvents.GotFocus += new EventHandler<ViewFocusEventArgs>(GotFocusHandler);
-			_textView.ViewEvents.LostFocus += new EventHandler<ViewFocusEventArgs>(LostFocusHandler);
-
-			_searchMarks.MarkAdded += new EventHandler<MarkEventArgs>(MarkChangedHandler);
-			_searchMarks.MarkDeleted += new EventHandler<MarkEventArgs>(MarkChangedHandler);
-			_freezeMarks1.MarkAdded += new EventHandler<MarkEventArgs>(MarkChangedHandler);
-			_freezeMarks1.MarkDeleted += new EventHandler<MarkEventArgs>(MarkChangedHandler);
-			_freezeMarks2.MarkAdded += new EventHandler<MarkEventArgs>(MarkChangedHandler);
-			_freezeMarks2.MarkDeleted += new EventHandler<MarkEventArgs>(MarkChangedHandler);
-			_freezeMarks3.MarkAdded += new EventHandler<MarkEventArgs>(MarkChangedHandler);
-			_freezeMarks3.MarkDeleted += new EventHandler<MarkEventArgs>(MarkChangedHandler);
-
-			IntPtr hWnd = view.GetWindowHandle();
-			_markUpdateRect = new UpdateRectangle(hWnd, _textView);
-
+            _searchMarks = new MarkCollection(_screenUpdater);
+            _freezeMarks1 = new MarkCollection(_screenUpdater);
+            _freezeMarks2 = new MarkCollection(_screenUpdater);
+            _freezeMarks3 = new MarkCollection(_screenUpdater);
+			
 			AssignHandle(hWnd);
 		}
 
@@ -167,7 +162,7 @@ namespace WordLight
 
 			User32.ShowCaret(Handle);
 
-			_markUpdateRect.Validate();
+			_screenUpdater.CompleteUpdate();
 
 			Monitor.Exit(_paintSync);
 		}
@@ -213,19 +208,6 @@ namespace WordLight
 			}
 		}
 
-		private void MarkChangedHandler(object sender, MarkEventArgs e)
-		{
-			InvalidateMark(e.Mark);
-		}
-
-		private void InvalidateMark(TextMark mark)
-		{
-			if (_textView.IsVisible(mark))
-			{
-				_markUpdateRect.Include(mark);
-			}
-		}
-
 		//private void InvalidateVisibleMarks(MarkCollection marks)
 		//{
 		//    var visibleMarks = marks.GetMarks(_visibleTextStart, _visibleTextEnd, _textView);
@@ -255,7 +237,7 @@ namespace WordLight
 			SearchInChangedText(_freezeSearch2, _freezeMarks2, e, _freezeText2);
 			SearchInChangedText(_freezeSearch3, _freezeMarks3, e, _freezeText3);
 
-			_markUpdateRect.Invalidate();
+			_screenUpdater.RequestUpdate();
 		}
 
 		private void SearchInChangedText(TextSearch searcher, MarkCollection marks, StreamTextChangedEventArgs e, string searchText)
@@ -265,12 +247,12 @@ namespace WordLight
 				int searchStart = e.Position - searchText.Length;
 				int searchEnd = e.Position + e.NewLength + searchText.Length;
 
-				var newMarks = searcher.SearchOccurrences(searchText, searchStart, searchEnd);
+				var occurences = searcher.SearchOccurrences(searchText, searchStart, searchEnd);
 
 				int replacementStart = e.Position;
 				int replacementEnd = e.Position + e.OldLength;
 
-				marks.ReplaceMarks(newMarks, replacementStart, replacementEnd, e.NewLength - e.OldLength);
+				marks.ReplaceMarks(occurences, replacementStart, replacementEnd, e.NewLength - e.OldLength);
 			}
 		}
 
@@ -282,38 +264,38 @@ namespace WordLight
 
 			if (!string.IsNullOrEmpty(_selectedText))
 			{
-				var marks = _search.SearchOccurrences(_selectedText, _textView.VisibleTextStart, _textView.VisibleTextEnd);
-				_searchMarks.ReplaceMarks(marks);
-				_search.SearchOccurrencesDelayed(_selectedText, 0, int.MaxValue);
+                var marks = _search.SearchOccurrences(_selectedText, _textView.VisibleTextStart, _textView.VisibleTextEnd);
+                _searchMarks.ReplaceMarks(marks);
+                _search.SearchOccurrencesDelayed(_selectedText, 0, int.MaxValue);
 			}
 
-			_markUpdateRect.Invalidate();
+			_screenUpdater.RequestUpdate();
 		}
 
 		private void searcher_SearchCompleted(object sender, SearchCompletedEventArgs e)
 		{
-			if (e.Text == _selectedText)
+			if (e.Occurences.Text == _selectedText)
 			{
-				_searchMarks.AddMarks(e.Marks);
+				_searchMarks.AddMarks(e.Occurences);
 				//_markUpdateRect.Invalidate();
 			}
 		}
 
 		private void FreezeSearchCompleted1(object sender, SearchCompletedEventArgs e)
 		{
-			_freezeMarks1.AddMarks(e.Marks);
+			_freezeMarks1.AddMarks(e.Occurences);
 			//_markUpdateRect.Invalidate();
 		}
 
 		private void FreezeSearchCompleted2(object sender, SearchCompletedEventArgs e)
 		{
-			_freezeMarks2.AddMarks(e.Marks);
+			_freezeMarks2.AddMarks(e.Occurences);
 			//_markUpdateRect.Invalidate();
 		}
 
 		private void FreezeSearchCompleted3(object sender, SearchCompletedEventArgs e)
 		{
-			_freezeMarks3.AddMarks(e.Marks);
+			_freezeMarks3.AddMarks(e.Occurences);
 			//_markUpdateRect.Invalidate();
 		}
 
@@ -330,7 +312,7 @@ namespace WordLight
 		}
 
 		public void FreezeSearch(int group)
-		{
+		{   
 			bool set1 = group == 1 && _freezeText1 != _selectedText;
 			bool set2 = group == 2 && _freezeText2 != _selectedText;
 			bool set3 = group == 3 && _freezeText3 != _selectedText;
@@ -376,7 +358,7 @@ namespace WordLight
 			}
 
 
-			_markUpdateRect.Invalidate();
+			_screenUpdater.RequestUpdate();
 		}
 	}
 }

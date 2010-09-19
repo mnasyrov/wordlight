@@ -91,13 +91,13 @@ namespace WordLight.Search
 
         public void ForEachInOrderBetween(int min, int max, NodeValueAction action)
         {
-			if (Left != null && min <= Left.x)
+            if (Left != null && min < x)
                 Left.ForEachInOrderBetween(min, max, action);
-            
-			if (min <= x && x <= max)
-				action(x);
 
-            if (Right != null && Right.x <= max)
+            if (min <= x && x <= max)
+                action(x);
+
+            if (Right != null && x < max)
                 Right.ForEachInOrderBetween(min, max, action);
         }
 
@@ -107,13 +107,13 @@ namespace WordLight.Search
                 Left.ForEachLessThan(max, action);
             if (x < max)
                 action(x);
-            if (Right != null && Right.x < max)
+            if (Right != null && x < max)
                 Right.ForEachLessThan(max, action);
         }
 
         public void ForEachGreaterThan(int min, NodeValueAction action)
         {
-            if (Left != null && Left.x > min)
+            if (Left != null && x > min)
                 Left.ForEachGreaterThan(min, action);
             if (x > min)
                 action(x);
@@ -173,41 +173,6 @@ namespace WordLight.Search
 			Split(x - 1, out l, out r);
 			r.Split(x, out m, out r);
 			return Merge(l, r);
-		}
-
-		public static Treap Build(int[] xs)
-		{
-			var tree = new Treap(xs[0]);
-			var last = tree;
-
-			for (int i = 1; i < xs.Length; ++i)
-			{
-				int currentPriority = _priorityRandom.Next();
-
-				if (last.y > currentPriority)
-				{
-					last.Right = new Treap() { x = xs[i], y = currentPriority, Parent = last };
-					last = last.Right;
-				}
-				else
-				{
-					Treap cur = last;
-					while (cur.Parent != null && cur.y <= currentPriority)
-						cur = cur.Parent;
-					if (cur.y <= currentPriority)
-						last = new Treap(xs[i], currentPriority, cur, null);
-					else
-					{
-						last = new Treap(xs[i], currentPriority, cur.Right, null, cur);
-						cur.Right = last;
-					}
-				}
-			}
-
-			while (last.Parent != null)
-				last = last.Parent;
-
-			return last;
 		}
 	}
 }

@@ -9,7 +9,7 @@ using System.Windows.Forms;
 using EnvDTE;
 using Microsoft.VisualStudio.TextManager.Interop;
 
-using WordLight.DllImport;
+using WordLight.NativeMethods;
 using WordLight.EventAdapters;
 using WordLight.Extensions;
 using WordLight.Search;
@@ -155,21 +155,6 @@ namespace WordLight
 			_buffer.GetLineIndexOfPosition(mark.End, out span.iEndLine, out span.iEndIndex);
 
 			return GetRectangle(span);
-
-			//int line;
-			//int column;
-			//_buffer.GetLineIndexOfPosition(mark.Start, out line, out column);
-
-			//Point startPoint = GetScreenPoint(line, column);
-			//if (startPoint == Point.Empty)
-			//    return Rectangle.Empty;
-
-			//int x = startPoint.X;
-			//int y = startPoint.Y;
-			//int height = LineHeight;
-			//int width = x + mark.Length * _charWidth;
-
-			//return new Rectangle(x, y, width, height);
 		}
 
 		public Rectangle GetRectangle(TextSpan span)
@@ -195,7 +180,12 @@ namespace WordLight
 			return VisibleTextStart <= mark.End && mark.Start <= VisibleTextEnd;
 		}
 
-		public void ResetCaches()
+        public bool IsVisibleText(int position, int length)
+        {
+            return VisibleTextStart <= (position + length) && position <= VisibleTextEnd;
+        }
+
+		private void ResetCaches()
 		{
 			lock (_pointCacheSync)
 			{

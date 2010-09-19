@@ -9,180 +9,179 @@ using Microsoft.VisualStudio.TextManager.Interop;
 
 namespace WordLight.Search
 {
-	public class MarkCollection
-	{
-		public event EventHandler<MarkEventArgs> MarkDeleted;
-		public event EventHandler<MarkEventArgs> MarkAdded;
+    public class MarkCollection
+    {
+        private object _marksSyncRoot = new object();
+        private ScreenUpdateManager _screenUpdater;
+        private int _markLength;
+        private Treap _positions;
 
-		private object _marksSyncRoot = new object();
+        public MarkCollection(ScreenUpdateManager screenUpdater)
+        {
+            if (screenUpdater == null) throw new ArgumentNullException("screenUpdater");
 
-		private void OnDeleteMark(TextMark mark)
-		{
-			EventHandler<MarkEventArgs> evt = MarkDeleted;
-			if (evt != null)
-			{
-				evt(this, new MarkEventArgs(mark));
-			}
-		}
+            _screenUpdater = screenUpdater;
+        }
 
-		private void OnAddMark(TextMark mark)
-		{
-			EventHandler<MarkEventArgs> evt = MarkAdded;
-			if (evt != null)
-			{
-				evt(this, new MarkEventArgs(mark));
-			}
-		}
+        public void Clear()
+        {
+            lock (_marksSyncRoot)
+            {
+                if (_positions != null)
+                {
+                    _positions.ForEachInOrder((x) => 
+                    {
+                        _screenUpdater.IncludeMark((new TextMark(x, _markLength)));
+                    });
+                    _positions = null;
+                    _markLength = 0;
+                }
+            }
+        }
 
-		private int _markLength;
-		private Treap _root;
+        public void ReplaceMarks(TextOccurences occurences)
+        {
+            if (occurences == null) throw new ArgumentNullException("occurences");
 
-		public void Clear()
-		{
-			lock (_marksSyncRoot)
-			{
-				if (_root != null)
-				{
-					_root.ForEachInOrder((x) => { OnDeleteMark(new TextMark(x, _markLength)); });
-					_root = null;
-					_markLength = 0;
-				}
-			}
-		}
+            lock (_marksSyncRoot)
+            {
+                if (_positions != null)
+                {
+                    _positions.ForEachInOrder((x) =>
+                    {
+                        _screenUpdater.IncludeMark((new TextMark(x, _markLength)));
+                    });
+                    _positions = null;
+                }
 
-		public void ReplaceMarks(TextMark[] newMarks)
-		{
-			lock (_marksSyncRoot)
-			{
-				if (_root != null)
-				{
-					_root.ForEachInOrder((x) => { OnDeleteMark(new TextMark(x, _markLength)); });
-					_root = null;
-				}
+                if (occurences != TextOccurences.Empty && occurences.Count > 0)
+                {
+                    _markLength = occurences.TextLength;
 
-				if (newMarks != null && newMarks.Length > 0)
-				{
-					_markLength = newMarks[0].Length;
+                    occurences.Positions.ForEachInOrder((x) =>
+                    {
+                        _screenUpdater.IncludeMark((new TextMark(x, occurences.TextLength)));
+                    });
 
-					int[] xs = new int[newMarks.Length];
-					for (int i = 0; i < newMarks.Length; i++)
-					{
-						xs[i] = newMarks[i].Start;
-						OnAddMark(newMarks[i]);
-					}
+                    _positions = occurences.Positions;
+                }
+            }
+        }
 
-					_root = Treap.Build(xs);
-				}
-			}
-		}
+        public void AddMarks(TextOccurences occurences)
+        {
+            if (occurences == null) throw new ArgumentNullException("occurences");
 
-		public void AddMarks(TextMark[] newMarks)
-		{
-			lock (_marksSyncRoot)
-			{
-				if (newMarks != null && newMarks.Length > 0)
-				{
-					_markLength = newMarks[0].Length;
+            lock (_marksSyncRoot)
+            {
+                if (occurences != TextOccurences.Empty && occurences.Count > 0)
+                {
+                    _markLength = occurences.TextLength;
+                    
+                    var n = occurences.Positions;
+                    if (n != null)
+                    {
+                        if (_positions != null)
+                        {
+                            n.ForEachLessThan(_positions.GetMinX(), (x) => 
+                            {
+                                _screenUpdater.IncludeMark((new TextMark(x, _markLength))); 
+                            });
+                            n.ForEachGreaterThan(_positions.GetMaxX(), (x) => 
+                            {
+                                _screenUpdater.IncludeMark((new TextMark(x, _markLength))); 
+                            });
+                        }
+                        else
+                        {
+                            n.ForEachInOrder((x) => {
+                                _screenUpdater.IncludeMark((new TextMark(x, _markLength)));
+                            });
+                        }
+                    }
 
-					int[] xs = new int[newMarks.Length];
-					for (int i = 0; i < newMarks.Length; i++)
-						xs[i] = newMarks[i].Start;
+                    _positions = n;
+                }
+            }
+        }
 
-					var n = Treap.Build(xs);
+        public void ReplaceMarks(TextOccurences occurences, int start, int end, int tailOffset)
+        {
+            if (occurences == null) throw new ArgumentNullException("occurences");
 
-					if (n != null)
-					{
-						if (_root != null)
-						{
-							n.ForEachLessThan(_root.GetMinX(), (x) => { OnAddMark(new TextMark(x, _markLength)); });
-							n.ForEachGreaterThan(_root.GetMaxX(), (x) => { OnAddMark(new TextMark(x, _markLength)); });
-						}
-						else
-						{
-							n.ForEachInOrder((x) => { OnAddMark(new TextMark(x, _markLength)); });
-						}
-					}
+            lock (_marksSyncRoot)
+            {
+                if (_positions == null)
+                {
+                    ReplaceMarks(occurences);
+                    return;
+                }
 
-					_root = n;
-				}
-			}
-		}
+                Treap right, garbage;
+                _positions.Split(start - 1, out _positions, out right);
+                right.Split(end, out garbage, out right);
 
-		public void ReplaceMarks(TextMark[] newMarks, int start, int end, int tailOffset)
-		{
-			lock (_marksSyncRoot)
-			{
-				if (_root == null)
-				{
-					ReplaceMarks(newMarks);
-					return;
-				}
+                if (garbage != null)
+                    garbage.ForEachInOrder((x) => {
+                        _screenUpdater.IncludeMark((new TextMark(x, _markLength))); 
+                    });
 
-				Treap right, garbage;
-				_root.Split(start - 1, out _root, out right);
-				right.Split(end, out garbage, out right);
+                if (occurences != TextOccurences.Empty && occurences.Count > 0)
+                {
+                    occurences.Positions.ForEachInOrder((x) =>
+                    {
+                        _screenUpdater.IncludeMark((new TextMark(x, occurences.TextLength)));
+                    });
 
-				if (garbage != null)
-					garbage.ForEachInOrder((x) => { OnDeleteMark(new TextMark(x, _markLength)); });
+                    _markLength = occurences.TextLength;
+                    _positions = Treap.Merge(_positions, occurences.Positions);
+                }
 
-				if (newMarks != null && newMarks.Length > 0)
-				{
-					int[] xs = new int[newMarks.Length];
-					for (int i = 0; i < newMarks.Length; i++)
-					{
-						xs[i] = newMarks[i].Start;
-						OnAddMark(newMarks[i]);
-					}
-					_markLength = newMarks[0].Length;
+                if (right != null)
+                {
+                    TreapBuilder shiftedMarks = new TreapBuilder();
+                    right.ForEachInOrder((x) => { shiftedMarks.Add(x + tailOffset); });
+                    _positions = Treap.Merge(_positions, shiftedMarks.ToTreap());
+                }
+            }
+        }
 
-					_root = Treap.Merge(_root, Treap.Build(xs));
-				}
+        public Rectangle[] GetRectanglesForVisibleMarks(TextView view, Rectangle clip)
+        {
+            List<Rectangle> rectList = null;
 
-				if (right != null)
-				{
-					List<int> xlist = new List<int>();
-					right.ForEachInOrder((x) => { xlist.Add(x + tailOffset); });
-					_root = Treap.Merge(_root, Treap.Build(xlist.ToArray()));
-				}
-			}
-		}
+            lock (_marksSyncRoot)
+            {
+                if (_positions != null)
+                {
+                    _positions.ForEachInOrderBetween(
+                        view.VisibleTextStart - _markLength,
+                        view.VisibleTextEnd + _markLength,
+                        (x) =>
+                        {
+                            Rectangle rect = view.GetRectangleForMark(x, _markLength);
+                            if (rect != Rectangle.Empty)
+                            {
+                                rect.Width -= 1;
+                                rect.Height -= 1;
 
-		public Rectangle[] GetRectanglesForVisibleMarks(TextView view, Rectangle clip)
-		{
-			List<Rectangle> rectList = null;
+                                var intersectedRect = Rectangle.Intersect(clip, rect);
+                                if (intersectedRect != Rectangle.Empty)
+                                {
+                                    if (rectList == null)
+                                        rectList = new List<Rectangle>();
+                                    rectList.Add(intersectedRect);
+                                }
+                            }
+                        }
+                    );
+                }
+            }
 
-			lock (_marksSyncRoot)
-			{
-				if (_root != null)
-				{
-					_root.ForEachInOrderBetween(
-						view.VisibleTextStart - _markLength,
-						view.VisibleTextEnd + _markLength,
-						(x) =>
-						{
-							Rectangle rect = view.GetRectangleForMark(x, _markLength);
-							if (rect != Rectangle.Empty)
-							{
-								rect.Width -= 1;
-								rect.Height -= 1;
+            if (rectList != null)
+                return rectList.ToArray();
 
-								var intersectedRect = Rectangle.Intersect(clip, rect);
-								if (intersectedRect != Rectangle.Empty)								
-								{
-									if (rectList == null) 
-										rectList = new List<Rectangle>();
-									rectList.Add(intersectedRect);
-								}
-							}
-						}
-					);
-				}
-			}
-
-			if (rectList != null)
-				return rectList.ToArray();
-
-			return null;
-		}
-	}
+            return null;
+        }
+    }
 }

@@ -4,12 +4,12 @@ using System.Drawing;
 using System.Linq;
 using System.Text;
 
-using WordLight.DllImport;
+using WordLight.NativeMethods;
 using WordLight.Search;
 
 namespace WordLight
 {
-    public class UpdateRectangle
+    public class ScreenUpdateManager
     {
         private const int MaxScreenWidth = 10000;
 
@@ -20,25 +20,45 @@ namespace WordLight
         private int _start = int.MaxValue;
         private int _end = int.MinValue;
 
-        public UpdateRectangle(IntPtr hWnd, TextView view)
+        public ScreenUpdateManager(IntPtr hWnd, TextView view)
         {
             _hWnd = hWnd;
             _view = view;
         }
 
-        public void Include(TextMark mark)
+        public void IncludeMark(TextMark mark)
         {
             lock (_updateRectSync)
             {
-                if (mark.Start < _start)
-                    _start = mark.Start;
+                if (_view.IsVisible(mark))
+                {
+                    if (mark.Start < _start)
+                        _start = mark.Start;
 
-                if (mark.End > _end)
-                    _end = mark.End;
+                    if (mark.End > _end)
+                        _end = mark.End;
+                }
             }
         }
 
-        public void Validate()
+        public void IncludeText(int position, int length)
+        {
+            lock (_updateRectSync)
+            {
+                if (_view.IsVisibleText(position, length))
+                {
+                    if (position < _start)
+                        _start = position;
+
+                    int textEnd = position + length;
+                    if (textEnd > _end)
+                        _end = textEnd;
+                }
+            }
+        }
+
+
+        public void CompleteUpdate()
         {
             lock (_updateRectSync)
             {
@@ -54,7 +74,7 @@ namespace WordLight
             }
         }
 
-        public void Invalidate()
+        public void RequestUpdate()
         {
             lock (_updateRectSync)
             {
@@ -67,12 +87,12 @@ namespace WordLight
             }
         }
 
-        private Rectangle GetRect(int start, int end)
+        private Rectangle GetRect(int textStart, int textEnd)
         {
-            start = Math.Max(start, _view.VisibleTextStart);
-            end = Math.Min(end, _view.VisibleTextEnd);
+            textStart = Math.Max(textStart, _view.VisibleTextStart);
+            textEnd = Math.Min(textEnd, _view.VisibleTextEnd);
 
-            var rect = _view.GetRectangle(new TextMark(start, end - start));
+            var rect = _view.GetRectangle(new TextMark(textStart, textEnd - textStart));
 			if (rect != Rectangle.Empty)
 			{
 				rect.X = 0;

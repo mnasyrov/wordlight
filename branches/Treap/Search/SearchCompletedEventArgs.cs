@@ -9,37 +9,16 @@ namespace WordLight.Search
 {
     public class SearchCompletedEventArgs : EventArgs
     {
-        private string _text;
-		private int _searchStart;
-		private int _searchEnd;
-        private TextMark[] _marks;
+        private TextOccurences _occurences;
 
-		public string Text
-		{
-			get { return _text; }
-		}
-
-		public int SearchStart
-		{
-			get { return _searchStart; }
-		}
-
-		public int SearchEnd
-		{
-			get { return _searchEnd; }
-		}
-
-        public TextMark[] Marks
+        public TextOccurences Occurences
         {
-            get { return _marks; }
+            get { return _occurences; }
         }
 
-        public SearchCompletedEventArgs(string text, int searchStart, int searchEnd, TextMark[] marks)
+        public SearchCompletedEventArgs(TextOccurences occurences)
         {
-			_text = text;
-			_searchStart = searchStart;
-			_searchEnd = searchEnd;
-            _marks = marks;
+            _occurences = occurences;
         }
     }
 }
