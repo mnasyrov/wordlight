@@ -43,8 +43,6 @@ namespace WordLight
 		public event EventHandler GotFocus;
 		public event EventHandler LostFocus;
 
-		private int _leftMarginWidth = 0;
-
 		private ScreenUpdateManager _screenUpdater;
 
 		private object _paintSync = new object();
@@ -170,19 +168,10 @@ namespace WordLight
 
 		private void DrawSearchMarks(Graphics g, Rectangle clipRect)
 		{
-			//Fix for clip bounds: take into account left margin pane during horizontal scrolling.
-			Point leftTop = _textView.GetScreenPoint(_textView.VisibleSpan.iStartLine, _textView.VisibleLeftTextColumn);
-			if (!leftTop.IsEmpty)
-			{
-				_leftMarginWidth = leftTop.X;
-			}
-
 			if (clipRect == Rectangle.Empty)
 			{
 				clipRect = Rectangle.Truncate(g.VisibleClipBounds);
 			}
-
-			clipRect.X = Math.Max(clipRect.X, _leftMarginWidth);
 
 			g.SetClip(clipRect);
 
