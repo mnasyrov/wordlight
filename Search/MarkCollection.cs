@@ -23,16 +23,18 @@ namespace WordLight.Search
             _screenUpdater = screenUpdater;
         }
 
+        private void IncludeTextToScreenUpdate(int position)
+        {
+            _screenUpdater.IncludeText(position, _markLength);
+        }
+
         public void Clear()
         {
             lock (_marksSyncRoot)
             {
                 if (_positions != null)
                 {
-                    _positions.ForEachInOrder((x) => 
-                    {
-                        _screenUpdater.IncludeText(x, _markLength);
-                    });
+                    _positions.ForEachInOrder(IncludeTextToScreenUpdate);
                     _positions = null;
                     _markLength = 0;
                 }
@@ -47,22 +49,14 @@ namespace WordLight.Search
             {
                 if (_positions != null)
                 {
-                    _positions.ForEachInOrder((x) =>
-                    {
-                        _screenUpdater.IncludeText(x, _markLength);
-                    });
+                    _positions.ForEachInOrder(IncludeTextToScreenUpdate);
                     _positions = null;
                 }
 
                 if (occurences != TextOccurences.Empty && occurences.Count > 0)
                 {
                     _markLength = occurences.TextLength;
-
-                    occurences.Positions.ForEachInOrder((x) =>
-                    {
-                        _screenUpdater.IncludeText(x, occurences.TextLength);
-                    });
-
+                    occurences.Positions.ForEachInOrder(IncludeTextToScreenUpdate);
                     _positions = occurences.Positions;
                 }
             }
@@ -83,20 +77,12 @@ namespace WordLight.Search
                     {
                         if (_positions != null)
                         {
-                            n.ForEachLessThan(_positions.GetMinX(), (x) => 
-                            {
-                                _screenUpdater.IncludeText(x, _markLength); 
-                            });
-                            n.ForEachGreaterThan(_positions.GetMaxX(), (x) => 
-                            {
-                                _screenUpdater.IncludeText(x, _markLength); 
-                            });
+                            n.ForEachLessThan(_positions.GetMinX(), IncludeTextToScreenUpdate);
+                            n.ForEachGreaterThan(_positions.GetMaxX(), IncludeTextToScreenUpdate);
                         }
                         else
                         {
-                            n.ForEachInOrder((x) => {
-                                _screenUpdater.IncludeText(x, _markLength);
-                            });
+                            n.ForEachInOrder(IncludeTextToScreenUpdate);
                         }
                     }
 
@@ -142,18 +128,12 @@ namespace WordLight.Search
                 right.Split(end, out garbage, out right);
 
                 if (garbage != null)
-                    garbage.ForEachInOrder((x) => {
-                        _screenUpdater.IncludeText(x, _markLength); 
-                    });
+                    garbage.ForEachInOrder(IncludeTextToScreenUpdate);
 
                 if (occurences != TextOccurences.Empty && occurences.Count > 0)
                 {
-                    occurences.Positions.ForEachInOrder((x) =>
-                    {
-                        _screenUpdater.IncludeText(x, occurences.TextLength);
-                    });
-
                     _markLength = occurences.TextLength;
+                    occurences.Positions.ForEachInOrder(IncludeTextToScreenUpdate);                    
                     _positions = Treap.Merge(_positions, occurences.Positions);
                 }
 
