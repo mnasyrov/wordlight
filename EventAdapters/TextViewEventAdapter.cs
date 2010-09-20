@@ -38,14 +38,22 @@ namespace WordLight.EventAdapters
 		/// <summary>
 		/// Fires when a view receives focus.
 		/// </summary>
-		public event EventHandler<ViewFocusEventArgs> SetFocus;
-
+		public event EventHandler<ViewFocusEventArgs> GotFocus;
+		public event EventHandler<ViewFocusEventArgs> LostFocus;
 		public event EventHandler<ViewScrollChangedEventArgs> ScrollChanged;
 
 		public void OnSetFocus(IVsTextView view)
 		{
-			EventHandler<ViewFocusEventArgs> evt = SetFocus;
-			if (evt != null) evt(this, new ViewFocusEventArgs(view));
+			EventHandler<ViewFocusEventArgs> evt = GotFocus;
+			if (evt != null)
+				evt(this, new ViewFocusEventArgs(view));
+		}
+
+		public void OnKillFocus(IVsTextView view)
+		{
+			EventHandler<ViewFocusEventArgs> evt = LostFocus;
+			if (evt != null)
+				evt(this, new ViewFocusEventArgs(view));
 		}
 
 		public void OnChangeScrollInfo(IVsTextView view, int iBar, int iMinUnit, int iMaxUnits, int iVisibleUnits, int iFirstVisibleUnit)
@@ -70,18 +78,12 @@ namespace WordLight.EventAdapters
 		public void OnChangeCaretLine(IVsTextView pView, int iNewLine, int iOldLine)
 		{
 			// Do nothing
-		}
-
-		public void OnKillFocus(IVsTextView pView)
-		{
-			// Do nothing
-		}
+		}		
 
 		public void OnSetBuffer(IVsTextView pView, IVsTextLines pBuffer)
 		{
 			// Do nothing
 		}
-
 
 		#endregion
 	}

@@ -58,7 +58,7 @@ namespace WordLight.EventAdapters
 				// have the HWND.
 
 				var textViewEvents = new TextViewEventAdapter(view);
-				textViewEvents.SetFocus += new EventHandler<ViewFocusEventArgs>(textViewEvents_SetFocus);
+				textViewEvents.GotFocus += new EventHandler<ViewFocusEventArgs>(textViewEvents_SetFocus);
 			}
 		}
 
@@ -67,7 +67,7 @@ namespace WordLight.EventAdapters
 			IVsTextView view = e.View;
 
 			var textViewEvents = (TextViewEventAdapter)sender;
-			textViewEvents.SetFocus -= textViewEvents_SetFocus;
+			textViewEvents.GotFocus -= textViewEvents_SetFocus;
 			textViewEvents.Dispose();
 
 			EventHandler<ViewRegistrationEventArgs> evt = ViewRegistered;

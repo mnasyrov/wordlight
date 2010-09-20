@@ -23,13 +23,6 @@ namespace WordLight
             return lineHeight;
         }
 
-        public static Point GetPointOfLineColumn(this IVsTextView view, int line, int column)
-        {
-            var p = new Microsoft.VisualStudio.OLE.Interop.POINT[1];
-            view.GetPointOfLineColumn(line, column, p);
-            return new Point(p[0].x, p[0].y);
-        }
-
         public static string GetSelectedText(this IVsTextView view)
         {
             string text;
