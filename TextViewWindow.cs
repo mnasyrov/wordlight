@@ -123,6 +123,7 @@ namespace WordLight
 
 				case WinProcMessages.WM_PAINT:
 					Rectangle clipRect = User32.GetUpdateRect(Handle, false).ToRectangle();
+
 					base.WndProc(ref m);
 
 					if (clipRect != Rectangle.Empty)
@@ -185,21 +186,21 @@ namespace WordLight
 
 			g.SetClip(clipRect);
 
-			DrawRectangles(_searchMarks, AddinSettings.Instance.SearchMarkBorderColor, g, clipRect);
-			DrawRectangles(_freezeMarks1, AddinSettings.Instance.FreezeMark1BorderColor, g, clipRect);
-			DrawRectangles(_freezeMarks2, AddinSettings.Instance.FreezeMark2BorderColor, g, clipRect);
-			DrawRectangles(_freezeMarks3, AddinSettings.Instance.FreezeMark3BorderColor, g, clipRect);
+			DrawRectangles(_searchMarks, AddinSettings.Instance.SearchMarkBorderColor, g);
+			DrawRectangles(_freezeMarks1, AddinSettings.Instance.FreezeMark1BorderColor, g);
+			DrawRectangles(_freezeMarks2, AddinSettings.Instance.FreezeMark2BorderColor, g);
+			DrawRectangles(_freezeMarks3, AddinSettings.Instance.FreezeMark3BorderColor, g);
 		}
 
-		private void DrawRectangles(MarkCollection marks, Color penColor, Graphics g, Rectangle clip)
+		private void DrawRectangles(MarkCollection marks, Color penColor, Graphics g)
 		{
-			Rectangle[] rectangles = marks.GetRectanglesForVisibleMarks(_textView, clip);
+			Rectangle[] rectangles = marks.GetRectanglesForVisibleMarks(_textView);
 
 			if (rectangles != null && rectangles.Length > 0)
 			{
 				if (AddinSettings.Instance.FilledMarks)
 				{
-					using (var b = new SolidBrush(Color.FromArgb(16, penColor)))
+					using (var b = new SolidBrush(Color.FromArgb(32, penColor)))
 						g.FillRectangles(b, rectangles);
 				}
 
@@ -208,27 +209,19 @@ namespace WordLight
 			}
 		}
 
-		//private void InvalidateVisibleMarks(MarkCollection marks)
-		//{
-		//    var visibleMarks = marks.GetMarks(_visibleTextStart, _visibleTextEnd, _textView);
-		//    foreach (var mark in visibleMarks)
-		//    {
-		//        _markUpdateRect.Include(mark);
-		//    }
-		//}
-
 		private void ScrollChangedHandler(object sender, ViewScrollChangedEventArgs e)
 		{
-			//if (Monitor.TryEnter(_paintSync))
-			//{
-			//    InvalidateVisibleMarks(_searchMarks);
-			//    InvalidateVisibleMarks(_freezeMarks1);
-			//    InvalidateVisibleMarks(_freezeMarks2);
-			//    InvalidateVisibleMarks(_freezeMarks3);                
+			if (AddinSettings.Instance.FilledMarks && Monitor.TryEnter(_paintSync))
+			{
+				_searchMarks.InvalidateVisibleMarks(_textView);
+				_freezeMarks1.InvalidateVisibleMarks(_textView);
+				_freezeMarks2.InvalidateVisibleMarks(_textView);
+				_freezeMarks3.InvalidateVisibleMarks(_textView);
 
-			//    _markUpdateRect.Invalidate();
-			//    Monitor.Exit(_paintSync);
-			//}
+				_screenUpdater.RequestUpdate();
+
+				Monitor.Exit(_paintSync);
+			}
 		}
 
 		private void StreamTextChangedHandler(object sender, StreamTextChangedEventArgs e)

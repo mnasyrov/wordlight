@@ -146,7 +146,7 @@ namespace WordLight.Search
             }
         }
 
-        public Rectangle[] GetRectanglesForVisibleMarks(TextView view, Rectangle clip)
+        public Rectangle[] GetRectanglesForVisibleMarks(TextView view)
         {
             List<Rectangle> rectList = null;
 
@@ -165,13 +165,9 @@ namespace WordLight.Search
                                 rect.Width -= 1;
                                 rect.Height -= 1;
 
-                                var intersectedRect = Rectangle.Intersect(clip, rect);
-                                if (intersectedRect != Rectangle.Empty)
-                                {
-                                    if (rectList == null)
-                                        rectList = new List<Rectangle>();
-                                    rectList.Add(intersectedRect);
-                                }
+								if (rectList == null)
+									rectList = new List<Rectangle>();
+								rectList.Add(rect);
                             }
                         }
                     );
@@ -183,5 +179,23 @@ namespace WordLight.Search
 
             return null;
         }
+
+		public void InvalidateVisibleMarks(TextView view)
+		{
+			lock (_marksSyncRoot)
+			{
+				if (_positions != null)
+				{
+					_positions.ForEachInOrderBetween(
+						view.VisibleTextStart - _markLength,
+						view.VisibleTextEnd + _markLength,
+						(x) =>
+						{
+							_screenUpdater.IncludeText(x, _markLength);
+						}
+					);
+				}
+			}
+		}
     }
 }

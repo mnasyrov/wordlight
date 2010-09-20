@@ -148,15 +148,6 @@ namespace WordLight
 			return Rectangle.Empty;
 		}
 
-		public Rectangle GetRectangle(TextMark mark)
-		{
-			TextSpan span = new TextSpan();
-			_buffer.GetLineIndexOfPosition(mark.Start, out span.iStartLine, out span.iStartIndex);
-			_buffer.GetLineIndexOfPosition(mark.End, out span.iEndLine, out span.iEndIndex);
-
-			return GetRectangle(span);
-		}
-
 		public Rectangle GetRectangle(TextSpan span)
 		{
 			Point startPoint = GetScreenPoint(span.iStartLine, span.iStartIndex);
@@ -173,11 +164,6 @@ namespace WordLight
 			int width = endPoint.X - x;
 
 			return new Rectangle(x, y, width, height);
-		}
-
-		public bool IsVisible(TextMark mark)
-		{
-			return VisibleTextStart <= mark.End && mark.Start <= VisibleTextEnd;
 		}
 
         public bool IsVisibleText(int position, int length)

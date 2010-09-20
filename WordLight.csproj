@@ -63,7 +63,6 @@
     <Compile Include="Extensions\IVsHiddenTextSessionExtensions.cs" />
     <Compile Include="Extensions\IVsTextLinesExtensions.cs" />
     <Compile Include="Search\MarkCollection.cs" />
-    <Compile Include="Search\TextMark.cs" />
     <Compile Include="Search\TextSearch.cs" />
     <Compile Include="Search\SearchCompletedEventArgs.cs" />
     <Compile Include="SettingRepository.cs" />
