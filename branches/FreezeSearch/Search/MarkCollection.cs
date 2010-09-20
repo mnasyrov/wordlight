@@ -105,6 +105,20 @@ namespace WordLight.Search
             }
         }
 
+        private Treap FindMarkThatContainsPosition(Treap node, int pos)
+        {
+            if (node != null)
+            {
+                if (node.x <= pos && pos <= node.x + _markLength)
+                    return node;
+                if (pos < node.x)
+                    return FindMarkThatContainsPosition(node.Left, pos);
+                if (pos > node.x)
+                    return FindMarkThatContainsPosition(node.Right, pos);
+            }
+            return null;
+        }
+
         public void ReplaceMarks(TextOccurences occurences, int start, int end, int tailOffset)
         {
             if (occurences == null) throw new ArgumentNullException("occurences");
@@ -115,6 +129,12 @@ namespace WordLight.Search
                 {
                     ReplaceMarks(occurences);
                     return;
+                }
+
+                Treap markThatContainsStart = FindMarkThatContainsPosition(_positions, start);
+                if (markThatContainsStart != null)
+                {
+                    start = markThatContainsStart.x;
                 }
 
                 Treap right, garbage;
