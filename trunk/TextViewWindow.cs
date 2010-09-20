@@ -5,325 +5,360 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows.Forms;
+using System.Threading;
 
 using EnvDTE;
 using Microsoft.VisualStudio.TextManager.Interop;
 
+using WordLight.NativeMethods;
 using WordLight.EventAdapters;
 using WordLight.Extensions;
 using WordLight.Search;
 
 namespace WordLight
 {
-    public class TextViewWindow : NativeWindow, IDisposable
-    {
-        #region WinProc Messages
+	public class TextViewWindow : NativeWindow, IDisposable
+	{
+		private TextView _textView;
 
-        private const int WM_KEYDOWN = 0x0100;
-        private const int WM_KEYUP = 0x101;
-        private const int WM_LBUTTONUP = 0x202;
-        private const int WM_RBUTTONUP = 0x205;
-        private const int WM_MBUTTONUP = 0x208;
-        private const int WM_XBUTTONUP = 0x20C;
-        private const int WM_LBUTTONDOWN = 0x201;
-        private const int WM_RBUTTONDOWN = 0x204;
-        private const int WM_MBUTTONDOWN = 0x207;
-        private const int WM_XBUTTONDOWN = 0x20B;
-        private const int WM_LBUTTONDBLCLK = 0x0203;
-        private const int WM_MBUTTONDBLCLK = 0x0209;
-        private const int WM_RBUTTONDBLCLK = 0x0206;
-        private const int WM_XBUTTONDBLCLK = 0x020D;
-        private const int WM_PARENTNOTIFY = 0x0210;
+		private string _previousSelectedText;
 
-        private const int WM_PAINT = 0x000F;
-        private const int WM_ERASEBKGND = 0x0014;
+		private MarkCollection _searchMarks;
+		private MarkCollection _freezeMarks1;
+		private MarkCollection _freezeMarks2;
+		private MarkCollection _freezeMarks3;
 
-        #endregion
+		private string _selectedText;
+		private TextStreamEventAdapter _textStreamEvents;
 
-        #region External methods
+		private TextSearch _search;
+		private TextSearch _freezeSearch1;
+		private TextSearch _freezeSearch2;
+		private TextSearch _freezeSearch3;
 
-        [DllImport("user32.dll", SetLastError = false)]
-        private static extern bool UpdateWindow(IntPtr hWnd);
+		private string _freezeText1;
+		private string _freezeText2;
+		private string _freezeText3;
 
-        [DllImport("user32.dll", SetLastError = false)]
-        private static extern bool InvalidateRect(IntPtr hWnd, IntPtr rect, bool erase);
+		public event EventHandler GotFocus;
+		public event EventHandler LostFocus;
 
-        #endregion
-        
-        private IVsTextView _view;
-        private IVsTextLines _buffer;
-        private IVsHiddenTextManager _hiddenTextManager;
-        private string _previousSelectedText;
-        private List<TextSpan> _searchMarks = new List<TextSpan>();
-        private object _searchMarksSyncLock = new object(); 
+		private int _leftMarginWidth = 0;
 
-        private int _lineHeight;
+		private ScreenUpdateManager _screenUpdater;
 
-        private string _selectedText;
-        private TextViewEventAdapter _viewEvents;
+		private object _paintSync = new object();
 
-        private int topTextLineInView = 0;
-        private int bottomTextLineInView = 0;
-        private int leftTextColumnInView = 0;
+		public TextViewWindow(IVsTextView view)
+		{
+			if (view == null) throw new ArgumentNullException("view");
 
-        private TextSearch _search;
+			_textView = new TextView(view);
 
-        public TextViewWindow(IVsTextView view, IVsHiddenTextManager hiddenTextManager)
-        {
-            if (view == null) throw new ArgumentNullException("view");
-            if (hiddenTextManager == null) throw new ArgumentNullException("hiddenTextManager");
-            
-            _view = view;
-            _hiddenTextManager = hiddenTextManager;
+            IntPtr hWnd = view.GetWindowHandle();
+            _screenUpdater = new ScreenUpdateManager(hWnd, _textView);
 
-            _lineHeight = _view.GetLineHeight();
-            _buffer = view.GetBuffer();
+			_textStreamEvents = new TextStreamEventAdapter(_textView.Buffer);
+			_textStreamEvents.StreamTextChanged += new EventHandler<StreamTextChangedEventArgs>(StreamTextChangedHandler);
 
-            _search = new TextSearch(_buffer);
-            _search.SearchCompleted += new EventHandler<SearchCompletedEventArgs>(searcher_SearchCompleted);            
+            _textView.ViewEvents.ScrollChanged += new EventHandler<ViewScrollChangedEventArgs>(ScrollChangedHandler);
+            _textView.ViewEvents.GotFocus += new EventHandler<ViewFocusEventArgs>(GotFocusHandler);
+            _textView.ViewEvents.LostFocus += new EventHandler<ViewFocusEventArgs>(LostFocusHandler);
 
-            _viewEvents = new TextViewEventAdapter(_view);
-            _viewEvents.ScrollChanged += new EventHandler<ViewScrollChangedEventArgs>(ScrollChangedHandler);
+			_search = new TextSearch(_textView.Buffer);
+			_search.SearchCompleted += new EventHandler<SearchCompletedEventArgs>(searcher_SearchCompleted);
 
-            AssignHandle(view.GetWindowHandle());
-        }
+			_freezeSearch1 = new TextSearch(_textView.Buffer);
+			_freezeSearch1.SearchCompleted += new EventHandler<SearchCompletedEventArgs>(FreezeSearchCompleted1);
 
-        public void Dispose()
-        {
-            _viewEvents.ScrollChanged -= ScrollChangedHandler;
+			_freezeSearch2 = new TextSearch(_textView.Buffer);
+			_freezeSearch2.SearchCompleted += new EventHandler<SearchCompletedEventArgs>(FreezeSearchCompleted2);
 
-            _viewEvents.Dispose();
-            ReleaseHandle();
-        }
+			_freezeSearch3 = new TextSearch(_textView.Buffer);
+			_freezeSearch3.SearchCompleted += new EventHandler<SearchCompletedEventArgs>(FreezeSearchCompleted3);
 
-        protected override void WndProc(ref Message m)
-        {
-            base.WndProc(ref m);
+            _searchMarks = new MarkCollection(_screenUpdater);
+            _freezeMarks1 = new MarkCollection(_screenUpdater);
+            _freezeMarks2 = new MarkCollection(_screenUpdater);
+            _freezeMarks3 = new MarkCollection(_screenUpdater);
+			
+			AssignHandle(hWnd);
+		}
 
-            switch (m.Msg)
-            {
-                case WM_KEYUP:
-                case WM_KEYDOWN:
-                case WM_LBUTTONUP:
-                case WM_RBUTTONUP:
-                case WM_MBUTTONUP:
-                case WM_XBUTTONUP:
-                case WM_LBUTTONDOWN:
-                case WM_MBUTTONDOWN:
-                case WM_RBUTTONDOWN:
-                case WM_XBUTTONDOWN:
-                case WM_LBUTTONDBLCLK:
-                case WM_MBUTTONDBLCLK:
-                case WM_RBUTTONDBLCLK:
-                case WM_XBUTTONDBLCLK:
-                    HandleUserInput();
-                    break;
+		public void Dispose()
+		{
+			_textStreamEvents.StreamTextChanged -= StreamTextChangedHandler;
+			_textStreamEvents.Dispose();
 
-                case WM_PAINT:
-                    Paint();
-                    break;
-            }
-        }
+			_textView.ViewEvents.GotFocus -= GotFocusHandler;
+			_textView.ViewEvents.LostFocus -= LostFocusHandler;
+			_textView.ViewEvents.ScrollChanged -= ScrollChangedHandler;
 
-        private void HandleUserInput()
-        {
-            string text = _view.GetSelectedText();
+			_textView.Dispose();
 
-            if (text != _previousSelectedText)
-            {
-                _previousSelectedText = text;
-                SelectionChanged(text);
-            }
-        }
+			ReleaseHandle();
+		}
 
-        private void Paint()
-        {
-            using (Graphics g = Graphics.FromHwnd(this.Handle))
-            {
-                DrawSearchMarks(g);
-            }
-        }
+		protected override void WndProc(ref Message m)
+		{
+			switch (m.Msg)
+			{
+				case WinProcMessages.WM_KEYUP:
+				case WinProcMessages.WM_KEYDOWN:
+				case WinProcMessages.WM_LBUTTONUP:
+				case WinProcMessages.WM_RBUTTONUP:
+				case WinProcMessages.WM_MBUTTONUP:
+				case WinProcMessages.WM_XBUTTONUP:
+				case WinProcMessages.WM_LBUTTONDOWN:
+				case WinProcMessages.WM_MBUTTONDOWN:
+				case WinProcMessages.WM_RBUTTONDOWN:
+				case WinProcMessages.WM_XBUTTONDOWN:
+				case WinProcMessages.WM_LBUTTONDBLCLK:
+				case WinProcMessages.WM_MBUTTONDBLCLK:
+				case WinProcMessages.WM_RBUTTONDBLCLK:
+				case WinProcMessages.WM_XBUTTONDBLCLK:
+					base.WndProc(ref m);
+					HandleUserInput();
+					break;
 
-        private void RepaintWindow()
-        {
-            InvalidateRect(Handle, IntPtr.Zero, true);
-            UpdateWindow(Handle);
-        }
+				case WinProcMessages.WM_PAINT:
+					Rectangle clipRect = User32.GetUpdateRect(Handle, false).ToRectangle();
+					base.WndProc(ref m);
 
-        private void UpdateVisibleMarks()
-        {
-            RectangleF maxClipBounds = new RectangleF(0, 0, float.MaxValue, float.MaxValue);
-            List<Rectangle> rectList;
-            lock (_searchMarksSyncLock)
-            {
-                rectList = GetRectanglesForVisibleMarks(_searchMarks, maxClipBounds);
-            }
-            if (rectList.Count > 0)
-            {
-                foreach (var rect in rectList)
-                {
-                    IntPtr pRect = Marshal.AllocHGlobal(Marshal.SizeOf(rect));
-                    try
-                    {
-                        Marshal.StructureToPtr(rect, pRect, false);
-                        InvalidateRect(Handle, pRect, false);
-                    }
-                    finally
-                    {
-                        Marshal.FreeHGlobal(pRect);
-                    }
-                }
-            }
-            UpdateWindow(Handle);
-        }
+					if (clipRect != Rectangle.Empty)
+					{
+						Paint(clipRect);
+					}
 
-        private int _leftMarginWidth = 0;
+					break;
 
-        private void DrawSearchMarks(Graphics g)
-        {
-            //Fix for clip bounds: take into account left margin pane during horizontal scrolling.
-            Point leftTop = _view.GetPointOfLineColumn(topTextLineInView, leftTextColumnInView);
-            if (!leftTop.IsEmpty)
-                _leftMarginWidth = leftTop.X;
-            RectangleF visibleClipBounds = new RectangleF(
-                _leftMarginWidth, g.VisibleClipBounds.Y, g.VisibleClipBounds.Width, g.VisibleClipBounds.Height);            
+				default:
+					base.WndProc(ref m);
+					break;
+			}
+		}
 
-            List<Rectangle> rectList;
-            lock (_searchMarksSyncLock)
-            {
-                rectList = GetRectanglesForVisibleMarks(_searchMarks, visibleClipBounds);
-            }
-            if (rectList.Count > 0)
-            {
-                Pen pen = new Pen(AddinSettings.Instance.SearchMarkBorderColor);
-                g.DrawRectangles(pen, rectList.ToArray());
-            }
-        }
+		private void HandleUserInput()
+		{
+			string text = _textView.View.GetSelectedText();
 
-        private List<Rectangle> GetRectanglesForVisibleMarks(IList<TextSpan> marks, RectangleF visibleClipBounds)
-        {
-            List<Rectangle> rectList = new List<Rectangle>(marks.Count);
+			if (text != _previousSelectedText)
+			{
+				_previousSelectedText = text;
+				SelectionChanged(text);
+			}
+		}
 
-                foreach (TextSpan mark in marks)
-                {
-                    if (topTextLineInView <= mark.iEndLine && mark.iStartLine <= bottomTextLineInView)
-                    {
-                        Rectangle rect = GetVisibleRectangle(mark, _view, visibleClipBounds, _lineHeight);
-                        if (rect != Rectangle.Empty)
-                            rectList.Add((Rectangle)rect);
-                    }
-                }
+		private void Paint(Rectangle clipRect)
+		{
+			Monitor.Enter(_paintSync);
 
-            return rectList;
-        }
+			User32.HideCaret(Handle);
 
-        private void ScrollChangedHandler(object sender, ViewScrollChangedEventArgs e)
-        {
-            if (e.ScrollInfo.IsHorizontal)
-            {
-                leftTextColumnInView = e.ScrollInfo.firstVisibleUnit;
-            }
-            if (e.ScrollInfo.IsVertical)
-            {
-                IVsLayeredTextView viewLayer = _view as IVsLayeredTextView;
-                IVsTextLayer topLayer = null;
-                IVsTextLayer bufferLayer = _buffer as IVsTextLayer;
-                
-                if (viewLayer != null)
-                {
-                    viewLayer.GetTopmostLayer(out topLayer);                    
-                }
+			using (Graphics g = Graphics.FromHwnd(Handle))
+			{
+				DrawSearchMarks(g, clipRect);
+			}
 
-                if (topLayer != null && bufferLayer != null)
-                {
-                    int temp;
-                    topLayer.LocalLineIndexToDeeperLayer(bufferLayer, e.ScrollInfo.firstVisibleUnit, 0, out topTextLineInView, out temp);
-                    topLayer.LocalLineIndexToDeeperLayer(bufferLayer, e.ScrollInfo.firstVisibleUnit + e.ScrollInfo.visibleUnits, 0, out bottomTextLineInView, out temp);
-                    bottomTextLineInView++;
-                }
-                else
-                {
-                    TextSpan entireSpan = _buffer.CreateSpanForAllLines();
-                    topTextLineInView = entireSpan.iStartLine;
-                    bottomTextLineInView = entireSpan.iEndLine;
-                }
-            }
-        }
+			User32.ShowCaret(Handle);
 
-        private void SelectionChanged(string text)
-        {
-            _selectedText = text;
-            lock (_searchMarksSyncLock)
-            {
-                _searchMarks.Clear();
-            }
+			_screenUpdater.CompleteUpdate();
 
-            if (!string.IsNullOrEmpty(text))
-            {
-                SearchWords();
-            }
-            RepaintWindow();
-        }
+			Monitor.Exit(_paintSync);
+		}
 
-        private void SearchWords()
-        {
-            TextSpan viewRange = _buffer.CreateSpanForAllLines();
-            viewRange.iStartLine = topTextLineInView;
-			if (bottomTextLineInView < viewRange.iEndLine)
-            {
-                viewRange.iEndLine = bottomTextLineInView;
-                viewRange.iEndIndex = 0;
-            }
+		private void DrawSearchMarks(Graphics g, Rectangle clipRect)
+		{
+			//Fix for clip bounds: take into account left margin pane during horizontal scrolling.
+			Point leftTop = _textView.GetScreenPoint(_textView.VisibleSpan.iStartLine, _textView.VisibleLeftTextColumn);
+			if (!leftTop.IsEmpty)
+			{
+				_leftMarginWidth = leftTop.X;
+			}
 
-            var marks = _search.SearchOccurrences(_selectedText, viewRange);
-            lock (_searchMarksSyncLock)
-            {
-                _searchMarks.AddRange(marks);
-            }
-            _search.SearchOccurrencesDelayed(_selectedText, _buffer.CreateSpanForAllLines());
-        }
+			if (clipRect == Rectangle.Empty)
+			{
+				clipRect = Rectangle.Truncate(g.VisibleClipBounds);
+			}
 
-        private void searcher_SearchCompleted(object sender, SearchCompletedEventArgs e)
-        {
-            if (e.Text == _selectedText)
-            {
-                lock (_searchMarksSyncLock)
-                {
-                    _searchMarks.Clear();
-                    _searchMarks.AddRange(e.Marks);
-                }
-                UpdateVisibleMarks();
-            }
-        }
+			clipRect.X = Math.Max(clipRect.X, _leftMarginWidth);
 
-        private Rectangle GetVisibleRectangle(TextSpan span, IVsTextView view, RectangleF visibleClipBounds, int lineHeight)
-        {
-            Rectangle rect = Rectangle.Empty;
+			g.SetClip(clipRect);
 
-            Point startPoint = view.GetPointOfLineColumn(span.iStartLine, span.iStartIndex);
-            if (startPoint == Point.Empty)
-                return rect;
+			DrawRectangles(_searchMarks, AddinSettings.Instance.SearchMarkBorderColor, g, clipRect);
+			DrawRectangles(_freezeMarks1, AddinSettings.Instance.FreezeMark1BorderColor, g, clipRect);
+			DrawRectangles(_freezeMarks2, AddinSettings.Instance.FreezeMark2BorderColor, g, clipRect);
+			DrawRectangles(_freezeMarks3, AddinSettings.Instance.FreezeMark3BorderColor, g, clipRect);
+		}
 
-            Point endPoint = view.GetPointOfLineColumn(span.iEndLine, span.iEndIndex);
-            if (endPoint == Point.Empty)
-                return rect;
+		private void DrawRectangles(MarkCollection marks, Color penColor, Graphics g, Rectangle clip)
+		{
+			Rectangle[] rectangles = marks.GetRectanglesForVisibleMarks(_textView, clip);
 
-            bool isVisible =
-                visibleClipBounds.Left <= endPoint.X && startPoint.X <= visibleClipBounds.Right
-                && visibleClipBounds.Top <= endPoint.Y && startPoint.Y <= visibleClipBounds.Bottom;
+			if (rectangles != null && rectangles.Length > 0)
+			{
+				if (AddinSettings.Instance.FilledMarks)
+				{
+					using (var b = new SolidBrush(Color.FromArgb(16, penColor)))
+						g.FillRectangles(b, rectangles);
+				}
 
-            if (isVisible)
-            {
-                int x = Math.Max(startPoint.X, (int)visibleClipBounds.Left);
-                int y = startPoint.Y;
+				using (var pen = new Pen(penColor))
+					g.DrawRectangles(pen, rectangles);
+			}
+		}
 
-                int height = endPoint.Y - y + lineHeight;
-                int width = endPoint.X - x;                
+		//private void InvalidateVisibleMarks(MarkCollection marks)
+		//{
+		//    var visibleMarks = marks.GetMarks(_visibleTextStart, _visibleTextEnd, _textView);
+		//    foreach (var mark in visibleMarks)
+		//    {
+		//        _markUpdateRect.Include(mark);
+		//    }
+		//}
 
-                rect = new Rectangle(x, y, width, height);
-            }
+		private void ScrollChangedHandler(object sender, ViewScrollChangedEventArgs e)
+		{
+			//if (Monitor.TryEnter(_paintSync))
+			//{
+			//    InvalidateVisibleMarks(_searchMarks);
+			//    InvalidateVisibleMarks(_freezeMarks1);
+			//    InvalidateVisibleMarks(_freezeMarks2);
+			//    InvalidateVisibleMarks(_freezeMarks3);                
 
-            return rect;
-        }
-    }
+			//    _markUpdateRect.Invalidate();
+			//    Monitor.Exit(_paintSync);
+			//}
+		}
+
+		private void StreamTextChangedHandler(object sender, StreamTextChangedEventArgs e)
+		{
+			SearchInChangedText(_freezeSearch1, _freezeMarks1, e, _freezeText1);
+			SearchInChangedText(_freezeSearch2, _freezeMarks2, e, _freezeText2);
+			SearchInChangedText(_freezeSearch3, _freezeMarks3, e, _freezeText3);
+
+			_screenUpdater.RequestUpdate();
+		}
+
+		private void SearchInChangedText(TextSearch searcher, MarkCollection marks, StreamTextChangedEventArgs e, string searchText)
+		{
+			if (!string.IsNullOrEmpty(searchText))
+			{
+				int searchStart = e.Position - searchText.Length;
+				int searchEnd = e.Position + e.NewLength + searchText.Length;
+
+				var occurences = searcher.SearchOccurrences(searchText, searchStart, searchEnd);
+
+				int replacementStart = e.Position;
+				int replacementEnd = e.Position + e.OldLength;
+
+				marks.ReplaceMarks(occurences, replacementStart, replacementEnd, e.NewLength - e.OldLength);
+			}
+		}
+
+		private void SelectionChanged(string text)
+		{
+			_selectedText = text;
+
+			_searchMarks.Clear();
+
+			if (!string.IsNullOrEmpty(_selectedText))
+			{
+                var marks = _search.SearchOccurrences(_selectedText, _textView.VisibleTextStart, _textView.VisibleTextEnd);
+                _searchMarks.ReplaceMarks(marks);
+                _search.SearchOccurrencesDelayed(_selectedText, 0, int.MaxValue);
+			}
+
+			_screenUpdater.RequestUpdate();
+		}
+
+		private void searcher_SearchCompleted(object sender, SearchCompletedEventArgs e)
+		{
+			if (e.Occurences.Text == _selectedText)
+			{
+				_searchMarks.AddMarks(e.Occurences);
+				//_markUpdateRect.Invalidate();
+			}
+		}
+
+		private void FreezeSearchCompleted1(object sender, SearchCompletedEventArgs e)
+		{
+			_freezeMarks1.AddMarks(e.Occurences);
+			//_markUpdateRect.Invalidate();
+		}
+
+		private void FreezeSearchCompleted2(object sender, SearchCompletedEventArgs e)
+		{
+			_freezeMarks2.AddMarks(e.Occurences);
+			//_markUpdateRect.Invalidate();
+		}
+
+		private void FreezeSearchCompleted3(object sender, SearchCompletedEventArgs e)
+		{
+			_freezeMarks3.AddMarks(e.Occurences);
+			//_markUpdateRect.Invalidate();
+		}
+
+		private void GotFocusHandler(object sender, ViewFocusEventArgs e)
+		{
+			EventHandler evt = GotFocus;
+			if (evt != null) evt(this, EventArgs.Empty);
+		}
+
+		private void LostFocusHandler(object sender, ViewFocusEventArgs e)
+		{
+			EventHandler evt = LostFocus;
+			if (evt != null) evt(this, EventArgs.Empty);
+		}
+
+		public void FreezeSearch(int group)
+		{   
+			bool set1 = group == 1 && _freezeText1 != _selectedText;
+			bool set2 = group == 2 && _freezeText2 != _selectedText;
+			bool set3 = group == 3 && _freezeText3 != _selectedText;
+
+			bool erase1 = (group == 2 || group == 3) && _freezeText1 == _selectedText;
+			bool erase2 = (group == 1 || group == 3) && _freezeText2 == _selectedText;
+			bool erase3 = (group == 1 || group == 2) && _freezeText3 == _selectedText;					
+				
+			if (set1)
+			{
+				_freezeText1 = _selectedText;
+				_freezeMarks1.ReplaceMarks(_freezeSearch1.SearchOccurrences(_freezeText1, _textView.VisibleTextStart, _textView.VisibleTextEnd));
+				_freezeSearch1.SearchOccurrencesDelayed(_freezeText1, 0, int.MaxValue);
+			}
+			else if (erase1)
+			{
+				_freezeText1 = string.Empty;
+				_freezeMarks1.Clear();
+			}
+
+			if (set2)
+			{
+				_freezeText2 = _selectedText;
+				_freezeMarks2.ReplaceMarks(_freezeSearch2.SearchOccurrences(_freezeText2, _textView.VisibleTextStart, _textView.VisibleTextEnd));
+				_freezeSearch2.SearchOccurrencesDelayed(_freezeText2, 0, int.MaxValue);
+			}
+			else if (erase2)
+			{
+				_freezeText2 = string.Empty;
+				_freezeMarks2.Clear();
+			}
+
+			if (set3)
+			{
+				_freezeText3 = _selectedText;
+				_freezeMarks3.ReplaceMarks(_freezeSearch3.SearchOccurrences(_freezeText3, _textView.VisibleTextStart, _textView.VisibleTextEnd));
+				_freezeSearch3.SearchOccurrencesDelayed(_freezeText3, 0, int.MaxValue);
+			}
+			else if (erase3)
+			{
+				_freezeText3 = string.Empty;
+				_freezeMarks3.Clear();
+			}
+
+
+			_screenUpdater.RequestUpdate();
+		}
+	}
 }

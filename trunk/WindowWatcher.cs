@@ -12,12 +12,15 @@ namespace WordLight
     public class WindowWatcher : IDisposable
     {
         private IVsTextManager _textManager;
-        private IDictionary<IntPtr, TextViewWindow> _viewWindows;
+        private IDictionary<IntPtr, TextViewWindow> _textViews;
 		private TextManagerEventAdapter _textManagerEvents;
+
+		private TextViewWindow _currentView;
+		private object _currentViewSyncRoot = new object();
 
         public WindowWatcher(DTE2 application)
         {
-			_viewWindows = new Dictionary<IntPtr, TextViewWindow>();
+			_textViews = new Dictionary<IntPtr, TextViewWindow>();
 
 			_textManager = GetTextManager(application);
 			_textManagerEvents = new TextManagerEventAdapter(_textManager);
@@ -38,35 +41,92 @@ namespace WordLight
 			serviceProvider.QueryService(ref SID, ref IID, out output);
 
 			return (IVsTextManager)Marshal.GetObjectForIUnknown(output);
-		}
+		}		
 
 		private void _textManagerEvents_ViewRegistered(object sender, ViewRegistrationEventArgs e)
 		{
 			IntPtr windowHandle = e.View.GetWindowHandle();
-			if (windowHandle != IntPtr.Zero && !_viewWindows.ContainsKey(windowHandle))
+			if (windowHandle != IntPtr.Zero && !_textViews.ContainsKey(windowHandle))
 			{
-                TextViewWindow viewWindow = new TextViewWindow(e.View, (IVsHiddenTextManager)_textManager);
-				_viewWindows.Add(windowHandle, viewWindow);
+                var viewWindow = new TextViewWindow(e.View);
+				_textViews.Add(windowHandle, viewWindow);
+				viewWindow.GotFocus += new EventHandler(ViewGotFocusHandler);
+				viewWindow.LostFocus += new EventHandler(ViewLostFocusHandler);
+
+				lock (_currentViewSyncRoot)
+				{
+					if (_textViews.Count == 1)
+					{
+						_currentView = viewWindow;
+					}
+				}
 			}
 		}
 
 		private void _textManagerEvents_ViewUnregistered(object sender, ViewRegistrationEventArgs e)
 		{
 			IntPtr windowHandle = e.View.GetWindowHandle();
-			if (_viewWindows.ContainsKey(windowHandle))
+			if (_textViews.ContainsKey(windowHandle))
 			{
-				TextViewWindow paneWindow = _viewWindows[windowHandle];
-				_viewWindows.Remove(windowHandle);
-				paneWindow.Dispose();
+				TextViewWindow view = _textViews[windowHandle];
+				_textViews.Remove(windowHandle);
+
+				lock (_currentViewSyncRoot)
+				{
+					if (_currentView == view)
+						_currentView = null;
+				}
+
+				DisposeView(view);
 			}
 		}
 
         public void Dispose()
         {
-            foreach (TextViewWindow win in _viewWindows.Values)
+			lock (_currentViewSyncRoot)
+			{
+				_currentView = null;
+			}
+
+            foreach (TextViewWindow view in _textViews.Values)
             {
-				win.Dispose();
+				DisposeView(view);
             }
         }
+
+		private void DisposeView(TextViewWindow view)
+		{
+			view.GotFocus -= ViewGotFocusHandler;
+			view.LostFocus -= ViewLostFocusHandler;
+			view.Dispose();
+		}
+
+		private void ViewGotFocusHandler(object sender, EventArgs e)
+		{
+			var view = (TextViewWindow)sender;
+			lock (_currentViewSyncRoot)
+			{
+				_currentView = view;
+			}
+		}
+
+		private void ViewLostFocusHandler(object sender, EventArgs e)
+		{
+			var view = (TextViewWindow)sender;
+			lock (_currentViewSyncRoot)
+			{
+				//if (_currentView == view)
+					//_currentView = null;
+			}
+		}
+
+		public void FreezeSearch(int searchGroup)
+		{
+			lock (_currentViewSyncRoot)
+			{
+				if (_currentView != null)
+					_currentView.FreezeSearch(searchGroup);
+			}
+		}
     }
 }
