@@ -23,48 +23,64 @@ namespace WordLight
 
         private SettingRepository _repository;
 
-        [Category("Search marks")]
-        [DisplayName("Border color"), Description("Defines a color for a border of a search mark")]
+		#region Colors
+		
+		[Category("Colors")]
+        [DisplayName("Search results")]
         public Color SearchMarkBorderColor { get; set; }
 
-
-        [Category("Freeze marks")]
-        [DisplayName("Mark 1"), Description("Color of a border")]
+		[Category("Colors")]
+        [DisplayName("Frozen search 1")]
         public Color FreezeMark1BorderColor { get; set; }
 
-        [Category("Freeze marks")]
-        [DisplayName("Mark 2"), Description("Color of a border")]
+		[Category("Colors")]
+		[DisplayName("Frozen search 2")]
         public Color FreezeMark2BorderColor { get; set; }
 
-        [Category("Freeze marks")]
-        [DisplayName("Mark 3"), Description("Color of a border")]
+		[Category("Colors")]
+		[DisplayName("Frozen search 3")]
         public Color FreezeMark3BorderColor { get; set; }
 
+		#endregion
 
-        [Category("Hot keys")]
-        [DisplayName("Freeze mark 1")]
-        public string FreezeMark1Hotkey { get; set; }
+		#region Hotkeys
 
-        [Category("Hot keys")]
-        [DisplayName("Freeze mark 2")]
-        public string FreezeMark2Hotkey { get; set; }
+		[Category("Hotkeys")]
+		[DisplayName("Freeze search 1"), Description("Needs restart of the add-in")]
+		public string FreezeMark1Hotkey { get; set; }
 
-        [Category("Hot keys")]
-        [DisplayName("Freeze mark 3")]
-        public string FreezeMark3Hotkey { get; set; }
+		[Category("Hotkeys")]
+		[DisplayName("Freeze search 2"), Description("Needs restart of the add-in")]
+		public string FreezeMark2Hotkey { get; set; }
 
+		[Category("Hotkeys")]
+		[DisplayName("Freeze search 3"), Description("Needs restart of the add-in")]
+		public string FreezeMark3Hotkey { get; set; }
 
-        [Category("Experemental")]
-        [DisplayName("Filled marks"), Description("Fills marks with semitransparent color")]
+		#endregion 
+		
+		#region Search
+
+		[Category("Search")]
+		[DisplayName("Case sensitive"), Description("Needs reopening of documents")]
+		public bool CaseSensitiveSearch { get; set; }
+
+		#endregion
+
+		#region Experemental
+
+		[Category("Experemental")]
+        [DisplayName("Filled marks"), Description("Fills marks with semitransparent colors")]
         public bool FilledMarks { get; set; }
 
+		#endregion
 
-        protected AddinSettings()
+		protected AddinSettings()
         {
             ResetToDefaults();
         }
 
-        private void ResetToDefaults()
+        public void ResetToDefaults()
         {
             SearchMarkBorderColor = Color.FromArgb(255, 105, 180); //Hot pink
 
@@ -77,6 +93,8 @@ namespace WordLight
             FreezeMark3Hotkey = "Global::ctrl+2";
 
             FilledMarks = false;
+
+			CaseSensitiveSearch = false;
         }
 
         public void Load(SettingRepository repository)
@@ -104,6 +122,8 @@ namespace WordLight
                 FreezeMark3Hotkey = settings.GetSetting("FreezeMark3Hotkey", FreezeMark3Hotkey);
 
                 FilledMarks = settings.GetBoolSetting("FilledMarks", FilledMarks);
+
+				CaseSensitiveSearch = settings.GetBoolSetting("CaseSensitiveSearch", CaseSensitiveSearch);
             }
         }
 
@@ -122,7 +142,9 @@ namespace WordLight
                 settings.SetSetting("FreezeMark2Hotkey", FreezeMark2Hotkey);
                 settings.SetSetting("FreezeMark3Hotkey", FreezeMark3Hotkey);
 
-                settings.SetBoolSetting("FilledMarks", FilledMarks);
+				settings.SetBoolSetting("FilledMarks", FilledMarks);
+
+				settings.SetBoolSetting("CaseSensitiveSearch", CaseSensitiveSearch);
             }
         }
     }    

@@ -34,6 +34,8 @@ namespace WordLight.Search
 
         public event EventHandler<SearchCompletedEventArgs> SearchCompleted;
 
+		private StringComparison _comparsion;
+
         public TextSearch(IVsTextLines buffer)
         {
             if (buffer == null) throw new ArgumentNullException("buffer");
@@ -46,6 +48,12 @@ namespace WordLight.Search
             _searchTimer.Elapsed += new ElapsedEventHandler(SearchTimer_Elapsed);
 
             _asyncJobs = new Queue<SearchJob>();
+
+			_comparsion = StringComparison.InvariantCultureIgnoreCase;
+			if (AddinSettings.Instance.CaseSensitiveSearch)
+			{
+				_comparsion = StringComparison.InvariantCulture;
+			}
         }
 
         /// <remarks>
@@ -70,7 +78,7 @@ namespace WordLight.Search
 			searchEnd = Math.Min(searchEnd, text.Length) - (valueLength - 1);
             for (int i = searchStart; i < searchEnd; )
             {
-                if (text.Substring(i, valueLength).StartsWith(value, StringComparison.InvariantCultureIgnoreCase))
+				if (text.Substring(i, valueLength).StartsWith(value, _comparsion))
                     positions.Add(i);
 
 				if (i + valueLength >= searchEnd)

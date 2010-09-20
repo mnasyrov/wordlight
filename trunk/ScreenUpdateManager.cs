@@ -26,21 +26,6 @@ namespace WordLight
             _view = view;
         }
 
-        public void IncludeMark(TextMark mark)
-        {
-            lock (_updateRectSync)
-            {
-                if (_view.IsVisible(mark))
-                {
-                    if (mark.Start < _start)
-                        _start = mark.Start;
-
-                    if (mark.End > _end)
-                        _end = mark.End;
-                }
-            }
-        }
-
         public void IncludeText(int position, int length)
         {
             lock (_updateRectSync)
@@ -92,7 +77,7 @@ namespace WordLight
             textStart = Math.Max(textStart, _view.VisibleTextStart);
             textEnd = Math.Min(textEnd, _view.VisibleTextEnd);
 
-            var rect = _view.GetRectangle(new TextMark(textStart, textEnd - textStart));
+            var rect = _view.GetRectangleForMark(textStart, textEnd - textStart);
 			if (rect != Rectangle.Empty)
 			{
 				rect.X = 0;

@@ -21,5 +21,11 @@ namespace WordLight
             DialogResult = DialogResult.OK;
             Close();
         }
+
+		private void btnReset_Click(object sender, EventArgs e)
+		{
+			AddinSettings.Instance.ResetToDefaults();
+			Properties.Refresh();
+		}
     }
 }
