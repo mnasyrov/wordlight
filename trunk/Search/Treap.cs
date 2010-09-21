@@ -66,6 +66,20 @@ namespace WordLight.Search
 			return n.x;
 		}
 
+        public static Treap Find(Treap node, int searchX)
+        {
+            if (node != null)
+            {
+                if (node.x == searchX)
+                    return node;
+                if (searchX < node.x)
+                    return Find(node.Left, searchX);
+                if (searchX > node.x)
+                    return Find(node.Right, searchX);
+            }
+            return null;
+        }
+
 		public void ForEachInOrder(NodeValueAction action)
 		{
 			if (Left != null)
