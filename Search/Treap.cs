@@ -12,11 +12,10 @@ namespace WordLight.Search
 
 		public int x;
 		public int y;
-
 		public Treap Left;
 		public Treap Right;
-
 		public Treap Parent;
+        public delegate void NodeValueAction(int x);
 
 		public Treap()
 		{
@@ -66,19 +65,6 @@ namespace WordLight.Search
 				n = n.Right;
 			return n.x;
 		}
-
-		public static void Debug(Treap root)
-		{
-			if (root == null)
-				System.Diagnostics.Debug.WriteLine("null");
-			else
-				root.ForEachInOrder((x) =>
-				{
-					System.Diagnostics.Trace.WriteLine(x.ToString() + " ");
-				});
-		}
-
-		public delegate void NodeValueAction(int x);
 
 		public void ForEachInOrder(NodeValueAction action)
 		{
