@@ -71,7 +71,7 @@ namespace WordLight.Search
                 if (occurences != TextOccurences.Empty && occurences.Count > 0)
                 {
                     _markLength = occurences.TextLength;
-                    
+
                     var n = occurences.Positions;
                     if (n != null)
                     {
@@ -133,7 +133,7 @@ namespace WordLight.Search
                 if (occurences != TextOccurences.Empty && occurences.Count > 0)
                 {
                     _markLength = occurences.TextLength;
-                    occurences.Positions.ForEachInOrder(IncludeTextToScreenUpdate);                    
+                    occurences.Positions.ForEachInOrder(IncludeTextToScreenUpdate);
                     _positions = Treap.Merge(_positions, occurences.Positions);
                 }
 
@@ -160,14 +160,15 @@ namespace WordLight.Search
                         (x) =>
                         {
                             Rectangle rect = view.GetRectangleForMark(x, _markLength);
-                            if (rect != Rectangle.Empty)
+                            // Do not draw multiline marks
+                            if (rect != Rectangle.Empty && rect.Height <= view.LineHeight)
                             {
                                 rect.Width -= 1;
                                 rect.Height -= 1;
 
-								if (rectList == null)
-									rectList = new List<Rectangle>();
-								rectList.Add(rect);
+                                if (rectList == null)
+                                    rectList = new List<Rectangle>();
+                                rectList.Add(rect);
                             }
                         }
                     );
@@ -180,22 +181,22 @@ namespace WordLight.Search
             return null;
         }
 
-		public void InvalidateVisibleMarks(TextView view)
-		{
-			lock (_marksSyncRoot)
-			{
-				if (_positions != null)
-				{
-					_positions.ForEachInOrderBetween(
-						view.VisibleTextStart - _markLength,
-						view.VisibleTextEnd + _markLength,
-						(x) =>
-						{
-							_screenUpdater.IncludeText(x, _markLength);
-						}
-					);
-				}
-			}
-		}
+        public void InvalidateVisibleMarks(TextView view)
+        {
+            lock (_marksSyncRoot)
+            {
+                if (_positions != null)
+                {
+                    _positions.ForEachInOrderBetween(
+                        view.VisibleTextStart - _markLength,
+                        view.VisibleTextEnd + _markLength,
+                        (x) =>
+                        {
+                            _screenUpdater.IncludeText(x, _markLength);
+                        }
+                    );
+                }
+            }
+        }
     }
 }
