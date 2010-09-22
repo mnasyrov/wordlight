@@ -15,8 +15,8 @@ namespace WordLight.Search
         private class SearchJob
         {
             public string Value { get; set; }
-			public int SearchStart { get; set; }
-			public int SearchEnd { get; set; }
+            public int SearchStart { get; set; }
+            public int SearchEnd { get; set; }
         }
 
         const int SearchDelay = 250; //ms
@@ -34,7 +34,8 @@ namespace WordLight.Search
 
         public event EventHandler<SearchCompletedEventArgs> SearchCompleted;
 
-		private StringComparison _comparsion;
+        private bool _caseSensitiveSearch;
+        private bool _searchWholeWordsOnly;
 
         public TextSearch(IVsTextLines buffer)
         {
@@ -49,11 +50,8 @@ namespace WordLight.Search
 
             _asyncJobs = new Queue<SearchJob>();
 
-			_comparsion = StringComparison.InvariantCultureIgnoreCase;
-			if (AddinSettings.Instance.CaseSensitiveSearch)
-			{
-				_comparsion = StringComparison.InvariantCulture;
-			}
+            _caseSensitiveSearch = AddinSettings.Instance.CaseSensitiveSearch;
+            _searchWholeWordsOnly = AddinSettings.Instance.SearchWholeWordsOnly;
         }
 
         /// <remarks>
@@ -63,49 +61,77 @@ namespace WordLight.Search
         private TextOccurences SearchOccurrencesInText(string text, string value, int searchStart, int searchEnd)
         {
             var positions = new TreapBuilder();
-            
+
             /* Preprocessing */
-            int valueLength = value.Length;            
-			var badChars = new Dictionary<int, int>(valueLength);
-            
+            int textLength = text.Length;
+            int valueLength = value.Length;
+            var badChars = new Dictionary<int, int>(valueLength);
+
             for (int i = 0; i < valueLength; i++)
             {
-                int key = value[i];
-				badChars[key] = valueLength - i;
+                char c = value[i];
+
+                if (_caseSensitiveSearch)
+                    badChars[c] = valueLength - i;
+                else
+                {
+                    badChars[char.ToLower(c)] = valueLength - i;
+                    badChars[char.ToUpper(c)] = valueLength - i;
+                }
             }
 
             /* Searching */
-			searchEnd = Math.Min(searchEnd, text.Length) - (valueLength - 1);
+            var comparsion = (_caseSensitiveSearch ? 
+                StringComparison.InvariantCulture : StringComparison.InvariantCultureIgnoreCase);
+
+            searchEnd = Math.Min(searchEnd, text.Length) - (valueLength - 1);
             for (int i = searchStart; i < searchEnd; )
             {
-				if (text.Substring(i, valueLength).StartsWith(value, _comparsion))
-                    positions.Add(i);
+                if (text.Substring(i, valueLength).StartsWith(value, comparsion))
+                {
+                    if (!_searchWholeWordsOnly)
+                    {
+                        positions.Add(i);
+                    }
+                    else
+                    {
+                        if (
+                                (i - 1 < 0 || !char.IsLetterOrDigit(text[i - 1]))
+                                && (i + valueLength >= textLength || !char.IsLetterOrDigit(text[i + valueLength]))
+                        )
+                            positions.Add(i);
+                    }
+                }
 
-				if (i + valueLength >= searchEnd)
-					break;
+                if (i + valueLength >= searchEnd)
+                    break;
 
-				int key = text[i + valueLength];
-				if (badChars.ContainsKey(key))
-					i += badChars[key];
-				else
-					i += valueLength + 1;
+                int key = text[i + valueLength];
+                if (badChars.ContainsKey(key))
+                    i += badChars[key];
+                else
+                    i += valueLength + 1;
             }
 
             return new TextOccurences(value, positions);
         }
 
-		public TextOccurences SearchOccurrences(string value, int searchStart, int searchEnd)
+        public TextOccurences SearchOccurrences(string value, int searchStart, int searchEnd)
         {
             if (!string.IsNullOrEmpty(value))
             {
-                string text = _buffer.GetText();
-                if (!string.IsNullOrEmpty(text))
+                //Disabled searching of multi line text
+                if (!value.Contains('\n'))
                 {
-                    int length = value.Length;
-
-                    if (searchEnd >= searchStart && length > 0)
+                    string text = _buffer.GetText();
+                    if (!string.IsNullOrEmpty(text))
                     {
-                        return SearchOccurrencesInText(text, value, searchStart, searchEnd);
+                        int length = value.Length;
+
+                        if (searchEnd >= searchStart && length > 0)
+                        {
+                            return SearchOccurrencesInText(text, value, searchStart, searchEnd);
+                        }
                     }
                 }
             }
@@ -115,7 +141,7 @@ namespace WordLight.Search
 
         #region Delayed searching
 
-		public void SearchOccurrencesDelayed(string value, int searchStart, int searchEnd)
+        public void SearchOccurrencesDelayed(string value, int searchStart, int searchEnd)
         {
             _searchTimer.Stop();
 
@@ -124,8 +150,8 @@ namespace WordLight.Search
                 lock (_delayedSearchSyncLock)
                 {
                     _delayedJob.Value = value;
-					_delayedJob.SearchStart = searchStart;
-					_delayedJob.SearchEnd = searchEnd;
+                    _delayedJob.SearchStart = searchStart;
+                    _delayedJob.SearchEnd = searchEnd;
                 }
                 _searchTimer.Start();
             }
@@ -135,23 +161,23 @@ namespace WordLight.Search
         {
             string value;
             int searchStart;
-			int searchEnd;
+            int searchEnd;
 
             lock (_delayedSearchSyncLock)
             {
                 value = _delayedJob.Value;
                 searchStart = _delayedJob.SearchStart;
-				searchEnd = _delayedJob.SearchEnd;
+                searchEnd = _delayedJob.SearchEnd;
             }
 
-			SearchOccurrencesAsync(value, searchStart, searchEnd);
+            SearchOccurrencesAsync(value, searchStart, searchEnd);
         }
 
         #endregion
 
         #region Async searching
 
-		public void SearchOccurrencesAsync(string value, int searchStart, int searchEnd)
+        public void SearchOccurrencesAsync(string value, int searchStart, int searchEnd)
         {
             lock (_asyncJobsSyncRoot)
             {
@@ -191,7 +217,7 @@ namespace WordLight.Search
                     EventHandler<SearchCompletedEventArgs> evt = SearchCompleted;
                     if (evt != null)
                     {
-						evt(this, new SearchCompletedEventArgs(occurences));
+                        evt(this, new SearchCompletedEventArgs(occurences));
                     }
                 }
             }

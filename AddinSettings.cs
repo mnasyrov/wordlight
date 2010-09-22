@@ -62,8 +62,12 @@ namespace WordLight
 		#region Search
 
 		[Category("Search")]
-		[DisplayName("Case sensitive"), Description("Needs reopening of documents")]
+		[DisplayName("Match case"), Description("Needs reopening of documents")]
 		public bool CaseSensitiveSearch { get; set; }
+
+        [Category("Search")]
+        [DisplayName("Match whole words"), Description("Needs reopening of documents")]
+        public bool SearchWholeWordsOnly { get; set; }
 
 		#endregion
 
@@ -95,6 +99,7 @@ namespace WordLight
             FilledMarks = false;
 
 			CaseSensitiveSearch = false;
+            SearchWholeWordsOnly = false;
         }
 
         public void Load(SettingRepository repository)
@@ -124,6 +129,7 @@ namespace WordLight
                 FilledMarks = settings.GetBoolSetting("FilledMarks", FilledMarks);
 
 				CaseSensitiveSearch = settings.GetBoolSetting("CaseSensitiveSearch", CaseSensitiveSearch);
+                SearchWholeWordsOnly = settings.GetBoolSetting("SearchWholeWordsOnly", SearchWholeWordsOnly);                
             }
         }
 
@@ -145,6 +151,7 @@ namespace WordLight
 				settings.SetBoolSetting("FilledMarks", FilledMarks);
 
 				settings.SetBoolSetting("CaseSensitiveSearch", CaseSensitiveSearch);
+                settings.SetBoolSetting("SearchWholeWordsOnly", SearchWholeWordsOnly);
             }
         }
     }    
