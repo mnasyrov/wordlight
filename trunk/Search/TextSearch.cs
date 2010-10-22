@@ -101,6 +101,10 @@ namespace WordLight.Search
                         )
                             positions.Add(i);
                     }
+
+                    //Don't search inside a found substring (no crossed search marks).
+                    i += valueLength; 
+                    continue;
                 }
 
                 if (i + valueLength >= searchEnd)
