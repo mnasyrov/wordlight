@@ -229,6 +229,8 @@ namespace WordLight
 				int searchStart = e.Position - searchText.Length;
 				int searchEnd = e.Position + e.NewLength + searchText.Length;
 
+				searchStart = Math.Max(0, searchStart);
+
 				var occurences = searcher.SearchOccurrences(searchText, searchStart, searchEnd);
 
 				int replacementStart = e.Position;
