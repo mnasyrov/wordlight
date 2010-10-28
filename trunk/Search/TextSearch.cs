@@ -60,11 +60,16 @@ namespace WordLight.Search
         /// </remarks>
         private TextOccurences SearchOccurrencesInText(string text, string value, int searchStart, int searchEnd)
         {
+			int textLength = text.Length;
+			int valueLength = value.Length;
+
+			//Make sure, that the search range is not out of the text
+			searchStart = Math.Max(0, searchStart);
+			searchEnd = Math.Min(searchEnd, textLength);
+
             var positions = new TreapBuilder();
 
-            /* Preprocessing */
-            int textLength = text.Length;
-            int valueLength = value.Length;
+            /* Preprocessing */            
             var badChars = new Dictionary<int, int>(valueLength);
 
             for (int i = 0; i < valueLength; i++)
@@ -84,8 +89,8 @@ namespace WordLight.Search
             var comparsion = (_caseSensitiveSearch ? 
                 StringComparison.InvariantCulture : StringComparison.InvariantCultureIgnoreCase);
 
-            searchEnd = Math.Min(searchEnd, text.Length) - (valueLength - 1);
-            for (int i = searchStart; i < searchEnd; )
+            int searchLoopEnd = Math.Min(searchEnd, text.Length) - (valueLength - 1);
+			for (int i = searchStart; i < searchLoopEnd; )
             {
                 if (text.Substring(i, valueLength).StartsWith(value, comparsion))
                 {

@@ -123,12 +123,19 @@ namespace WordLight.Search
                     start = markThatContainsStart.x;
                 }
 
-                Treap right, garbage;
+                Treap right = null;
+				Treap garbage = null;
                 _positions.Split(start - 1, out _positions, out right);
-                right.Split(end, out garbage, out right);
 
-                if (garbage != null)
-                    garbage.ForEachInOrder(IncludeTextToScreenUpdate);
+				if (right != null)
+				{
+					right.Split(end, out garbage, out right);
+				}
+
+				if (garbage != null)
+				{
+					garbage.ForEachInOrder(IncludeTextToScreenUpdate);
+				}
 
                 if (occurences != TextOccurences.Empty && occurences.Count > 0)
                 {

@@ -40,5 +40,15 @@ namespace WordLight
 
             return text;
         }
+
+		public static string GetSubstring(this IVsTextLines buffer, int start, int end)
+		{
+			string text = buffer.GetText();
+			if (!string.IsNullOrEmpty(text))
+			{
+				return text.Substring(start, end - start);
+			}			
+			return string.Empty;
+		}
     }
 }
