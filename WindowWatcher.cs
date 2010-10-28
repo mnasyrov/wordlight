@@ -10,123 +10,117 @@ using WordLight.EventAdapters;
 namespace WordLight
 {
     public class WindowWatcher : IDisposable
-    {
-        private IVsTextManager _textManager;
+    {        
         private IDictionary<IntPtr, TextViewWindow> _textViews;
-		private TextManagerEventAdapter _textManagerEvents;
+        private TextManagerEventAdapter _textManagerEvents;
 
-		private TextViewWindow _currentView;
-		private object _currentViewSyncRoot = new object();
+        private TextViewWindow _currentView;
+        private object _watcherSyncRoot = new object();
 
         public WindowWatcher(DTE2 application)
         {
-			_textViews = new Dictionary<IntPtr, TextViewWindow>();
+            _textViews = new Dictionary<IntPtr, TextViewWindow>();
 
-			_textManager = GetTextManager(application);
-			_textManagerEvents = new TextManagerEventAdapter(_textManager);
-
-			_textManagerEvents.ViewRegistered += 
-				new EventHandler<ViewRegistrationEventArgs>(_textManagerEvents_ViewRegistered);
-			_textManagerEvents.ViewUnregistered += 
-				new EventHandler<ViewRegistrationEventArgs>(_textManagerEvents_ViewUnregistered);
+            IVsTextManager textManager = GetTextManager(application);
+            
+            _textManagerEvents = new TextManagerEventAdapter(textManager);
+            _textManagerEvents.ViewRegistered += new EventHandler<ViewRegistrationEventArgs>(ViewRegisteredHandler);
+            _textManagerEvents.ViewUnregistered += new EventHandler<ViewRegistrationEventArgs>(ViewUnregisteredHandler);
         }
 
-		private IVsTextManager GetTextManager(DTE2 application)
-		{
-			var serviceProvider = application as Microsoft.VisualStudio.OLE.Interop.IServiceProvider;
-
-			Guid SID = typeof(SVsTextManager).GUID;
-			Guid IID = typeof(IVsTextManager).GUID;
-			IntPtr output;
-			serviceProvider.QueryService(ref SID, ref IID, out output);
-
-			return (IVsTextManager)Marshal.GetObjectForIUnknown(output);
-		}		
-
-		private void _textManagerEvents_ViewRegistered(object sender, ViewRegistrationEventArgs e)
-		{
-			IntPtr windowHandle = e.View.GetWindowHandle();
-			if (windowHandle != IntPtr.Zero && !_textViews.ContainsKey(windowHandle))
-			{
-                var viewWindow = new TextViewWindow(e.View);
-				_textViews.Add(windowHandle, viewWindow);
-				viewWindow.GotFocus += new EventHandler(ViewGotFocusHandler);
-				viewWindow.LostFocus += new EventHandler(ViewLostFocusHandler);
-
-				lock (_currentViewSyncRoot)
-				{
-					if (_textViews.Count == 1)
-					{
-						_currentView = viewWindow;
-					}
-				}
-			}
-		}
-
-		private void _textManagerEvents_ViewUnregistered(object sender, ViewRegistrationEventArgs e)
-		{
-			IntPtr windowHandle = e.View.GetWindowHandle();
-			if (_textViews.ContainsKey(windowHandle))
-			{
-				TextViewWindow view = _textViews[windowHandle];
-				_textViews.Remove(windowHandle);
-
-				lock (_currentViewSyncRoot)
-				{
-					if (_currentView == view)
-						_currentView = null;
-				}
-
-				DisposeView(view);
-			}
-		}
-
-        public void Dispose()
+        private IVsTextManager GetTextManager(DTE2 application)
         {
-			lock (_currentViewSyncRoot)
-			{
-				_currentView = null;
-			}
+            var serviceProvider = application as Microsoft.VisualStudio.OLE.Interop.IServiceProvider;
 
-            foreach (TextViewWindow view in _textViews.Values)
+            Guid SID = typeof(SVsTextManager).GUID;
+            Guid IID = typeof(IVsTextManager).GUID;
+            IntPtr output;
+            serviceProvider.QueryService(ref SID, ref IID, out output);
+
+            return (IVsTextManager)Marshal.GetObjectForIUnknown(output);
+        }
+
+        private void ViewRegisteredHandler(object sender, ViewRegistrationEventArgs e)
+        {
+            lock (_watcherSyncRoot)
             {
-				DisposeView(view);
+                IntPtr windowHandle = e.View.GetWindowHandle();
+                if (windowHandle != IntPtr.Zero && !_textViews.ContainsKey(windowHandle))
+                {
+                    var viewWindow = new TextViewWindow(e.View);
+                    viewWindow.GotFocus += new EventHandler(ViewGotFocusHandler);
+                    viewWindow.LostFocus += new EventHandler(ViewLostFocusHandler);
+
+                    _currentView = viewWindow;
+
+                    _textViews.Add(windowHandle, viewWindow);
+                }
             }
         }
 
-		private void DisposeView(TextViewWindow view)
-		{
-			view.GotFocus -= ViewGotFocusHandler;
-			view.LostFocus -= ViewLostFocusHandler;
-			view.Dispose();
-		}
+        private void ViewUnregisteredHandler(object sender, ViewRegistrationEventArgs e)
+        {
+            lock (_watcherSyncRoot)
+            {
+                IntPtr windowHandle = e.View.GetWindowHandle();
+                if (_textViews.ContainsKey(windowHandle))
+                {
+                    TextViewWindow view = _textViews[windowHandle];
+                    _textViews.Remove(windowHandle);
 
-		private void ViewGotFocusHandler(object sender, EventArgs e)
-		{
-			var view = (TextViewWindow)sender;
-			lock (_currentViewSyncRoot)
-			{
-				_currentView = view;
-			}
-		}
+                    if (_currentView == view)
+                        _currentView = null;
 
-		private void ViewLostFocusHandler(object sender, EventArgs e)
-		{
-			var view = (TextViewWindow)sender;
-			lock (_currentViewSyncRoot)
-			{
-				//if (_currentView == view)
-					//_currentView = null;
-			}
-		}
+                    DisposeView(view);
+                }
+            }
+        }
 
-		public void FreezeSearch(int searchGroup)
-		{
-			lock (_currentViewSyncRoot)
-			{
-				if (_currentView != null)
-					_currentView.FreezeSearch(searchGroup);
-			}
-		}
+        public void Dispose()
+        {
+            lock (_watcherSyncRoot)
+            {
+                _currentView = null;
+
+                foreach (TextViewWindow view in _textViews.Values)
+                {
+                    DisposeView(view);
+                }
+            }
+        }
+
+        private void DisposeView(TextViewWindow view)
+        {
+            view.GotFocus -= ViewGotFocusHandler;
+            view.LostFocus -= ViewLostFocusHandler;
+            view.Dispose();
+        }
+
+        private void ViewGotFocusHandler(object sender, EventArgs e)
+        {
+            var view = (TextViewWindow)sender;
+            lock (_watcherSyncRoot)
+            {
+                _currentView = view;
+            }
+        }
+
+        private void ViewLostFocusHandler(object sender, EventArgs e)
+        {
+            var view = (TextViewWindow)sender;
+            lock (_watcherSyncRoot)
+            {
+                if (_currentView == view)
+                    _currentView = null;
+            }
+        }
+
+        public TextViewWindow GetActiveTextView()
+        {
+            lock (_watcherSyncRoot)
+            {
+                return _currentView;
+            }
+        }
     }
 }
