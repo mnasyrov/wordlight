@@ -21,7 +21,7 @@ namespace WordLight.Search
 
         const int SearchDelay = 250; //ms
 
-        private IVsTextLines _buffer;
+        private TextView _view;
 
         private System.Timers.Timer _searchTimer;
         private SearchJob _delayedJob = new SearchJob();
@@ -37,11 +37,11 @@ namespace WordLight.Search
         private bool _caseSensitiveSearch;
         private bool _searchWholeWordsOnly;
 
-        public TextSearch(IVsTextLines buffer)
+        public TextSearch(TextView view)
         {
-            if (buffer == null) throw new ArgumentNullException("buffer");
+            if (view == null) throw new ArgumentNullException("view");
 
-            _buffer = buffer;
+			_view = view;
 
             _searchTimer = new System.Timers.Timer();
             _searchTimer.AutoReset = false;
@@ -132,7 +132,7 @@ namespace WordLight.Search
                 //Disabled searching of multi line text
                 if (!value.Contains('\n'))
                 {
-                    string text = _buffer.GetText();
+                    string text = _view.Buffer.GetText();
                     if (!string.IsNullOrEmpty(text))
                     {
                         int length = value.Length;
