@@ -19,7 +19,7 @@ namespace WordLight
 {
 	public class TextViewWindow : NativeWindow, IDisposable
 	{
-		private TextView _textView;
+		private TextView _view;
 
 		private string _previousSelectedText;
 
@@ -47,32 +47,36 @@ namespace WordLight
 
 		private object _paintSync = new object();
 
-		public TextViewWindow(IVsTextView view)
+		public TextView View
+		{
+			get { return _view; }
+		}
+
+		public TextViewWindow(TextView view)
 		{
 			if (view == null) throw new ArgumentNullException("view");
 
-			_textView = new TextView(view);
+			_view = view;
 
-            IntPtr hWnd = view.GetWindowHandle();
-            _screenUpdater = new ScreenUpdateManager(hWnd, _textView);
+			_screenUpdater = new ScreenUpdateManager(_view.WindowHandle, _view);
 
-			_textStreamEvents = new TextStreamEventAdapter(_textView.Buffer);
+			_textStreamEvents = new TextStreamEventAdapter(_view.Buffer);
 			_textStreamEvents.StreamTextChanged += new EventHandler<StreamTextChangedEventArgs>(StreamTextChangedHandler);
 
-            _textView.ViewEvents.ScrollChanged += new EventHandler<ViewScrollChangedEventArgs>(ScrollChangedHandler);
-            _textView.ViewEvents.GotFocus += new EventHandler<ViewFocusEventArgs>(GotFocusHandler);
-            _textView.ViewEvents.LostFocus += new EventHandler<ViewFocusEventArgs>(LostFocusHandler);
+            _view.ViewEvents.ScrollChanged += new EventHandler<ViewScrollChangedEventArgs>(ScrollChangedHandler);
+            _view.ViewEvents.GotFocus += new EventHandler<ViewFocusEventArgs>(GotFocusHandler);
+            _view.ViewEvents.LostFocus += new EventHandler<ViewFocusEventArgs>(LostFocusHandler);
 
-			_search = new TextSearch(_textView.Buffer);
+			_search = new TextSearch(_view);
 			_search.SearchCompleted += new EventHandler<SearchCompletedEventArgs>(searcher_SearchCompleted);
 
-			_freezeSearch1 = new TextSearch(_textView.Buffer);
+			_freezeSearch1 = new TextSearch(_view);
 			_freezeSearch1.SearchCompleted += new EventHandler<SearchCompletedEventArgs>(FreezeSearchCompleted1);
 
-			_freezeSearch2 = new TextSearch(_textView.Buffer);
+			_freezeSearch2 = new TextSearch(_view);
 			_freezeSearch2.SearchCompleted += new EventHandler<SearchCompletedEventArgs>(FreezeSearchCompleted2);
 
-			_freezeSearch3 = new TextSearch(_textView.Buffer);
+			_freezeSearch3 = new TextSearch(_view);
 			_freezeSearch3.SearchCompleted += new EventHandler<SearchCompletedEventArgs>(FreezeSearchCompleted3);
 
             _searchMarks = new MarkCollection(_screenUpdater);
@@ -80,7 +84,7 @@ namespace WordLight
             _freezeMarks2 = new MarkCollection(_screenUpdater);
             _freezeMarks3 = new MarkCollection(_screenUpdater);
 			
-			AssignHandle(hWnd);
+			AssignHandle(_view.WindowHandle);
 		}
 
 		public void Dispose()
@@ -88,11 +92,9 @@ namespace WordLight
 			_textStreamEvents.StreamTextChanged -= StreamTextChangedHandler;
 			_textStreamEvents.Dispose();
 
-			_textView.ViewEvents.GotFocus -= GotFocusHandler;
-			_textView.ViewEvents.LostFocus -= LostFocusHandler;
-			_textView.ViewEvents.ScrollChanged -= ScrollChangedHandler;
-
-			_textView.Dispose();
+			_view.ViewEvents.GotFocus -= GotFocusHandler;
+			_view.ViewEvents.LostFocus -= LostFocusHandler;
+			_view.ViewEvents.ScrollChanged -= ScrollChangedHandler;
 
 			ReleaseHandle();
 		}
@@ -139,7 +141,7 @@ namespace WordLight
 
 		private void HandleUserInput()
 		{
-			string text = _textView.View.GetSelectedText();
+			string text = _view.GetSelectedText();
 
 			if (text != _previousSelectedText)
 			{
@@ -183,7 +185,7 @@ namespace WordLight
 
 		private void DrawRectangles(MarkCollection marks, Color penColor, Graphics g)
 		{
-			Rectangle[] rectangles = marks.GetRectanglesForVisibleMarks(_textView);
+			Rectangle[] rectangles = marks.GetRectanglesForVisibleMarks(_view);
 
 			if (rectangles != null && rectangles.Length > 0)
 			{
@@ -202,10 +204,10 @@ namespace WordLight
 		{
 			if (AddinSettings.Instance.FilledMarks && Monitor.TryEnter(_paintSync))
 			{
-				_searchMarks.InvalidateVisibleMarks(_textView);
-				_freezeMarks1.InvalidateVisibleMarks(_textView);
-				_freezeMarks2.InvalidateVisibleMarks(_textView);
-				_freezeMarks3.InvalidateVisibleMarks(_textView);
+				_searchMarks.InvalidateVisibleMarks(_view);
+				_freezeMarks1.InvalidateVisibleMarks(_view);
+				_freezeMarks2.InvalidateVisibleMarks(_view);
+				_freezeMarks3.InvalidateVisibleMarks(_view);
 
 				_screenUpdater.RequestUpdate();
 
@@ -248,7 +250,7 @@ namespace WordLight
 
 			if (!string.IsNullOrEmpty(_selectedText))
 			{
-                var marks = _search.SearchOccurrences(_selectedText, _textView.VisibleTextStart, _textView.VisibleTextEnd);
+                var marks = _search.SearchOccurrences(_selectedText, _view.VisibleTextStart, _view.VisibleTextEnd);
                 _searchMarks.ReplaceMarks(marks);
                 _search.SearchOccurrencesDelayed(_selectedText, 0, int.MaxValue);
 			}
@@ -308,7 +310,7 @@ namespace WordLight
 			if (set1)
 			{
 				_freezeText1 = _selectedText;
-				_freezeMarks1.ReplaceMarks(_freezeSearch1.SearchOccurrences(_freezeText1, _textView.VisibleTextStart, _textView.VisibleTextEnd));
+				_freezeMarks1.ReplaceMarks(_freezeSearch1.SearchOccurrences(_freezeText1, _view.VisibleTextStart, _view.VisibleTextEnd));
 				_freezeSearch1.SearchOccurrencesDelayed(_freezeText1, 0, int.MaxValue);
 			}
 			else if (erase1)
@@ -320,7 +322,7 @@ namespace WordLight
 			if (set2)
 			{
 				_freezeText2 = _selectedText;
-				_freezeMarks2.ReplaceMarks(_freezeSearch2.SearchOccurrences(_freezeText2, _textView.VisibleTextStart, _textView.VisibleTextEnd));
+				_freezeMarks2.ReplaceMarks(_freezeSearch2.SearchOccurrences(_freezeText2, _view.VisibleTextStart, _view.VisibleTextEnd));
 				_freezeSearch2.SearchOccurrencesDelayed(_freezeText2, 0, int.MaxValue);
 			}
 			else if (erase2)
@@ -332,7 +334,8 @@ namespace WordLight
 			if (set3)
 			{
 				_freezeText3 = _selectedText;
-				_freezeMarks3.ReplaceMarks(_freezeSearch3.SearchOccurrences(_freezeText3, _textView.VisibleTextStart, _textView.VisibleTextEnd));
+				var instantMarks = _freezeSearch3.SearchOccurrences(_freezeText3, _view.VisibleTextStart, _view.VisibleTextEnd);
+				_freezeMarks3.ReplaceMarks(instantMarks);
 				_freezeSearch3.SearchOccurrencesDelayed(_freezeText3, 0, int.MaxValue);
 			}
 			else if (erase3)

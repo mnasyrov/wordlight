@@ -11,15 +11,15 @@ namespace WordLight
 {
     public class WindowWatcher : IDisposable
     {        
-        private IDictionary<IntPtr, TextViewWindow> _textViews;
+        private IDictionary<IntPtr, TextView> _textViews;
         private TextManagerEventAdapter _textManagerEvents;
 
-        private TextViewWindow _currentView;
+        private TextViewWindow _currentWindow;
         private object _watcherSyncRoot = new object();
 
         public WindowWatcher(DTE2 application)
         {
-            _textViews = new Dictionary<IntPtr, TextViewWindow>();
+            _textViews = new Dictionary<IntPtr, TextView>();
 
             IVsTextManager textManager = GetTextManager(application);
             
@@ -47,13 +47,14 @@ namespace WordLight
                 IntPtr windowHandle = e.View.GetWindowHandle();
                 if (windowHandle != IntPtr.Zero && !_textViews.ContainsKey(windowHandle))
                 {
-                    var viewWindow = new TextViewWindow(e.View);
-                    viewWindow.GotFocus += new EventHandler(ViewGotFocusHandler);
-                    viewWindow.LostFocus += new EventHandler(ViewLostFocusHandler);
+					var textView = new TextView(e.View);
 
-                    _currentView = viewWindow;
+					textView.Window.GotFocus += new EventHandler(ViewGotFocusHandler);
+					textView.Window.LostFocus += new EventHandler(ViewLostFocusHandler);
 
-                    _textViews.Add(windowHandle, viewWindow);
+					_currentWindow = textView.Window;
+
+					_textViews.Add(windowHandle, textView);
                 }
             }
         }
@@ -65,11 +66,11 @@ namespace WordLight
                 IntPtr windowHandle = e.View.GetWindowHandle();
                 if (_textViews.ContainsKey(windowHandle))
                 {
-                    TextViewWindow view = _textViews[windowHandle];
+                    TextView view = _textViews[windowHandle];
                     _textViews.Remove(windowHandle);
 
-                    if (_currentView == view)
-                        _currentView = null;
+                    if (_currentWindow == view.Window)
+                        _currentWindow = null;
 
                     DisposeView(view);
                 }
@@ -80,19 +81,21 @@ namespace WordLight
         {
             lock (_watcherSyncRoot)
             {
-                _currentView = null;
+                _currentWindow = null;
 
-                foreach (TextViewWindow view in _textViews.Values)
+                foreach (TextView view in _textViews.Values)
                 {
                     DisposeView(view);
                 }
+
+				_textViews.Clear();
             }
         }
 
-        private void DisposeView(TextViewWindow view)
+        private void DisposeView(TextView view)
         {
-            view.GotFocus -= ViewGotFocusHandler;
-            view.LostFocus -= ViewLostFocusHandler;
+            view.Window.GotFocus -= ViewGotFocusHandler;
+			view.Window.LostFocus -= ViewLostFocusHandler;
             view.Dispose();
         }
 
@@ -101,7 +104,7 @@ namespace WordLight
             var view = (TextViewWindow)sender;
             lock (_watcherSyncRoot)
             {
-                _currentView = view;
+                _currentWindow = view;
             }
         }
 
@@ -110,16 +113,16 @@ namespace WordLight
             var view = (TextViewWindow)sender;
             lock (_watcherSyncRoot)
             {
-                if (_currentView == view)
-                    _currentView = null;
+                if (_currentWindow == view)
+                    _currentWindow = null;
             }
         }
 
-        public TextViewWindow GetActiveTextView()
+        public TextViewWindow GetActiveTextWindow()
         {
             lock (_watcherSyncRoot)
             {
-                return _currentView;
+                return _currentWindow;
             }
         }
     }

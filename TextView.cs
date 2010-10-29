@@ -22,6 +22,8 @@ namespace WordLight
 		private IVsTextLines _buffer;
 		private TextViewEventAdapter _viewEvents;
 
+		TextViewWindow _window;
+
 		private int _lineHeight;
 
 		private Dictionary<long, Point> _pointCache = new Dictionary<long, Point>();
@@ -34,9 +36,19 @@ namespace WordLight
 
 		#region Properties
 
-		public IVsTextView View
+		//public IVsTextView View
+		//{
+		//    get { return _view; }
+		//}
+
+		public TextViewWindow Window
 		{
-			get { return _view; }
+			get { return _window; }
+		}
+
+		public IntPtr WindowHandle
+		{
+			get { return _view.GetWindowHandle(); }
 		}
 
 		public IVsTextLines Buffer
@@ -87,12 +99,16 @@ namespace WordLight
 
 			_viewEvents = new TextViewEventAdapter(view);
 			_viewEvents.ScrollChanged += ScrollChangedHandler;
+
+			_window = new TextViewWindow(this);
 		}
 
 		public void Dispose()
 		{
 			_viewEvents.ScrollChanged -= ScrollChangedHandler;
 			_viewEvents.Dispose();
+
+			_window.Dispose();
 		}
 
 		public Point GetScreenPoint(int line, int column)
@@ -233,6 +249,11 @@ namespace WordLight
 			{
 				ResetCaches();
 			}
+		}
+
+		public string GetSelectedText()
+		{
+			return _view.GetSelectedText();
 		}
 	}
 }
