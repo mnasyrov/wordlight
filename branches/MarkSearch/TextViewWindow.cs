@@ -23,13 +23,8 @@ namespace WordLight
 
 		private string _previousSelectedText;
 
+		private MarkSearcher selectionSearcher;
 		private List<MarkFreezer> freezers;
-
-		private MarkCollection _searchMarks;
-
-		private string _selectedText;		
-
-		private TextSearch _search;
 
 		public event EventHandler GotFocus;
 		public event EventHandler LostFocus;
@@ -60,9 +55,7 @@ namespace WordLight
             _view.ViewEvents.GotFocus += new EventHandler<ViewFocusEventArgs>(GotFocusHandler);
             _view.ViewEvents.LostFocus += new EventHandler<ViewFocusEventArgs>(LostFocusHandler);
 
-			_search = new TextSearch(_view);
-			_search.SearchCompleted += new EventHandler<SearchCompletedEventArgs>(searcher_SearchCompleted);
-			_searchMarks = new MarkCollection(_view);
+			selectionSearcher = new MarkSearcher(-1, _view);
 
 			freezers = new List<MarkFreezer>();
 			freezers.Add(new MarkFreezer(1, _view));
@@ -159,7 +152,7 @@ namespace WordLight
 
 			g.SetClip(clipRect);
 
-			DrawRectangles(_searchMarks, AddinSettings.Instance.SearchMarkBorderColor, g);
+			DrawRectangles(selectionSearcher.Marks, AddinSettings.Instance.SearchMarkBorderColor, g);
 
 			foreach (var freezer in freezers)
 			{
@@ -195,7 +188,7 @@ namespace WordLight
 		{
 			if (AddinSettings.Instance.FilledMarks && Monitor.TryEnter(_paintSync))
 			{
-				_searchMarks.InvalidateVisibleMarks();
+				selectionSearcher.Marks.InvalidateVisibleMarks();
 
 				foreach (var freezer in freezers)
 				{
@@ -210,27 +203,9 @@ namespace WordLight
 
 		private void SelectionChanged(string text)
 		{
-			_selectedText = text;
-
-			_searchMarks.Clear();
-
-			if (!string.IsNullOrEmpty(_selectedText))
-			{
-                var marks = _search.SearchOccurrences(_selectedText, _view.VisibleTextStart, _view.VisibleTextEnd);
-                _searchMarks.ReplaceMarks(marks);
-                _search.SearchOccurrencesDelayed(_selectedText, 0, int.MaxValue);
-			}
-
+			selectionSearcher.Search(text);			
 			_screenUpdater.RequestUpdate();
 		}
-
-		private void searcher_SearchCompleted(object sender, SearchCompletedEventArgs e)
-		{
-			if (e.Occurences.Text == _selectedText)
-			{
-				_searchMarks.AddMarks(e.Occurences);
-			}
-		}		
 
 		private void GotFocusHandler(object sender, ViewFocusEventArgs e)
 		{
@@ -248,11 +223,11 @@ namespace WordLight
 		{
 			foreach (var freezer in freezers)
 			{
-				if (freezer.Id == group && freezer.SearchText != _selectedText)
+				if (freezer.Id == group && freezer.SearchText != selectionSearcher.SearchText)
 				{
-					freezer.FreezeText(_selectedText);
+					freezer.FreezeText(selectionSearcher.SearchText);
 				}
-				else if (freezer.Id != group && freezer.SearchText == _selectedText)
+				else if (freezer.Id != group && freezer.SearchText == selectionSearcher.SearchText)
 				{
 					freezer.Clear();
 				}

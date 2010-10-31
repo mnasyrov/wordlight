@@ -4,9 +4,8 @@ using System.Linq;
 using System.Text;
 
 using WordLight.EventAdapters;
-using WordLight.Search;
 
-namespace WordLight
+namespace WordLight.Search
 {
 	public class MarkFreezer
 	{
@@ -85,7 +84,10 @@ namespace WordLight
 
 		private void AsyncSearchCompleted(object sender, SearchCompletedEventArgs e)
 		{
-			_marks.AddMarks(e.Occurences);
+			if (e.Occurences.Text == _searchText)
+			{
+				_marks.AddMarks(e.Occurences);
+			}
 		}
 	}
 }
