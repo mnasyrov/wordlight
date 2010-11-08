@@ -54,6 +54,13 @@ namespace WordLight.Search
             _searchWholeWordsOnly = AddinSettings.Instance.SearchWholeWordsOnly;
         }
 
+        private static bool IsWordCharacter(char c)
+        {
+            return 
+                char.IsLetterOrDigit(c) ||
+                char.GetUnicodeCategory(c) == System.Globalization.UnicodeCategory.ConnectorPunctuation;
+        }
+
         /// <remarks>
         /// Modification of Boyer–Moore string search
         /// Based on http://algolist.manual.ru/search/esearch/qsearch.php
@@ -94,18 +101,21 @@ namespace WordLight.Search
             {
                 if (text.Substring(i, valueLength).StartsWith(value, comparsion))
                 {
-                    if (!_searchWholeWordsOnly)
+                    bool occurrenceFound = true;
+
+                    if (_searchWholeWordsOnly)
                     {
+                        int previousCharIndex = i - 1;
+                        int nextCharIndex = i + valueLength;
+
+                        bool isPreviousCharPartOfWord = previousCharIndex >= 0 && IsWordCharacter(text[previousCharIndex]);
+                        bool isNextCharPartOfWord = nextCharIndex < textLength && IsWordCharacter(text[nextCharIndex]);
+
+                        occurrenceFound = !isPreviousCharPartOfWord && !isNextCharPartOfWord;
+                    }
+                    
+                    if (occurrenceFound)
                         positions.Add(i);
-                    }
-                    else
-                    {
-                        if (
-                                (i - 1 < 0 || !char.IsLetterOrDigit(text[i - 1]))
-                                && (i + valueLength >= textLength || !char.IsLetterOrDigit(text[i + valueLength]))
-                        )
-                            positions.Add(i);
-                    }
 
                     //Don't search inside a found substring (no crossed search marks).
                     i += valueLength; 
