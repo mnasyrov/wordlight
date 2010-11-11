@@ -22,6 +22,7 @@ namespace WordLight
            #endregion
 
         private SettingRepository _repository;
+        private object _repositorySync = new object();
 
 		#region Colors
 		
@@ -105,7 +106,10 @@ namespace WordLight
         public void Load(SettingRepository repository)
         {
             if (repository == null) throw new ArgumentNullException("repository");
-            _repository = repository;
+            lock (_repositorySync)
+            {
+                _repository = repository;
+            }
             Reload();            
         }
 
@@ -113,60 +117,52 @@ namespace WordLight
         {
             ResetToDefaults();
             
-            SettingRepository settings = _repository;
-            if (settings != null)
+            lock (_repositorySync)
             {
-                SearchMarkBorderColor = settings.GetColorSetting("SearchMarkBorderColor", SearchMarkBorderColor);
+                if (_repository == null) ActivityLog.Warning("Settings repository is not set");
 
-                FreezeMark1BorderColor = settings.GetColorSetting("FreezeMark1BorderColor", FreezeMark1BorderColor);
-                FreezeMark2BorderColor = settings.GetColorSetting("FreezeMark2BorderColor", FreezeMark2BorderColor);
-                FreezeMark3BorderColor = settings.GetColorSetting("FreezeMark3BorderColor", FreezeMark3BorderColor);
+                if (_repository != null)
+                {
+                    SearchMarkBorderColor = _repository.GetColorSetting("SearchMarkBorderColor", SearchMarkBorderColor);
 
-                FreezeMark1Hotkey = settings.GetSetting("FreezeMark1Hotkey", FreezeMark1Hotkey);
-                FreezeMark2Hotkey = settings.GetSetting("FreezeMark2Hotkey", FreezeMark2Hotkey);
-                FreezeMark3Hotkey = settings.GetSetting("FreezeMark3Hotkey", FreezeMark3Hotkey);
+                    FreezeMark1BorderColor = _repository.GetColorSetting("FreezeMark1BorderColor", FreezeMark1BorderColor);
+                    FreezeMark2BorderColor = _repository.GetColorSetting("FreezeMark2BorderColor", FreezeMark2BorderColor);
+                    FreezeMark3BorderColor = _repository.GetColorSetting("FreezeMark3BorderColor", FreezeMark3BorderColor);
 
-                FilledMarks = settings.GetBoolSetting("FilledMarks", FilledMarks);
+                    FreezeMark1Hotkey = _repository.GetSetting("FreezeMark1Hotkey", FreezeMark1Hotkey);
+                    FreezeMark2Hotkey = _repository.GetSetting("FreezeMark2Hotkey", FreezeMark2Hotkey);
+                    FreezeMark3Hotkey = _repository.GetSetting("FreezeMark3Hotkey", FreezeMark3Hotkey);
 
-				CaseSensitiveSearch = settings.GetBoolSetting("CaseSensitiveSearch", CaseSensitiveSearch);
-                SearchWholeWordsOnly = settings.GetBoolSetting("SearchWholeWordsOnly", SearchWholeWordsOnly);                
+                    FilledMarks = _repository.GetBoolSetting("FilledMarks", FilledMarks);
+
+                    CaseSensitiveSearch = _repository.GetBoolSetting("CaseSensitiveSearch", CaseSensitiveSearch);
+                    SearchWholeWordsOnly = _repository.GetBoolSetting("SearchWholeWordsOnly", SearchWholeWordsOnly);
+                }
             }
         }
 
         public void Save()
         {
-            ActivityLog.Info("Saving settings...");
-
-            SettingRepository settings = _repository;
-
-            if (settings == null)
+            lock (_repositorySync)
             {
-                ActivityLog.Warning("Settings repository is not set");
-            }
-            else
-            {
-                try
+                if (_repository == null) ActivityLog.Warning("Settings repository is not set");
+
+                if (_repository != null)
                 {
-                    settings.SetColorSetting("SearchMarkBorderColor", SearchMarkBorderColor);
+                    _repository.SetColorSetting("SearchMarkBorderColor", SearchMarkBorderColor);
 
-                    settings.SetColorSetting("FreezeMark1BorderColor", FreezeMark1BorderColor);
-                    settings.SetColorSetting("FreezeMark2BorderColor", FreezeMark2BorderColor);
-                    settings.SetColorSetting("FreezeMark3BorderColor", FreezeMark3BorderColor);
+                    _repository.SetColorSetting("FreezeMark1BorderColor", FreezeMark1BorderColor);
+                    _repository.SetColorSetting("FreezeMark2BorderColor", FreezeMark2BorderColor);
+                    _repository.SetColorSetting("FreezeMark3BorderColor", FreezeMark3BorderColor);
 
-                    settings.SetSetting("FreezeMark1Hotkey", FreezeMark1Hotkey);
-                    settings.SetSetting("FreezeMark2Hotkey", FreezeMark2Hotkey);
-                    settings.SetSetting("FreezeMark3Hotkey", FreezeMark3Hotkey);
+                    _repository.SetSetting("FreezeMark1Hotkey", FreezeMark1Hotkey);
+                    _repository.SetSetting("FreezeMark2Hotkey", FreezeMark2Hotkey);
+                    _repository.SetSetting("FreezeMark3Hotkey", FreezeMark3Hotkey);
 
-                    settings.SetBoolSetting("FilledMarks", FilledMarks);
+                    _repository.SetBoolSetting("FilledMarks", FilledMarks);
 
-                    settings.SetBoolSetting("CaseSensitiveSearch", CaseSensitiveSearch);
-                    settings.SetBoolSetting("SearchWholeWordsOnly", SearchWholeWordsOnly);
-
-                    ActivityLog.Info("Settings are saved");
-                }
-                catch (Exception ex)
-                {
-                    ActivityLog.Error("Error during saving settings", ex);
+                    _repository.SetBoolSetting("CaseSensitiveSearch", CaseSensitiveSearch);
+                    _repository.SetBoolSetting("SearchWholeWordsOnly", SearchWholeWordsOnly);
                 }
             }
         }

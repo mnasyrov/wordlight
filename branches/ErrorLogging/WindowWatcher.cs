@@ -42,38 +42,52 @@ namespace WordLight
 
         private void ViewRegisteredHandler(object sender, ViewRegistrationEventArgs e)
         {
-            lock (_watcherSyncRoot)
+            try
             {
-                IntPtr windowHandle = e.View.GetWindowHandle();
-                if (windowHandle != IntPtr.Zero && !_textViews.ContainsKey(windowHandle))
+                lock (_watcherSyncRoot)
                 {
-					var textView = new TextView(e.View);
+                    IntPtr windowHandle = e.View.GetWindowHandle();
+                    if (windowHandle != IntPtr.Zero && !_textViews.ContainsKey(windowHandle))
+                    {
+                        var textView = new TextView(e.View);
 
-					textView.Window.GotFocus += new EventHandler(ViewGotFocusHandler);
-					textView.Window.LostFocus += new EventHandler(ViewLostFocusHandler);
+                        textView.Window.GotFocus += new EventHandler(ViewGotFocusHandler);
+                        textView.Window.LostFocus += new EventHandler(ViewLostFocusHandler);
 
-					_currentWindow = textView.Window;
+                        _currentWindow = textView.Window;
 
-					_textViews.Add(windowHandle, textView);
+                        _textViews.Add(windowHandle, textView);
+                    }
                 }
+            }
+            catch (Exception ex)
+            {
+                ActivityLog.Error("Failed to register a view", ex);
             }
         }
 
         private void ViewUnregisteredHandler(object sender, ViewRegistrationEventArgs e)
         {
-            lock (_watcherSyncRoot)
+            try
             {
-                IntPtr windowHandle = e.View.GetWindowHandle();
-                if (_textViews.ContainsKey(windowHandle))
+                lock (_watcherSyncRoot)
                 {
-                    TextView view = _textViews[windowHandle];
-                    _textViews.Remove(windowHandle);
+                    IntPtr windowHandle = e.View.GetWindowHandle();
+                    if (_textViews.ContainsKey(windowHandle))
+                    {
+                        TextView view = _textViews[windowHandle];
+                        _textViews.Remove(windowHandle);
 
-                    if (_currentWindow == view.Window)
-                        _currentWindow = null;
+                        if (_currentWindow == view.Window)
+                            _currentWindow = null;
 
-                    DisposeView(view);
+                        DisposeView(view);
+                    }
                 }
+            }
+            catch (Exception ex)
+            {
+                ActivityLog.Error("Failed to unregister a view", ex);
             }
         }
 
@@ -101,20 +115,34 @@ namespace WordLight
 
         private void ViewGotFocusHandler(object sender, EventArgs e)
         {
-            var view = (TextViewWindow)sender;
-            lock (_watcherSyncRoot)
+            try
             {
-                _currentWindow = view;
+                var view = (TextViewWindow)sender;
+                lock (_watcherSyncRoot)
+                {
+                    _currentWindow = view;
+                }
+            }
+            catch (Exception ex)
+            {
+                ActivityLog.Error("Failed to process a view focus", ex);
             }
         }
 
         private void ViewLostFocusHandler(object sender, EventArgs e)
         {
-            var view = (TextViewWindow)sender;
-            lock (_watcherSyncRoot)
+            try
             {
-                if (_currentWindow == view)
-                    _currentWindow = null;
+                var view = (TextViewWindow)sender;
+                lock (_watcherSyncRoot)
+                {
+                    if (_currentWindow == view)
+                        _currentWindow = null;
+                }
+            }
+            catch (Exception ex)
+            {
+                ActivityLog.Error("Failed to process a lost view focus", ex);
             }
         }
 

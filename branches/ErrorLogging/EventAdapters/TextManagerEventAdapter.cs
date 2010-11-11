@@ -10,95 +10,109 @@ using Microsoft.VisualStudio.TextManager.Interop;
 
 namespace WordLight.EventAdapters
 {
-	public class TextManagerEventAdapter : IVsTextManagerEvents, IDisposable
-	{
-		private uint _connectionCookie;
-		private IConnectionPoint _connectionPoint;
+    public class TextManagerEventAdapter : IVsTextManagerEvents, IDisposable
+    {
+        private uint _connectionCookie;
+        private IConnectionPoint _connectionPoint;
 
-		/// <summary>
-		/// Fires when a view is registered.  
-		/// </summary>
-		public event EventHandler<ViewRegistrationEventArgs> ViewRegistered;
+        /// <summary>
+        /// Fires when a view is registered.  
+        /// </summary>
+        public event EventHandler<ViewRegistrationEventArgs> ViewRegistered;
 
-		/// <summary>
-		/// Fires when a view is unregistered.  
-		/// </summary>
-		public event EventHandler<ViewRegistrationEventArgs> ViewUnregistered;
+        /// <summary>
+        /// Fires when a view is unregistered.  
+        /// </summary>
+        public event EventHandler<ViewRegistrationEventArgs> ViewUnregistered;
 
-		public TextManagerEventAdapter(IVsTextManager textManager)
-		{
-			if (textManager == null) throw new ArgumentNullException("textManager");
+        public TextManagerEventAdapter(IVsTextManager textManager)
+        {
+            if (textManager == null) throw new ArgumentNullException("textManager");
 
-			var cpContainer = textManager as IConnectionPointContainer;
-			Guid riid = typeof(IVsTextManagerEvents).GUID;
-			cpContainer.FindConnectionPoint(ref riid, out _connectionPoint);
+            var cpContainer = textManager as IConnectionPointContainer;
+            Guid riid = typeof(IVsTextManagerEvents).GUID;
+            cpContainer.FindConnectionPoint(ref riid, out _connectionPoint);
 
-			_connectionPoint.Advise(this, out _connectionCookie);
-		}
+            _connectionPoint.Advise(this, out _connectionCookie);
+        }
 
-		public void Dispose()
-		{
-			if (_connectionCookie > 0)
-			{
-				_connectionPoint.Unadvise(_connectionCookie);
-				_connectionCookie = 0;
-			}
-		}
-		
-		public void OnRegisterView(IVsTextView view)
-		{
-			if (view != null)
-			{
-				// Excellent comment from MetalScroll addin. Can't say better.
-				// (http://code.google.com/p/metalscroll/source/browse/trunk/Connect.cpp)
+        public void Dispose()
+        {
+            if (_connectionCookie > 0)
+            {
+                _connectionPoint.Unadvise(_connectionCookie);
+                _connectionCookie = 0;
+            }
+        }
 
-				// Unfortunately, the window hasn't been created at this point yet, so we can't get the HWND
-				// here. Register an even handler to catch SetFocus(), and get the HWND from there. We'll remove
-				// the handler after the first SetFocus() as we don't care about getting more events once we
-				// have the HWND.
+        public void OnRegisterView(IVsTextView view)
+        {
+            if (view != null)
+            {
+                // Excellent comment from MetalScroll addin. Can't say better.
+                // (http://code.google.com/p/metalscroll/source/browse/trunk/Connect.cpp)
 
-				var textViewEvents = new TextViewEventAdapter(view);
-				textViewEvents.GotFocus += new EventHandler<ViewFocusEventArgs>(textViewEvents_SetFocus);
-			}
-		}
+                // Unfortunately, the window hasn't been created at this point yet, so we can't get the HWND
+                // here. Register an even handler to catch SetFocus(), and get the HWND from there. We'll remove
+                // the handler after the first SetFocus() as we don't care about getting more events once we
+                // have the HWND.
 
-		private void textViewEvents_SetFocus(object sender, ViewFocusEventArgs e)
-		{
-			IVsTextView view = e.View;
+                try
+                {
+                    var textViewEvents = new TextViewEventAdapter(view);
+                    textViewEvents.GotFocus += new EventHandler<ViewFocusEventArgs>(textViewEvents_SetFocus);
+                }
+                catch (Exception ex)
+                {
+                    ActivityLog.Error("Failed to register a view", ex);
+                }
+            }
+        }
 
-			var textViewEvents = (TextViewEventAdapter)sender;
-			textViewEvents.GotFocus -= textViewEvents_SetFocus;
-			textViewEvents.Dispose();
+        private void textViewEvents_SetFocus(object sender, ViewFocusEventArgs e)
+        {
+            IVsTextView view = e.View;
 
-			EventHandler<ViewRegistrationEventArgs> evt = ViewRegistered;
-			if (evt != null) evt(this, new ViewRegistrationEventArgs(view));
-		}
-		
-		public void OnUnregisterView(IVsTextView view)
-		{
-			if (view != null)
-			{
-				EventHandler<ViewRegistrationEventArgs> evt = ViewUnregistered;
-				if (evt != null) evt(this, new ViewRegistrationEventArgs(view));
-			}
-		}
+            try
+            {
+                var textViewEvents = (TextViewEventAdapter)sender;
+                textViewEvents.GotFocus -= textViewEvents_SetFocus;
+                textViewEvents.Dispose();
+            }
+            catch (Exception ex)
+            {
+                ActivityLog.Error("Failed to dispose a TextViewEventAdapter", ex);
+            }
 
-		#region Unused events
-		
-		public void OnRegisterMarkerType(int iMarkerType)
-		{
-			// Do nothing
-		}
+            EventHandler<ViewRegistrationEventArgs> evt = ViewRegistered;
+            if (evt != null) evt(this, new ViewRegistrationEventArgs(view));
+        }
 
-		public void OnUserPreferencesChanged(
-			VIEWPREFERENCES[] pViewPrefs,
-			FRAMEPREFERENCES[] pFramePrefs,
-			LANGPREFERENCES[] pLangPrefs,
-			FONTCOLORPREFERENCES[] pColorPrefs)
-		{
-			// Do nothing
-		}
+        public void OnUnregisterView(IVsTextView view)
+        {
+            if (view != null)
+            {
+                EventHandler<ViewRegistrationEventArgs> evt = ViewUnregistered;
+                if (evt != null) evt(this, new ViewRegistrationEventArgs(view));
+            }
+        }
 
-		#endregion
-	}
+        #region Unused events
+
+        public void OnRegisterMarkerType(int iMarkerType)
+        {
+            // Do nothing
+        }
+
+        public void OnUserPreferencesChanged(
+            VIEWPREFERENCES[] pViewPrefs,
+            FRAMEPREFERENCES[] pFramePrefs,
+            LANGPREFERENCES[] pLangPrefs,
+            FONTCOLORPREFERENCES[] pColorPrefs)
+        {
+            // Do nothing
+        }
+
+        #endregion
+    }
 }
