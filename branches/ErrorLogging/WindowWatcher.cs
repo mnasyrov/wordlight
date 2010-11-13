@@ -49,6 +49,8 @@ namespace WordLight
                     IntPtr windowHandle = e.View.GetWindowHandle();
                     if (windowHandle != IntPtr.Zero && !_textViews.ContainsKey(windowHandle))
                     {
+						Log.Debug("Registering view: {0}", windowHandle.ToString());
+
                         var textView = new TextView(e.View);
 
                         textView.Window.GotFocus += new EventHandler(ViewGotFocusHandler);
@@ -62,7 +64,7 @@ namespace WordLight
             }
             catch (Exception ex)
             {
-                ActivityLog.Error("Failed to register a view", ex);
+                Log.Error("Failed to register a view", ex);
             }
         }
 
@@ -87,7 +89,7 @@ namespace WordLight
             }
             catch (Exception ex)
             {
-                ActivityLog.Error("Failed to unregister a view", ex);
+                Log.Error("Failed to unregister a view", ex);
             }
         }
 
@@ -125,7 +127,7 @@ namespace WordLight
             }
             catch (Exception ex)
             {
-                ActivityLog.Error("Failed to process a view focus", ex);
+                Log.Error("Failed to process a view focus", ex);
             }
         }
 
@@ -142,7 +144,7 @@ namespace WordLight
             }
             catch (Exception ex)
             {
-                ActivityLog.Error("Failed to process a lost view focus", ex);
+                Log.Error("Failed to process a lost view focus", ex);
             }
         }
 

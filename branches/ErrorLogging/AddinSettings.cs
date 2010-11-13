@@ -119,7 +119,7 @@ namespace WordLight
             
             lock (_repositorySync)
             {
-                if (_repository == null) ActivityLog.Warning("Settings repository is not set");
+                if (_repository == null) Log.Warning("Settings repository is not set");
 
                 if (_repository != null)
                 {
@@ -145,7 +145,7 @@ namespace WordLight
         {
             lock (_repositorySync)
             {
-                if (_repository == null) ActivityLog.Warning("Settings repository is not set");
+                if (_repository == null) Log.Warning("Settings repository is not set");
 
                 if (_repository != null)
                 {

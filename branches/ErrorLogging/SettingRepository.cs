@@ -42,7 +42,7 @@ namespace WordLight
             }
             catch (Exception ex)
             {
-                ActivityLog.Error(string.Format("Failed to load a setting by key '{0}'", key), ex);
+                Log.Error(string.Format("Failed to load a setting by key '{0}'", key), ex);
             }
             return null;
         }
@@ -57,7 +57,7 @@ namespace WordLight
             }
             catch (Exception ex)
             {
-                ActivityLog.Error(string.Format("Failed to store a setting by key '{0}' and value '{1}'", key, value), ex);
+                Log.Error(string.Format("Failed to store a setting by key '{0}' and value '{1}'", key, value), ex);
             }
         }
 

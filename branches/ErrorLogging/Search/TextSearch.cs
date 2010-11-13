@@ -154,7 +154,7 @@ namespace WordLight.Search
                 }
                 catch (Exception ex)
                 {
-                    ActivityLog.Error("Failed to search occurences", ex);
+                    Log.Error("Failed to search occurences", ex);
                 }
             }
 
@@ -198,7 +198,7 @@ namespace WordLight.Search
             }
             catch (Exception ex)
             {
-                ActivityLog.Error("Failed to start async searching", ex);
+                Log.Error("Failed to start async searching", ex);
             }
         }
 
@@ -256,7 +256,7 @@ namespace WordLight.Search
             }
             catch (Exception ex)
             {
-                ActivityLog.Error("Failed to process async search jobs", ex);
+                Log.Error("Failed to process async search jobs", ex);
             }
 
             lock (_isThreadWorkingSyncRoot)

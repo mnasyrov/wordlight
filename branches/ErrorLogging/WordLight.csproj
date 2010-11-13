@@ -47,7 +47,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AddinSettings.cs" />
-    <Compile Include="ActivityLog.cs" />
+    <Compile Include="Log.cs" />
+    <Compile Include="Extensions\OutputWindowPaneExtensions.cs" />
     <Compile Include="NativeMethods\WinProcMessages.cs" />
     <Compile Include="Search\TextOccurences.cs" />
     <Compile Include="Search\Treap.cs" />

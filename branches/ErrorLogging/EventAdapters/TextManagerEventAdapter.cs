@@ -64,7 +64,7 @@ namespace WordLight.EventAdapters
                 }
                 catch (Exception ex)
                 {
-                    ActivityLog.Error("Failed to register a view", ex);
+                    Log.Error("Failed to register a view", ex);
                 }
             }
         }
@@ -81,7 +81,7 @@ namespace WordLight.EventAdapters
             }
             catch (Exception ex)
             {
-                ActivityLog.Error("Failed to dispose a TextViewEventAdapter", ex);
+                Log.Error("Failed to dispose a TextViewEventAdapter", ex);
             }
 
             EventHandler<ViewRegistrationEventArgs> evt = ViewRegistered;

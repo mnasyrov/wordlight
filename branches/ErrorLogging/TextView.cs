@@ -254,7 +254,7 @@ namespace WordLight
             }
             catch (Exception ex)
             {
-                ActivityLog.Error("Error in scrollbar handler", ex);
+                Log.Error("Error in scrollbar handler", ex);
             }
 		}
 

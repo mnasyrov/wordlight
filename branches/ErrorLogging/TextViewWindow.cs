@@ -146,7 +146,7 @@ namespace WordLight
             }
             catch (Exception ex)
             {
-                ActivityLog.Error("Unhandled exception during processing window messages", ex);
+                Log.Error("Unhandled exception during processing window messages", ex);
             }
 #endif
 		}
@@ -227,7 +227,7 @@ namespace WordLight
                 }
                 catch (Exception ex)
                 {
-                    ActivityLog.Error("Failed to process scrollbar changes", ex);
+                    Log.Error("Failed to process scrollbar changes", ex);
                 }
 
 				Monitor.Exit(_paintSync);
@@ -246,7 +246,7 @@ namespace WordLight
             }
             catch (Exception ex)
             {
-                ActivityLog.Error("Failed to process text changes", ex);
+                Log.Error("Failed to process text changes", ex);
             }
 		}
 
@@ -293,7 +293,7 @@ namespace WordLight
             }
             catch (Exception ex)
             {
-                ActivityLog.Error("Failed to add marks", ex);
+                Log.Error("Failed to add marks", ex);
             }
 		}
 
@@ -306,7 +306,7 @@ namespace WordLight
             }
             catch (Exception ex)
             {
-                ActivityLog.Error("Failed to add marks", ex);
+                Log.Error("Failed to add marks", ex);
             }
 		}
 
@@ -319,7 +319,7 @@ namespace WordLight
             }
             catch (Exception ex)
             {
-                ActivityLog.Error("Failed to add marks", ex);
+                Log.Error("Failed to add marks", ex);
             }
 		}
 
@@ -332,7 +332,7 @@ namespace WordLight
             }
             catch (Exception ex)
             {
-                ActivityLog.Error("Failed to add marks", ex);
+                Log.Error("Failed to add marks", ex);
             }
 		}
 
