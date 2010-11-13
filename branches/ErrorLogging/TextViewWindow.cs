@@ -101,6 +101,10 @@ namespace WordLight
 
 		protected override void WndProc(ref Message m)
 		{
+#if DEBUG
+            try
+            {
+#endif
 			switch (m.Msg)
 			{
 				case WinProcMessages.WM_KEYUP:
@@ -137,6 +141,14 @@ namespace WordLight
 					base.WndProc(ref m);
 					break;
 			}
+
+#if DEBUG
+            }
+            catch (Exception ex)
+            {
+                ActivityLog.Error("Unhandled exception during processing window messages", ex);
+            }
+#endif
 		}
 
 		private void HandleUserInput()
@@ -204,12 +216,19 @@ namespace WordLight
 		{
 			if (AddinSettings.Instance.FilledMarks && Monitor.TryEnter(_paintSync))
 			{
-				_searchMarks.InvalidateVisibleMarks(_view);
-				_freezeMarks1.InvalidateVisibleMarks(_view);
-				_freezeMarks2.InvalidateVisibleMarks(_view);
-				_freezeMarks3.InvalidateVisibleMarks(_view);
+                try
+                {
+                    _searchMarks.InvalidateVisibleMarks(_view);
+                    _freezeMarks1.InvalidateVisibleMarks(_view);
+                    _freezeMarks2.InvalidateVisibleMarks(_view);
+                    _freezeMarks3.InvalidateVisibleMarks(_view);
 
-				_screenUpdater.RequestUpdate();
+                    _screenUpdater.RequestUpdate();
+                }
+                catch (Exception ex)
+                {
+                    ActivityLog.Error("Failed to process scrollbar changes", ex);
+                }
 
 				Monitor.Exit(_paintSync);
 			}
@@ -217,11 +236,18 @@ namespace WordLight
 
 		private void StreamTextChangedHandler(object sender, StreamTextChangedEventArgs e)
 		{
-			SearchInChangedText(_freezeSearch1, _freezeMarks1, e, _freezeText1);
-			SearchInChangedText(_freezeSearch2, _freezeMarks2, e, _freezeText2);
-			SearchInChangedText(_freezeSearch3, _freezeMarks3, e, _freezeText3);
+            try
+            {
+			    SearchInChangedText(_freezeSearch1, _freezeMarks1, e, _freezeText1);
+			    SearchInChangedText(_freezeSearch2, _freezeMarks2, e, _freezeText2);
+			    SearchInChangedText(_freezeSearch3, _freezeMarks3, e, _freezeText3);
 
-			_screenUpdater.RequestUpdate();
+			    _screenUpdater.RequestUpdate();
+            }
+            catch (Exception ex)
+            {
+                ActivityLog.Error("Failed to process text changes", ex);
+            }
 		}
 
 		private void SearchInChangedText(TextSearch searcher, MarkCollection marks, StreamTextChangedEventArgs e, string searchText)
@@ -260,29 +286,54 @@ namespace WordLight
 
 		private void searcher_SearchCompleted(object sender, SearchCompletedEventArgs e)
 		{
-			if (e.Occurences.Text == _selectedText)
-			{
-				_searchMarks.AddMarks(e.Occurences);
-				//_markUpdateRect.Invalidate();
-			}
+            try
+            {
+                if (e.Occurences.Text == _selectedText)
+                    _searchMarks.AddMarks(e.Occurences);
+            }
+            catch (Exception ex)
+            {
+                ActivityLog.Error("Failed to add marks", ex);
+            }
 		}
 
 		private void FreezeSearchCompleted1(object sender, SearchCompletedEventArgs e)
 		{
-			_freezeMarks1.AddMarks(e.Occurences);
-			//_markUpdateRect.Invalidate();
+            try
+            {
+			    _freezeMarks1.AddMarks(e.Occurences);
+			    //_markUpdateRect.Invalidate();
+            }
+            catch (Exception ex)
+            {
+                ActivityLog.Error("Failed to add marks", ex);
+            }
 		}
 
 		private void FreezeSearchCompleted2(object sender, SearchCompletedEventArgs e)
 		{
-			_freezeMarks2.AddMarks(e.Occurences);
-			//_markUpdateRect.Invalidate();
+            try
+            {
+                _freezeMarks2.AddMarks(e.Occurences);
+                //_markUpdateRect.Invalidate();
+            }
+            catch (Exception ex)
+            {
+                ActivityLog.Error("Failed to add marks", ex);
+            }
 		}
 
 		private void FreezeSearchCompleted3(object sender, SearchCompletedEventArgs e)
 		{
-			_freezeMarks3.AddMarks(e.Occurences);
-			//_markUpdateRect.Invalidate();
+            try
+            {
+			    _freezeMarks3.AddMarks(e.Occurences);
+			    //_markUpdateRect.Invalidate();
+            }
+            catch (Exception ex)
+            {
+                ActivityLog.Error("Failed to add marks", ex);
+            }
 		}
 
 		private void GotFocusHandler(object sender, ViewFocusEventArgs e)

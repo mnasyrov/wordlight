@@ -4,6 +4,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 
+using EnvDTE;
 using EnvDTE80;
 using Microsoft.VisualStudio.Shell.Interop;
 
@@ -15,12 +16,14 @@ namespace WordLight
         private static object _serviceProviderSyncRoot = new object();
         private static bool _isLogAvailable;
         private static string _packageName;
+        private static DTE2 _application;
 
         public static void Initialize(DTE2 application, string packageName)
         {
             if (application == null) throw new ArgumentNullException("application");
             if (string.IsNullOrEmpty(packageName)) throw new ArgumentException("packageName");
 
+            _application = application;
             _packageName = packageName;
 
             if (_serviceProvider == null)
@@ -57,6 +60,21 @@ namespace WordLight
             return log;
         }
 
+        private static OutputWindowPane CreatePane(string title)
+        {
+            OutputWindowPanes panes = _application.ToolWindows.OutputWindow.OutputWindowPanes;
+            try
+            {
+                // If the pane exists already, return it.
+                return panes.Item(title);
+            }
+            catch (ArgumentException)
+            {
+                // Create a new pane.
+                return panes.Add(title);
+            }
+        }
+
         private static void LogMessage(__ACTIVITYLOG_ENTRYTYPE entryType, string message)
         {
             var log = GetActivityLog();
@@ -64,18 +82,30 @@ namespace WordLight
             {
                 log.LogEntry((UInt32)entryType, _packageName, message);
             }
+
+            OutputMessage(entryType, message);            
+        }
+
+        private static void OutputMessage(__ACTIVITYLOG_ENTRYTYPE entryType, string message)
+        {
+            var outputPane = CreatePane("WordLight log");
+            outputPane.OutputString(message);
         }
 
         public static void Info(string message)
         {
+#if DEBUG
             if (_isLogAvailable)
                 LogMessage(__ACTIVITYLOG_ENTRYTYPE.ALE_INFORMATION, message);
+#endif
         }
 
         public static void Info(string format, params string[] args)
         {
+#if DEBUG
             if (_isLogAvailable)
                 LogMessage(__ACTIVITYLOG_ENTRYTYPE.ALE_INFORMATION, string.Format(format, args));
+#endif
         }
 
         public static void Warning(string message)
