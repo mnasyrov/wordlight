@@ -12,22 +12,33 @@ using WordLight.Extensions;
 
 namespace WordLight
 {
-	public enum LogLevels
-	{
-		Info,
-		Debug,
-		Warning,
-		Error
-	}
-
 	public static class Log
 	{
+		private enum LogLevels
+		{
+			Info,
+			Debug,
+			Warning,
+			Error
+		}
+
 		private static Microsoft.VisualStudio.OLE.Interop.IServiceProvider _serviceProvider;
 		private static object _serviceProviderSyncRoot = new object();
 		private static string _packageName;
 		private static DTE2 _application;
 
-		public static bool Enabled { get; set; }
+		private static bool _enabled;
+
+		public static bool Enabled
+		{
+			get { return _enabled; }
+			set 
+			{
+				_enabled = value;
+				if (value) 
+					Info("Started logging");
+			}
+		}
 
 		public static void Initialize(DTE2 application, string packageName)
 		{
@@ -46,81 +57,12 @@ namespace WordLight
 				}
 			}
 
-			Enabled = GetActivityLog() != null;
 #if DEBUG
 			Enabled = true;
 #endif
 		}
 
-		private static IVsActivityLog GetActivityLog()
-		{
-			IVsActivityLog log = null;
-
-			Guid SID = typeof(SVsActivityLog).GUID;
-			Guid IID = typeof(IVsActivityLog).GUID;
-			IntPtr output = IntPtr.Zero;
-
-			lock (_serviceProviderSyncRoot)
-			{
-				if (_serviceProvider != null)
-					_serviceProvider.QueryService(ref SID, ref IID, out output);
-			}
-
-			if (output != IntPtr.Zero)
-			{
-				log = (IVsActivityLog)Marshal.GetObjectForIUnknown(output);
-			}
-
-			return log;
-		}
-
-		private static OutputWindowPane GetLogPane()
-		{
-			string title = _packageName;
-
-			OutputWindowPanes panes = _application.ToolWindows.OutputWindow.OutputWindowPanes;
-			OutputWindowPane logPane;
-			try
-			{
-				logPane = panes.Item(title); // If the pane exists already, return it.
-			}
-			catch (ArgumentException)
-			{
-				// Create a new pane.				
-				logPane = panes.Add(title);
-				logPane.WriteLine("Activity log for " + _packageName);
-				logPane.WriteLine(System.Reflection.Assembly.GetExecutingAssembly().FullName);
-				logPane.WriteLine("----------------------------------------------------");
-			}
-
-			return logPane;
-		}
-
-		private static void LogMessage(LogLevels level, string message)
-		{
-			if (!Enabled)
-				return;
-
-			message = string.Format("{0}\t{1}:\t{2}", DateTime.Now, level.ToString(), message);
-
-			var outputPane = GetLogPane();
-			if (outputPane != null)
-			{
-				outputPane.WriteLine(message);
-			}
-
-			var log = GetActivityLog();
-			if (log != null)
-			{
-				var activityLogType = __ACTIVITYLOG_ENTRYTYPE.ALE_INFORMATION;
-				if (level == LogLevels.Warning)
-					activityLogType = __ACTIVITYLOG_ENTRYTYPE.ALE_WARNING;
-				else if (level == LogLevels.Error)
-					activityLogType = __ACTIVITYLOG_ENTRYTYPE.ALE_ERROR;
-
-				log.LogEntry((UInt32)activityLogType, _packageName, message);
-			}
-		}
+		#region "Message methods"
 
 		public static void Debug(string message)
 		{
@@ -171,6 +113,78 @@ namespace WordLight
 			LogMessage(LogLevels.Error,
 				string.Format("{0} -> Exception: {1}. Message: {2}. Stack trace: {3}", message,
 				ex.GetType().ToString(), ex.Message, ex.StackTrace));
+		}
+
+		#endregion
+
+		private static IVsActivityLog GetActivityLog()
+		{
+			IVsActivityLog log = null;
+
+			Guid SID = typeof(SVsActivityLog).GUID;
+			Guid IID = typeof(IVsActivityLog).GUID;
+			IntPtr output = IntPtr.Zero;
+
+			lock (_serviceProviderSyncRoot)
+			{
+				if (_serviceProvider != null)
+					_serviceProvider.QueryService(ref SID, ref IID, out output);
+			}
+
+			if (output != IntPtr.Zero)
+			{
+				log = (IVsActivityLog)Marshal.GetObjectForIUnknown(output);
+			}
+			
+			return log;
+		}
+
+		private static OutputWindowPane GetLogPane()
+		{
+			string title = _packageName;
+
+			OutputWindowPanes panes = _application.ToolWindows.OutputWindow.OutputWindowPanes;
+			OutputWindowPane logPane;
+			try
+			{
+				logPane = panes.Item(title); // If the pane exists already, return it.
+			}
+			catch (ArgumentException)
+			{
+				// Create a new pane.				
+				logPane = panes.Add(title);
+				logPane.WriteLine("Activity log for " + _packageName);
+				logPane.WriteLine(System.Reflection.Assembly.GetExecutingAssembly().FullName);
+				logPane.WriteLine("----------------------------------------------------");
+			}
+
+			return logPane;
+		}
+
+		private static void LogMessage(LogLevels level, string message)
+		{
+			if (!_enabled)
+				return;
+
+			message = string.Format("{0}\t{1}:\t{2}", DateTime.Now, level.ToString(), message);
+
+			var outputPane = GetLogPane();
+			if (outputPane != null)
+			{
+				outputPane.WriteLine(message);
+			}
+
+			var log = GetActivityLog();
+			if (log != null)
+			{
+				var activityLogType = __ACTIVITYLOG_ENTRYTYPE.ALE_INFORMATION;
+				if (level == LogLevels.Warning)
+					activityLogType = __ACTIVITYLOG_ENTRYTYPE.ALE_WARNING;
+				else if (level == LogLevels.Error)
+					activityLogType = __ACTIVITYLOG_ENTRYTYPE.ALE_ERROR;
+
+				log.LogEntry((UInt32)activityLogType, _packageName, message);
+			}
 		}
 	}
 }
