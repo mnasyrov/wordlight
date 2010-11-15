@@ -197,58 +197,65 @@ namespace WordLight
 
 		private void ScrollChangedHandler(object sender, ViewScrollChangedEventArgs e)
 		{
-			if (e.ScrollInfo.IsHorizontal)
-			{
-				_visibleLeftTextColumn = e.ScrollInfo.firstVisibleUnit;
-			}
+            try
+            {
+                if (e.ScrollInfo.IsHorizontal)
+                {
+                    _visibleLeftTextColumn = e.ScrollInfo.firstVisibleUnit;
+                }
 
-			if (e.ScrollInfo.IsVertical)
-			{
-				int topTextLineInView = 0;
-				int bottomTextLineInView = 0;
+                if (e.ScrollInfo.IsVertical)
+                {
+                    int topTextLineInView = 0;
+                    int bottomTextLineInView = 0;
 
-				IVsLayeredTextView viewLayer = _view as IVsLayeredTextView;
-				IVsTextLayer topLayer = null;
-				IVsTextLayer bufferLayer = _buffer as IVsTextLayer;
+                    IVsLayeredTextView viewLayer = _view as IVsLayeredTextView;
+                    IVsTextLayer topLayer = null;
+                    IVsTextLayer bufferLayer = _buffer as IVsTextLayer;
 
-				if (viewLayer != null)
-				{
-					viewLayer.GetTopmostLayer(out topLayer);
-				}
+                    if (viewLayer != null)
+                    {
+                        viewLayer.GetTopmostLayer(out topLayer);
+                    }
 
-				if (topLayer != null && bufferLayer != null)
-				{
-					int lastVisibleUnit = Math.Min(e.ScrollInfo.firstVisibleUnit + e.ScrollInfo.visibleUnits, e.ScrollInfo.maxUnit);
-					int temp;
-					topLayer.LocalLineIndexToDeeperLayer(bufferLayer, e.ScrollInfo.firstVisibleUnit, 0, out topTextLineInView, out temp);
-					topLayer.LocalLineIndexToDeeperLayer(bufferLayer, lastVisibleUnit, 0, out bottomTextLineInView, out temp);
-					bottomTextLineInView++;
-				}
-				else
-				{
-					TextSpan entireSpan = _buffer.CreateSpanForAllLines();
-					topTextLineInView = entireSpan.iStartLine;
-					bottomTextLineInView = entireSpan.iEndLine;
-				}
+                    if (topLayer != null && bufferLayer != null)
+                    {
+                        int lastVisibleUnit = Math.Min(e.ScrollInfo.firstVisibleUnit + e.ScrollInfo.visibleUnits, e.ScrollInfo.maxUnit);
+                        int temp;
+                        topLayer.LocalLineIndexToDeeperLayer(bufferLayer, e.ScrollInfo.firstVisibleUnit, 0, out topTextLineInView, out temp);
+                        topLayer.LocalLineIndexToDeeperLayer(bufferLayer, lastVisibleUnit, 0, out bottomTextLineInView, out temp);
+                        bottomTextLineInView++;
+                    }
+                    else
+                    {
+                        TextSpan entireSpan = _buffer.CreateSpanForAllLines();
+                        topTextLineInView = entireSpan.iStartLine;
+                        bottomTextLineInView = entireSpan.iEndLine;
+                    }
 
-				TextSpan viewRange = _buffer.CreateSpanForAllLines();
-				viewRange.iStartLine = topTextLineInView;
-				if (bottomTextLineInView < viewRange.iEndLine)
-				{
-					viewRange.iEndLine = bottomTextLineInView;
-					viewRange.iEndIndex = 0;
-				}
+                    TextSpan viewRange = _buffer.CreateSpanForAllLines();
+                    viewRange.iStartLine = topTextLineInView;
+                    if (bottomTextLineInView < viewRange.iEndLine)
+                    {
+                        viewRange.iEndLine = bottomTextLineInView;
+                        viewRange.iEndIndex = 0;
+                    }
 
-				_visibleSpan = viewRange;
+                    _visibleSpan = viewRange;
 
-				_visibleTextStart = _buffer.GetPositionOfLineIndex(_visibleSpan.iStartLine, _visibleSpan.iStartIndex);
-				_visibleTextEnd = _buffer.GetPositionOfLineIndex(_visibleSpan.iEndLine, _visibleSpan.iEndIndex);
-			}
+                    _visibleTextStart = _buffer.GetPositionOfLineIndex(_visibleSpan.iStartLine, _visibleSpan.iStartIndex);
+                    _visibleTextEnd = _buffer.GetPositionOfLineIndex(_visibleSpan.iEndLine, _visibleSpan.iEndIndex);
+                }
 
-			if (e.ScrollInfo.IsHorizontal || e.ScrollInfo.IsVertical)
-			{
-				ResetCaches();
-			}
+                if (e.ScrollInfo.IsHorizontal || e.ScrollInfo.IsVertical)
+                {
+                    ResetCaches();
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("Error in scrollbar handler", ex);
+            }
 		}
 
 		public string GetSelectedText()
