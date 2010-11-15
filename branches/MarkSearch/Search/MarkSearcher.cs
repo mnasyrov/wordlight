@@ -57,6 +57,8 @@ namespace WordLight.Search
 
 			if (!string.IsNullOrEmpty(selectedText))
 			{
+				_searchText = selectedText;
+
 				var instantMarks = searcher.SearchOccurrences(selectedText, _view.VisibleTextStart, _view.VisibleTextEnd);
 				_marks.ReplaceMarks(instantMarks);
 				searcher.SearchOccurrencesDelayed(selectedText, 0, int.MaxValue);

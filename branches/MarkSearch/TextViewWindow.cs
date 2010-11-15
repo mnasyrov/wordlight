@@ -76,6 +76,10 @@ namespace WordLight
 
 		protected override void WndProc(ref Message m)
 		{
+#if DEBUG
+            try
+            {
+#endif
 			switch (m.Msg)
 			{
 				case WinProcMessages.WM_KEYUP:
@@ -112,6 +116,14 @@ namespace WordLight
 					base.WndProc(ref m);
 					break;
 			}
+
+#if DEBUG
+		}
+            catch (Exception ex)
+            {
+                Log.Error("Unhandled exception during processing window messages", ex);
+            }
+#endif
 		}
 
 		private void HandleUserInput()
@@ -188,16 +200,26 @@ namespace WordLight
 		{
 			if (AddinSettings.Instance.FilledMarks && Monitor.TryEnter(_paintSync))
 			{
-				selectionSearcher.Marks.InvalidateVisibleMarks();
-
-				foreach (var freezer in freezers)
+				try
 				{
-					freezer.Marks.InvalidateVisibleMarks();
+					selectionSearcher.Marks.InvalidateVisibleMarks();
+
+					foreach (var freezer in freezers)
+					{
+						freezer.Marks.InvalidateVisibleMarks();
+					}
+
+					_screenUpdater.RequestUpdate();
+
 				}
-
-				_screenUpdater.RequestUpdate();
-
-				Monitor.Exit(_paintSync);
+				catch (Exception ex)
+				{
+					Log.Error("Failed to process scrollbar changes", ex);
+				}
+				finally
+				{
+					Monitor.Exit(_paintSync);
+				}
 			}
 		}
 
@@ -225,7 +247,8 @@ namespace WordLight
 			{
 				if (freezer.Id == group && freezer.SearchText != selectionSearcher.SearchText)
 				{
-					freezer.FreezeText(selectionSearcher.SearchText);
+					Log.Debug("Freezing text: '{0}'", selectionSearcher.SearchText);
+					freezer.FreezeText(selectionSearcher.SearchText);					
 				}
 				else if (freezer.Id != group && freezer.SearchText == selectionSearcher.SearchText)
 				{

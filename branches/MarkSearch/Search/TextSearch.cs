@@ -54,6 +54,13 @@ namespace WordLight.Search
             _searchWholeWordsOnly = AddinSettings.Instance.SearchWholeWordsOnly;
         }
 
+        private static bool IsWordCharacter(char c)
+        {
+            return 
+                char.IsLetterOrDigit(c) ||
+                char.GetUnicodeCategory(c) == System.Globalization.UnicodeCategory.ConnectorPunctuation;
+        }
+
         /// <remarks>
         /// Modification of Boyer–Moore string search
         /// Based on http://algolist.manual.ru/search/esearch/qsearch.php
@@ -94,18 +101,21 @@ namespace WordLight.Search
             {
                 if (text.Substring(i, valueLength).StartsWith(value, comparsion))
                 {
-                    if (!_searchWholeWordsOnly)
+                    bool occurrenceFound = true;
+
+                    if (_searchWholeWordsOnly)
                     {
+                        int previousCharIndex = i - 1;
+                        int nextCharIndex = i + valueLength;
+
+                        bool isPreviousCharPartOfWord = previousCharIndex >= 0 && IsWordCharacter(text[previousCharIndex]);
+                        bool isNextCharPartOfWord = nextCharIndex < textLength && IsWordCharacter(text[nextCharIndex]);
+
+                        occurrenceFound = !isPreviousCharPartOfWord && !isNextCharPartOfWord;
+                    }
+                    
+                    if (occurrenceFound)
                         positions.Add(i);
-                    }
-                    else
-                    {
-                        if (
-                                (i - 1 < 0 || !char.IsLetterOrDigit(text[i - 1]))
-                                && (i + valueLength >= textLength || !char.IsLetterOrDigit(text[i + valueLength]))
-                        )
-                            positions.Add(i);
-                    }
 
                     //Don't search inside a found substring (no crossed search marks).
                     i += valueLength; 
@@ -127,25 +137,28 @@ namespace WordLight.Search
 
         public TextOccurences SearchOccurrences(string value, int searchStart, int searchEnd)
         {
-            if (!string.IsNullOrEmpty(value))
+            var occurences = TextOccurences.Empty;
+
+            //Disabled searching of multi line text
+            bool isValueValid = !string.IsNullOrEmpty(value) && value.Length > 0 && !value.Contains('\n');
+
+            if (isValueValid && searchEnd >= searchStart)
             {
-                //Disabled searching of multi line text
-                if (!value.Contains('\n'))
+                try
                 {
                     string text = _view.Buffer.GetText();
                     if (!string.IsNullOrEmpty(text))
                     {
-                        int length = value.Length;
-
-                        if (searchEnd >= searchStart && length > 0)
-                        {
-                            return SearchOccurrencesInText(text, value, searchStart, searchEnd);
-                        }
+                        occurences = SearchOccurrencesInText(text, value, searchStart, searchEnd);
                     }
+                }
+                catch (Exception ex)
+                {
+                    Log.Error("Failed to search occurences", ex);
                 }
             }
 
-            return TextOccurences.Empty;
+            return occurences;
         }
 
         #region Delayed searching
@@ -179,7 +192,14 @@ namespace WordLight.Search
                 searchEnd = _delayedJob.SearchEnd;
             }
 
-            SearchOccurrencesAsync(value, searchStart, searchEnd);
+            try
+            {
+                SearchOccurrencesAsync(value, searchStart, searchEnd);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("Failed to start async searching", ex);
+            }
         }
 
         #endregion
@@ -210,27 +230,34 @@ namespace WordLight.Search
                 _isThreadWorking = true;
             }
 
-            SearchJob job;
-            do
+            try
             {
-                // Dequeue job
-                lock (_asyncJobsSyncRoot)
+                SearchJob job;
+                do
                 {
-                    job = (_asyncJobs.Count > 0 ? _asyncJobs.Dequeue() : null);
-                }
-
-                if (job != null)
-                {
-                    var occurences = SearchOccurrences(job.Value, job.SearchStart, job.SearchEnd);
-
-                    EventHandler<SearchCompletedEventArgs> evt = SearchCompleted;
-                    if (evt != null)
+                    // Dequeue job
+                    lock (_asyncJobsSyncRoot)
                     {
-                        evt(this, new SearchCompletedEventArgs(occurences));
+                        job = (_asyncJobs.Count > 0 ? _asyncJobs.Dequeue() : null);
+                    }
+
+                    if (job != null)
+                    {
+                        var occurences = SearchOccurrences(job.Value, job.SearchStart, job.SearchEnd);
+
+                        EventHandler<SearchCompletedEventArgs> evt = SearchCompleted;
+                        if (evt != null)
+                        {
+                            evt(this, new SearchCompletedEventArgs(occurences));
+                        }
                     }
                 }
+                while (job != null);
             }
-            while (job != null);
+            catch (Exception ex)
+            {
+                Log.Error("Failed to process async search jobs", ex);
+            }
 
             lock (_isThreadWorkingSyncRoot)
             {

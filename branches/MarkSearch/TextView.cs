@@ -207,6 +207,8 @@ namespace WordLight
 
 		private void ScrollChangedHandler(object sender, ViewScrollChangedEventArgs e)
 		{
+            try
+            {
 			if (e.ScrollInfo.IsHorizontal)
 			{
 				_visibleLeftTextColumn = e.ScrollInfo.firstVisibleUnit;
@@ -259,6 +261,11 @@ namespace WordLight
 			{
 				ResetCaches();
 			}
+		}
+            catch (Exception ex)
+            {
+                Log.Error("Error in scrollbar handler", ex);
+            }
 		}
 
 		public string GetSelectedText()

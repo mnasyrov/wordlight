@@ -68,26 +68,40 @@ namespace WordLight.Search
 		{
 			if (!string.IsNullOrEmpty(_searchText))
 			{
-				int searchStart = e.Position - _searchText.Length;
-				int searchEnd = e.Position + e.NewLength + _searchText.Length;
+				try
+				{
+					int searchStart = e.Position - _searchText.Length;
+					int searchEnd = e.Position + e.NewLength + _searchText.Length;
 
-				searchStart = Math.Max(0, searchStart);
+					searchStart = Math.Max(0, searchStart);
 
-				var occurences = searcher.SearchOccurrences(_searchText, searchStart, searchEnd);
+					var occurences = searcher.SearchOccurrences(_searchText, searchStart, searchEnd);
 
-				int replacementStart = e.Position;
-				int replacementEnd = e.Position + e.OldLength;
+					int replacementStart = e.Position;
+					int replacementEnd = e.Position + e.OldLength;
 
-				_marks.ReplaceMarks(occurences, replacementStart, replacementEnd, e.NewLength - e.OldLength);
-			}
+					_marks.ReplaceMarks(occurences, replacementStart, replacementEnd, e.NewLength - e.OldLength);
+				}
+				catch (Exception ex)
+				{
+					Log.Error("Failed to process text changes", ex);
+				}
+			}		
 		}
 
 		private void AsyncSearchCompleted(object sender, SearchCompletedEventArgs e)
 		{
-			if (e.Occurences.Text == _searchText)
+			try
 			{
-				_marks.AddMarks(e.Occurences);
+				if (e.Occurences.Text == _searchText)
+				{
+					_marks.AddMarks(e.Occurences);
+				}
 			}
-		}
+            catch (Exception ex)
+            {
+                Log.Error("Failed to add marks after searching", ex);
+            }
+		}	
 	}
 }
