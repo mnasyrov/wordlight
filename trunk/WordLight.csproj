@@ -34,6 +34,7 @@
   <ItemGroup>
     <Reference Include="Extensibility, Version=7.0.3300.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" />
     <Reference Include="Microsoft.VisualStudio.OLE.Interop, Version=7.1.40304.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" />
+    <Reference Include="Microsoft.VisualStudio.Shell.Interop.8.0, Version=8.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" />
     <Reference Include="Microsoft.VisualStudio.TextManager.Interop, Version=7.1.40304.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" />
     <Reference Include="System" />
     <Reference Include="System.Core">
@@ -46,6 +47,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AddinSettings.cs" />
+    <Compile Include="Log.cs" />
+    <Compile Include="Extensions\OutputWindowPaneExtensions.cs" />
     <Compile Include="NativeMethods\WinProcMessages.cs" />
     <Compile Include="Search\TextOccurences.cs" />
     <Compile Include="Search\Treap.cs" />

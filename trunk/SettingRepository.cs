@@ -18,7 +18,7 @@ namespace WordLight
         {
             if (globals == null) throw new ArgumentNullException("globals");
             if (string.IsNullOrEmpty(addinName)) throw new ArgumentNullException("addinName");
-            
+
             _globals = globals;
             _keyPrefix = addinName + '_';
         }
@@ -32,19 +32,33 @@ namespace WordLight
 
         public string GetSetting(string key)
         {
-            key = ExtendKey(key);
-            if (_globals.get_VariableExists(key))
+            try
             {
-                return (string)_globals[key];
+                key = ExtendKey(key);
+                if (_globals.get_VariableExists(key))
+                {
+                    return (string)_globals[key];
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error(string.Format("Failed to load a setting by key '{0}'", key), ex);
             }
             return null;
         }
 
         public void SetSetting(string key, string value)
         {
-            key = ExtendKey(key);
-            _globals[key] = value;
-            _globals.set_VariablePersists(key, true);
+            try
+            {
+                key = ExtendKey(key);
+                _globals[key] = value;
+                _globals.set_VariablePersists(key, true);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(string.Format("Failed to store a setting by key '{0}' and value '{1}'", key, value), ex);
+            }
         }
 
         public string GetSetting(string key, string defaultValue)
