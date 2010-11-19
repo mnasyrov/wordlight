@@ -24,7 +24,7 @@ namespace WordLight.Search
 
         private void IncludeTextToScreenUpdate(int position)
         {
-            _view.Window.ScreenUpdater.IncludeText(position, _markLength);
+            _view.ScreenUpdater.IncludeText(position, _markLength);
         }
 
         public void Clear()

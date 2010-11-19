@@ -20,57 +20,30 @@ namespace WordLight
 	public class TextViewWindow : NativeWindow, IDisposable
 	{
 		private TextView _view;
-
 		private string _previousSelectedText;
-
-		private MarkSearcher selectionSearcher;
-		private List<MarkFreezer> freezers;
-
-		public event EventHandler GotFocus;
-		public event EventHandler LostFocus;
-
-		private ScreenUpdateManager _screenUpdater;
-
+		
 		private object _paintSync = new object();
+
+        public event PaintEventHandler Paint;
+        public event EventHandler PaintEnd;
 
 		public TextView View
 		{
 			get { return _view; }
 		}
 
-		public ScreenUpdateManager ScreenUpdater
-		{
-			get { return _screenUpdater; }
-		}
-
 		public TextViewWindow(TextView view)
 		{
 			if (view == null) throw new ArgumentNullException("view");
 
-			_view = view;
-
-			_screenUpdater = new ScreenUpdateManager(_view.WindowHandle, _view);
-
-            _view.ViewEvents.ScrollChanged += new EventHandler<ViewScrollChangedEventArgs>(ScrollChangedHandler);
-            _view.ViewEvents.GotFocus += new EventHandler<ViewFocusEventArgs>(GotFocusHandler);
-            _view.ViewEvents.LostFocus += new EventHandler<ViewFocusEventArgs>(LostFocusHandler);
-
-			selectionSearcher = new MarkSearcher(-1, _view);
-
-			freezers = new List<MarkFreezer>();
-			freezers.Add(new MarkFreezer(1, _view));
-			freezers.Add(new MarkFreezer(2, _view));
-			freezers.Add(new MarkFreezer(3, _view));			
-			
+			_view = view;			
+            //_view.ViewEvents.ScrollChanged += new EventHandler<ViewScrollChangedEventArgs>(ScrollChangedHandler);
 			AssignHandle(_view.WindowHandle);
 		}
 
 		public void Dispose()
-		{
-			_view.ViewEvents.GotFocus -= GotFocusHandler;
-			_view.ViewEvents.LostFocus -= LostFocusHandler;
-			_view.ViewEvents.ScrollChanged -= ScrollChangedHandler;
-
+		{			
+			//_view.ViewEvents.ScrollChanged -= ScrollChangedHandler;
 			ReleaseHandle();
 		}
 
@@ -107,7 +80,7 @@ namespace WordLight
 
 					if (clipRect != Rectangle.Empty)
 					{
-						Paint(clipRect);
+						OnPaint(clipRect);
 					}
 
 					break;
@@ -133,11 +106,11 @@ namespace WordLight
 			if (text != _previousSelectedText)
 			{
 				_previousSelectedText = text;
-				SelectionChanged(text);
+				_view.SearchText(text);
 			}
 		}
 
-		private void Paint(Rectangle clipRect)
+		private void OnPaint(Rectangle clipRect)
 		{
 			Monitor.Enter(_paintSync);
 
@@ -145,118 +118,50 @@ namespace WordLight
 
 			using (Graphics g = Graphics.FromHwnd(Handle))
 			{
-				DrawSearchMarks(g, clipRect);
+                if (clipRect == Rectangle.Empty)
+                {
+                    clipRect = Rectangle.Truncate(g.VisibleClipBounds);
+                }
+
+                g.SetClip(clipRect);
+
+                var evt = Paint;
+                if (evt != null) evt(this, new PaintEventArgs(g, clipRect));
 			}
 
 			User32.ShowCaret(Handle);
 
-			_screenUpdater.CompleteUpdate();
+            var paintEndEvent = PaintEnd;
+            if (paintEndEvent != null) paintEndEvent(this, EventArgs.Empty);
 
 			Monitor.Exit(_paintSync);
-		}
+		}		
 
-		private void DrawSearchMarks(Graphics g, Rectangle clipRect)
-		{
-			if (clipRect == Rectangle.Empty)
-			{
-				clipRect = Rectangle.Truncate(g.VisibleClipBounds);
-			}
+        //private void ScrollChangedHandler(object sender, ViewScrollChangedEventArgs e)
+        //{
+        //    if (AddinSettings.Instance.FilledMarks && Monitor.TryEnter(_paintSync))
+        //    {
+        //        try
+        //        {
+        //            selectionSearcher.Marks.InvalidateVisibleMarks();
 
-			g.SetClip(clipRect);
+        //            foreach (var freezer in freezers)
+        //            {
+        //                freezer.Marks.InvalidateVisibleMarks();
+        //            }
 
-			DrawRectangles(selectionSearcher.Marks, AddinSettings.Instance.SearchMarkBorderColor, g);
+        //            _screenUpdater.RequestUpdate();
 
-			foreach (var freezer in freezers)
-			{
-				Color borderColor = Color.Lime;
-				switch (freezer.Id)
-				{
-					case 1: borderColor = AddinSettings.Instance.FreezeMark1BorderColor; break;
-					case 2: borderColor = AddinSettings.Instance.FreezeMark2BorderColor; break;
-					case 3: borderColor = AddinSettings.Instance.FreezeMark3BorderColor; break;
-				}
-				DrawRectangles(freezer.Marks, borderColor, g);
-			}
-		}
-
-		private void DrawRectangles(MarkCollection marks, Color penColor, Graphics g)
-		{
-			Rectangle[] rectangles = marks.GetRectanglesForVisibleMarks(_view);
-
-			if (rectangles != null && rectangles.Length > 0)
-			{
-				if (AddinSettings.Instance.FilledMarks)
-				{
-					using (var b = new SolidBrush(Color.FromArgb(32, penColor)))
-						g.FillRectangles(b, rectangles);
-				}
-
-				using (var pen = new Pen(penColor))
-					g.DrawRectangles(pen, rectangles);
-			}
-		}
-
-		private void ScrollChangedHandler(object sender, ViewScrollChangedEventArgs e)
-		{
-			if (AddinSettings.Instance.FilledMarks && Monitor.TryEnter(_paintSync))
-			{
-				try
-				{
-					selectionSearcher.Marks.InvalidateVisibleMarks();
-
-					foreach (var freezer in freezers)
-					{
-						freezer.Marks.InvalidateVisibleMarks();
-					}
-
-					_screenUpdater.RequestUpdate();
-
-				}
-				catch (Exception ex)
-				{
-					Log.Error("Failed to process scrollbar changes", ex);
-				}
-				finally
-				{
-					Monitor.Exit(_paintSync);
-				}
-			}
-		}
-
-		private void SelectionChanged(string text)
-		{
-			selectionSearcher.Search(text);			
-			_screenUpdater.RequestUpdate();
-		}
-
-		private void GotFocusHandler(object sender, ViewFocusEventArgs e)
-		{
-			EventHandler evt = GotFocus;
-			if (evt != null) evt(this, EventArgs.Empty);
-		}
-
-		private void LostFocusHandler(object sender, ViewFocusEventArgs e)
-		{
-			EventHandler evt = LostFocus;
-			if (evt != null) evt(this, EventArgs.Empty);
-		}
-
-		public void FreezeSearch(int group)
-		{
-			foreach (var freezer in freezers)
-			{
-				if (freezer.Id == group && freezer.SearchText != selectionSearcher.SearchText)
-				{
-					Log.Debug("Freezing text: '{0}'", selectionSearcher.SearchText);
-					freezer.FreezeText(selectionSearcher.SearchText);					
-				}
-				else if (freezer.Id != group && freezer.SearchText == selectionSearcher.SearchText)
-				{
-					freezer.Clear();
-				}
-			}
-
-			_screenUpdater.RequestUpdate();
-		}
+        //        }
+        //        catch (Exception ex)
+        //        {
+        //            Log.Error("Failed to process scrollbar changes", ex);
+        //        }
+        //        finally
+        //        {
+        //            Monitor.Exit(_paintSync);
+        //        }
+        //    }
+        //}
 	}
 }

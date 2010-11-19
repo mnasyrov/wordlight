@@ -14,7 +14,7 @@ namespace WordLight
 		private IDictionary<IntPtr, TextView> _textViews;
 		private TextManagerEventAdapter _textManagerEvents;
 
-		private TextViewWindow _currentWindow;
+		private TextView _activeTextView;
 		private object _watcherSyncRoot = new object();
 
 		public WindowWatcher(DTE2 application)
@@ -51,10 +51,10 @@ namespace WordLight
 					{
 						var textView = new TextView(e.View);
 
-						textView.Window.GotFocus += new EventHandler(ViewGotFocusHandler);
-						textView.Window.LostFocus += new EventHandler(ViewLostFocusHandler);
+						textView.GotFocus += new EventHandler(ViewGotFocusHandler);
+						textView.LostFocus += new EventHandler(ViewLostFocusHandler);
 
-						_currentWindow = textView.Window;
+						_activeTextView = textView;
 
 						_textViews.Add(windowHandle, textView);
 
@@ -80,8 +80,8 @@ namespace WordLight
 						TextView view = _textViews[windowHandle];
 						_textViews.Remove(windowHandle);
 
-						if (_currentWindow == view.Window)
-							_currentWindow = null;
+						if (_activeTextView == view)
+							_activeTextView = null;
 
 						DisposeView(view);
 
@@ -99,7 +99,7 @@ namespace WordLight
 		{
 			lock (_watcherSyncRoot)
 			{
-				_currentWindow = null;
+				_activeTextView = null;
 
 				foreach (TextView view in _textViews.Values)
 				{
@@ -112,8 +112,8 @@ namespace WordLight
 
 		private void DisposeView(TextView view)
 		{
-			view.Window.GotFocus -= ViewGotFocusHandler;
-			view.Window.LostFocus -= ViewLostFocusHandler;
+			view.GotFocus -= ViewGotFocusHandler;
+			view.LostFocus -= ViewLostFocusHandler;
 			view.Dispose();
 		}
 
@@ -121,13 +121,11 @@ namespace WordLight
 		{
 			try
 			{
-				var view = (TextViewWindow)sender;
+				var view = (TextView)sender;
 				lock (_watcherSyncRoot)
 				{
-					_currentWindow = view;
+					_activeTextView = view;
 				}
-
-				Log.Debug("View {0} got a focus", view.Handle.ToString());
 			}
 			catch (Exception ex)
 			{
@@ -139,14 +137,12 @@ namespace WordLight
 		{
 			try
 			{
-				var view = (TextViewWindow)sender;
+				var view = (TextView)sender;
 				lock (_watcherSyncRoot)
 				{
-					if (_currentWindow == view)
-						_currentWindow = null;
+					if (_activeTextView == view)
+						_activeTextView = null;
 				}
-
-				Log.Debug("View {0} lost a focus", view.Handle.ToString());
 			}
 			catch (Exception ex)
 			{
@@ -154,11 +150,11 @@ namespace WordLight
 			}
 		}
 
-		public TextViewWindow GetActiveTextWindow()
+		public TextView GetActiveTextView()
 		{
 			lock (_watcherSyncRoot)
 			{
-				return _currentWindow;
+				return _activeTextView;
 			}
 		}
 	}

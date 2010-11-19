@@ -16,261 +16,352 @@ using WordLight.Search;
 
 namespace WordLight
 {
-	public class TextView : IDisposable
-	{
-		private IVsTextView _view;
-		private IVsTextLines _buffer;
-		private TextViewEventAdapter _viewEvents;
-		private TextStreamEventAdapter _textStreamEvents;
+    public class TextView : IDisposable
+    {
+        private IVsTextView _view;
+        private IVsTextLines _buffer;
+        private TextViewEventAdapter _viewEvents;
+        private TextStreamEventAdapter _textStreamEvents;
 
-		TextViewWindow _window;
+        private TextViewWindow _window;
+        private ScreenUpdateManager _screenUpdater;
 
-		private int _lineHeight;
+        private int _lineHeight;
 
-		private Dictionary<long, Point> _pointCache = new Dictionary<long, Point>();
-		private object _pointCacheSync = new object();
+        private Dictionary<long, Point> _pointCache = new Dictionary<long, Point>();
+        private object _pointCacheSync = new object();
 
-		private TextSpan _visibleSpan = new TextSpan();
-		private int _visibleTextStart;
-		private int _visibleTextEnd;
-		private int _visibleLeftTextColumn = 0;
+        private TextSpan _visibleSpan = new TextSpan();
+        private int _visibleTextStart;
+        private int _visibleTextEnd;
+        private int _visibleLeftTextColumn = 0;
 
-		#region Properties
+        public event EventHandler GotFocus;
+        public event EventHandler LostFocus;
 
-		//public IVsTextView View
-		//{
-		//    get { return _view; }
-		//}
+        private MarkSearcher selectionSearcher;
+        private MarkFreezer freezer1;
+        private MarkFreezer freezer2;
+        private MarkFreezer freezer3;
+        private List<MarkFreezer> freezers;
 
-		public TextViewWindow Window
-		{
-			get { return _window; }
-		}
+        #region Properties
 
-		public IntPtr WindowHandle
-		{
-			get { return _view.GetWindowHandle(); }
-		}
+        public IntPtr WindowHandle
+        {
+            get { return _view.GetWindowHandle(); }
+        }
 
-		public IVsTextLines Buffer
-		{
-			get { return _buffer; }
-		}
+        public IVsTextLines Buffer
+        {
+            get { return _buffer; }
+        }
 
-		public TextViewEventAdapter ViewEvents
-		{
-			get { return _viewEvents; }
-		}
+        public TextViewEventAdapter ViewEvents
+        {
+            get { return _viewEvents; }
+        }
 
-		public TextStreamEventAdapter TextStreamEvents
-		{
-			get { return _textStreamEvents; }
-		}
+        public TextStreamEventAdapter TextStreamEvents
+        {
+            get { return _textStreamEvents; }
+        }
 
-		public int LineHeight
-		{
-			get { return _lineHeight; }
-		}
+        public int LineHeight
+        {
+            get { return _lineHeight; }
+        }
 
-		public TextSpan VisibleSpan
-		{
-			get { return _visibleSpan; }
-		}
+        public TextSpan VisibleSpan
+        {
+            get { return _visibleSpan; }
+        }
 
-		public int VisibleTextStart
-		{
-			get { return _visibleTextStart; }
-		}
+        public int VisibleTextStart
+        {
+            get { return _visibleTextStart; }
+        }
 
-		public int VisibleTextEnd
-		{
-			get { return _visibleTextEnd; }
-		}
+        public int VisibleTextEnd
+        {
+            get { return _visibleTextEnd; }
+        }
 
-		public int VisibleLeftTextColumn
-		{
-			get { return _visibleLeftTextColumn; }
-		}
+        public int VisibleLeftTextColumn
+        {
+            get { return _visibleLeftTextColumn; }
+        }
 
-		#endregion
+        public ScreenUpdateManager ScreenUpdater
+        {
+            get { return _screenUpdater; }
+        }
 
-		public TextView(IVsTextView view)
-		{
-			if (view == null) throw new ArgumentNullException("view");
+        #endregion
 
-			_view = view;
-			_buffer = view.GetBuffer();
-			
-			_lineHeight = _view.GetLineHeight();
+        public TextView(IVsTextView view)
+        {
+            if (view == null) throw new ArgumentNullException("view");
 
-			_viewEvents = new TextViewEventAdapter(view);
-			_textStreamEvents = new TextStreamEventAdapter(Buffer);
+            _view = view;
+            _buffer = view.GetBuffer();
 
-			_viewEvents.ScrollChanged += ScrollChangedHandler;
+            _lineHeight = _view.GetLineHeight();
 
-			_window = new TextViewWindow(this);
-		}
+            _viewEvents = new TextViewEventAdapter(view);
+            _textStreamEvents = new TextStreamEventAdapter(Buffer);
 
-		public void Dispose()
-		{
-			_viewEvents.ScrollChanged -= ScrollChangedHandler;
-			_viewEvents.Dispose();
+            _viewEvents.ScrollChanged += ScrollChangedHandler;
+            _viewEvents.GotFocus += new EventHandler<ViewFocusEventArgs>(GotFocusHandler);
+            _viewEvents.LostFocus += new EventHandler<ViewFocusEventArgs>(LostFocusHandler);
 
-			_textStreamEvents.Dispose();
+            _screenUpdater = new ScreenUpdateManager(this);
 
-			_window.Dispose();
-		}
+            _window = new TextViewWindow(this);
+            _window.Paint += new PaintEventHandler(_window_Paint);
+            _window.PaintEnd += new EventHandler(_window_PaintEnd);
 
-		public Point GetScreenPoint(int line, int column)
-		{
-			long pointKey = ((_visibleSpan.iStartLine & 0xFFFFL) << 32) | ((line & 0xFFFFL) << 16) | (column & 0xFFFFL);
-			var screenPoint = Point.Empty;
+            selectionSearcher = new MarkSearcher(-1, this);
+            freezer1 = new MarkFreezer(1, this);
+            freezer2 = new MarkFreezer(2, this);
+            freezer3 = new MarkFreezer(3, this);
 
-			lock (_pointCacheSync)
-			{
-				if (_pointCache.ContainsKey(pointKey))
-				{
-					screenPoint = _pointCache[pointKey];
-				}
-				else
-				{
-					var p = new Microsoft.VisualStudio.OLE.Interop.POINT[1];
-					_view.GetPointOfLineColumn(line, column, p);
+            freezers = new List<MarkFreezer>();
+            freezers.Add(freezer1);
+            freezers.Add(freezer2);
+            freezers.Add(freezer3);
+        }
 
-					screenPoint.X = p[0].x;
-					screenPoint.Y = p[0].y;
+        public void Dispose()
+        {
+            _viewEvents.ScrollChanged -= ScrollChangedHandler;
+            _viewEvents.GotFocus -= GotFocusHandler;
+            _viewEvents.LostFocus -= LostFocusHandler;
+            _viewEvents.Dispose();
 
-					_pointCache.Add(pointKey, screenPoint);
-				}
-			}
+            _textStreamEvents.Dispose();
 
-			return screenPoint;
-		}
+            _window.Paint -= _window_Paint;
+            _window.PaintEnd -= _window_PaintEnd;
+            _window.Dispose();
+        }
 
-		public Point GetScreenPointForTextPosition(int position)
-		{
-			int line;
-			int column;
-			_buffer.GetLineIndexOfPosition(position, out line, out column);
-			return GetScreenPoint(line, column);
-		}
+        public void SearchText(string text)
+        {
+            selectionSearcher.Search(text);
+            _screenUpdater.RequestUpdate();
+        }
 
-		public Rectangle GetRectangleForMark(int markStart, int markLength)
-		{
-			Point startPoint = GetScreenPointForTextPosition(markStart);
-			if (startPoint != Point.Empty)
-			{
-				Point endPoint = GetScreenPointForTextPosition(markStart + markLength);
-				if (endPoint != Point.Empty)
-				{
-					int x = startPoint.X;
-					int y = startPoint.Y;
-					int height = endPoint.Y - y + LineHeight;
-					int width = endPoint.X - startPoint.X;
+        public Point GetScreenPoint(int line, int column)
+        {
+            long pointKey = ((_visibleSpan.iStartLine & 0xFFFFL) << 32) | ((line & 0xFFFFL) << 16) | (column & 0xFFFFL);
+            var screenPoint = Point.Empty;
 
-					return new Rectangle(x, y, width, height);
-				}
-			}
-			return Rectangle.Empty;
-		}
+            lock (_pointCacheSync)
+            {
+                if (_pointCache.ContainsKey(pointKey))
+                {
+                    screenPoint = _pointCache[pointKey];
+                }
+                else
+                {
+                    var p = new Microsoft.VisualStudio.OLE.Interop.POINT[1];
+                    _view.GetPointOfLineColumn(line, column, p);
 
-		public Rectangle GetRectangle(TextSpan span)
-		{
-			Point startPoint = GetScreenPoint(span.iStartLine, span.iStartIndex);
-			if (startPoint == Point.Empty)
-				return Rectangle.Empty;
+                    screenPoint.X = p[0].x;
+                    screenPoint.Y = p[0].y;
 
-			Point endPoint = GetScreenPoint(span.iEndLine, span.iEndIndex);
-			if (endPoint == Point.Empty)
-				return Rectangle.Empty;
+                    _pointCache.Add(pointKey, screenPoint);
+                }
+            }
 
-			int x = startPoint.X;
-			int y = startPoint.Y;
-			int height = endPoint.Y - y + LineHeight;
-			int width = endPoint.X - x;
+            return screenPoint;
+        }
 
-			return new Rectangle(x, y, width, height);
-		}
+        public Point GetScreenPointForTextPosition(int position)
+        {
+            int line;
+            int column;
+            _buffer.GetLineIndexOfPosition(position, out line, out column);
+            return GetScreenPoint(line, column);
+        }
+
+        public Rectangle GetRectangleForMark(int markStart, int markLength)
+        {
+            Point startPoint = GetScreenPointForTextPosition(markStart);
+            if (startPoint != Point.Empty)
+            {
+                Point endPoint = GetScreenPointForTextPosition(markStart + markLength);
+                if (endPoint != Point.Empty)
+                {
+                    int x = startPoint.X;
+                    int y = startPoint.Y;
+                    int height = endPoint.Y - y + LineHeight;
+                    int width = endPoint.X - startPoint.X;
+
+                    return new Rectangle(x, y, width, height);
+                }
+            }
+            return Rectangle.Empty;
+        }
+
+        public Rectangle GetRectangle(TextSpan span)
+        {
+            Point startPoint = GetScreenPoint(span.iStartLine, span.iStartIndex);
+            if (startPoint == Point.Empty)
+                return Rectangle.Empty;
+
+            Point endPoint = GetScreenPoint(span.iEndLine, span.iEndIndex);
+            if (endPoint == Point.Empty)
+                return Rectangle.Empty;
+
+            int x = startPoint.X;
+            int y = startPoint.Y;
+            int height = endPoint.Y - y + LineHeight;
+            int width = endPoint.X - x;
+
+            return new Rectangle(x, y, width, height);
+        }
 
         public bool IsVisibleText(int position, int length)
         {
             return VisibleTextStart <= (position + length) && position <= VisibleTextEnd;
         }
 
-		private void ResetCaches()
-		{
-			lock (_pointCacheSync)
-			{
-				_pointCache.Clear();
-			}
-		}
+        private void ResetCaches()
+        {
+            lock (_pointCacheSync)
+            {
+                _pointCache.Clear();
+            }
+        }
 
-		private void ScrollChangedHandler(object sender, ViewScrollChangedEventArgs e)
-		{
+        private void ScrollChangedHandler(object sender, ViewScrollChangedEventArgs e)
+        {
             try
             {
-			if (e.ScrollInfo.IsHorizontal)
-			{
-				_visibleLeftTextColumn = e.ScrollInfo.firstVisibleUnit;
-			}
+                if (e.ScrollInfo.IsHorizontal)
+                {
+                    _visibleLeftTextColumn = e.ScrollInfo.firstVisibleUnit;
+                }
 
-			if (e.ScrollInfo.IsVertical)
-			{
-				int topTextLineInView = 0;
-				int bottomTextLineInView = 0;
+                if (e.ScrollInfo.IsVertical)
+                {
+                    int topTextLineInView = 0;
+                    int bottomTextLineInView = 0;
 
-				IVsLayeredTextView viewLayer = _view as IVsLayeredTextView;
-				IVsTextLayer topLayer = null;
-				IVsTextLayer bufferLayer = _buffer as IVsTextLayer;
+                    IVsLayeredTextView viewLayer = _view as IVsLayeredTextView;
+                    IVsTextLayer topLayer = null;
+                    IVsTextLayer bufferLayer = _buffer as IVsTextLayer;
 
-				if (viewLayer != null)
-				{
-					viewLayer.GetTopmostLayer(out topLayer);
-				}
+                    if (viewLayer != null)
+                    {
+                        viewLayer.GetTopmostLayer(out topLayer);
+                    }
 
-				if (topLayer != null && bufferLayer != null)
-				{
-					int lastVisibleUnit = Math.Min(e.ScrollInfo.firstVisibleUnit + e.ScrollInfo.visibleUnits, e.ScrollInfo.maxUnit);
-					int temp;
-					topLayer.LocalLineIndexToDeeperLayer(bufferLayer, e.ScrollInfo.firstVisibleUnit, 0, out topTextLineInView, out temp);
-					topLayer.LocalLineIndexToDeeperLayer(bufferLayer, lastVisibleUnit, 0, out bottomTextLineInView, out temp);
-					bottomTextLineInView++;
-				}
-				else
-				{
-					TextSpan entireSpan = _buffer.CreateSpanForAllLines();
-					topTextLineInView = entireSpan.iStartLine;
-					bottomTextLineInView = entireSpan.iEndLine;
-				}
+                    if (topLayer != null && bufferLayer != null)
+                    {
+                        int lastVisibleUnit = Math.Min(e.ScrollInfo.firstVisibleUnit + e.ScrollInfo.visibleUnits, e.ScrollInfo.maxUnit);
+                        int temp;
+                        topLayer.LocalLineIndexToDeeperLayer(bufferLayer, e.ScrollInfo.firstVisibleUnit, 0, out topTextLineInView, out temp);
+                        topLayer.LocalLineIndexToDeeperLayer(bufferLayer, lastVisibleUnit, 0, out bottomTextLineInView, out temp);
+                        bottomTextLineInView++;
+                    }
+                    else
+                    {
+                        TextSpan entireSpan = _buffer.CreateSpanForAllLines();
+                        topTextLineInView = entireSpan.iStartLine;
+                        bottomTextLineInView = entireSpan.iEndLine;
+                    }
 
-				TextSpan viewRange = _buffer.CreateSpanForAllLines();
-				viewRange.iStartLine = topTextLineInView;
-				if (bottomTextLineInView < viewRange.iEndLine)
-				{
-					viewRange.iEndLine = bottomTextLineInView;
-					viewRange.iEndIndex = 0;
-				}
+                    TextSpan viewRange = _buffer.CreateSpanForAllLines();
+                    viewRange.iStartLine = topTextLineInView;
+                    if (bottomTextLineInView < viewRange.iEndLine)
+                    {
+                        viewRange.iEndLine = bottomTextLineInView;
+                        viewRange.iEndIndex = 0;
+                    }
 
-				_visibleSpan = viewRange;
+                    _visibleSpan = viewRange;
 
-				_visibleTextStart = _buffer.GetPositionOfLineIndex(_visibleSpan.iStartLine, _visibleSpan.iStartIndex);
-				_visibleTextEnd = _buffer.GetPositionOfLineIndex(_visibleSpan.iEndLine, _visibleSpan.iEndIndex);
-			}
+                    _visibleTextStart = _buffer.GetPositionOfLineIndex(_visibleSpan.iStartLine, _visibleSpan.iStartIndex);
+                    _visibleTextEnd = _buffer.GetPositionOfLineIndex(_visibleSpan.iEndLine, _visibleSpan.iEndIndex);
+                }
 
-			if (e.ScrollInfo.IsHorizontal || e.ScrollInfo.IsVertical)
-			{
-				ResetCaches();
-			}
-		}
+                if (e.ScrollInfo.IsHorizontal || e.ScrollInfo.IsVertical)
+                {
+                    ResetCaches();
+                }
+            }
             catch (Exception ex)
             {
                 Log.Error("Error in scrollbar handler", ex);
             }
-		}
+        }
 
-		public string GetSelectedText()
-		{
-			return _view.GetSelectedText();
-		}
-	}
+        public string GetSelectedText()
+        {
+            return _view.GetSelectedText();
+        }
+
+        private void GotFocusHandler(object sender, ViewFocusEventArgs e)
+        {
+            EventHandler evt = GotFocus;
+            if (evt != null) evt(this, EventArgs.Empty);
+        }
+
+        private void LostFocusHandler(object sender, ViewFocusEventArgs e)
+        {
+            EventHandler evt = LostFocus;
+            if (evt != null) evt(this, EventArgs.Empty);
+        }
+
+        private void _window_Paint(object sender, PaintEventArgs e)
+        {
+            DrawRectangles(selectionSearcher.Marks, AddinSettings.Instance.SearchMarkBorderColor, e.Graphics);
+            DrawRectangles(freezer1.Marks, AddinSettings.Instance.FreezeMark1BorderColor, e.Graphics);
+            DrawRectangles(freezer2.Marks, AddinSettings.Instance.FreezeMark2BorderColor, e.Graphics);
+            DrawRectangles(freezer3.Marks, AddinSettings.Instance.FreezeMark3BorderColor, e.Graphics);
+        }
+
+        private void DrawRectangles(MarkCollection marks, Color penColor, Graphics g)
+        {
+            Rectangle[] rectangles = marks.GetRectanglesForVisibleMarks(this);
+
+            if (rectangles != null && rectangles.Length > 0)
+            {
+                if (AddinSettings.Instance.FilledMarks)
+                {
+                    using (var b = new SolidBrush(Color.FromArgb(32, penColor)))
+                        g.FillRectangles(b, rectangles);
+                }
+
+                using (var pen = new Pen(penColor))
+                    g.DrawRectangles(pen, rectangles);
+            }
+        }
+
+        private void _window_PaintEnd(object sender, EventArgs e)
+        {
+            _screenUpdater.CompleteUpdate();
+        }
+
+        public void FreezeSearch(int group)
+        {
+            foreach (var freezer in freezers)
+            {
+                if (freezer.Id == group && freezer.SearchText != selectionSearcher.SearchText)
+                {
+                    Log.Debug("Freezing text: '{0}'", selectionSearcher.SearchText);
+                    freezer.FreezeText(selectionSearcher.SearchText);
+                }
+                else if (freezer.Id != group && freezer.SearchText == selectionSearcher.SearchText)
+                {
+                    freezer.Clear();
+                }
+            }
+
+            _screenUpdater.RequestUpdate();
+        }
+    }
 }

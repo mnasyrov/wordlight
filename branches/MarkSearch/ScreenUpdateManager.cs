@@ -13,16 +13,15 @@ namespace WordLight
     {
         private const int MaxScreenWidth = 10000;
 
-        private IntPtr _hWnd;
         private TextView _view;
         private object _updateRectSync = new object();
 
         private int _start = int.MaxValue;
         private int _end = int.MinValue;
 
-        public ScreenUpdateManager(IntPtr hWnd, TextView view)
+        public ScreenUpdateManager(TextView view)
         {
-            _hWnd = hWnd;
+            if (view == null) throw new ArgumentNullException("view");
             _view = view;
         }
 
@@ -51,7 +50,7 @@ namespace WordLight
                 {
                     var rect = GetRect(_start, _end);
                     if (rect != Rectangle.Empty)
-                        User32.ValidateRect(_hWnd, rect);
+                        User32.ValidateRect(_view.WindowHandle, rect);
 
                     _start = int.MaxValue;
                     _end = int.MinValue;
@@ -67,7 +66,7 @@ namespace WordLight
                 {
                     var rect = GetRect(_start, _end);
                     if (rect != Rectangle.Empty)
-                        User32.InvalidateRect(_hWnd, rect, false);
+                        User32.InvalidateRect(_view.WindowHandle, rect, false);
                 }
             }
         }
