@@ -227,6 +227,29 @@ namespace WordLight
         {
             return VisibleTextStart <= (position + length) && position <= VisibleTextEnd;
         }
+        
+        public string GetSelectedText()
+        {
+            return _view.GetSelectedText();
+        }
+
+        public void FreezeSearch(int group)
+        {
+            foreach (var freezer in freezers)
+            {
+                if (freezer.Id == group && freezer.SearchText != selectionSearcher.SearchText)
+                {
+                    Log.Debug("Freezing text: '{0}'", selectionSearcher.SearchText);
+                    freezer.FreezeText(selectionSearcher.SearchText);
+                }
+                else if (freezer.Id != group && freezer.SearchText == selectionSearcher.SearchText)
+                {
+                    freezer.Clear();
+                }
+            }
+
+            _screenUpdater.RequestUpdate();
+        }
 
         private void ResetCaches()
         {
@@ -297,12 +320,7 @@ namespace WordLight
             {
                 Log.Error("Error in scrollbar handler", ex);
             }
-        }
-
-        public string GetSelectedText()
-        {
-            return _view.GetSelectedText();
-        }
+        }       
 
         private void GotFocusHandler(object sender, ViewFocusEventArgs e)
         {
@@ -318,10 +336,20 @@ namespace WordLight
 
         private void _window_Paint(object sender, PaintEventArgs e)
         {
-            DrawRectangles(selectionSearcher.Marks, AddinSettings.Instance.SearchMarkBorderColor, e.Graphics);
-            DrawRectangles(freezer1.Marks, AddinSettings.Instance.FreezeMark1BorderColor, e.Graphics);
-            DrawRectangles(freezer2.Marks, AddinSettings.Instance.FreezeMark2BorderColor, e.Graphics);
-            DrawRectangles(freezer3.Marks, AddinSettings.Instance.FreezeMark3BorderColor, e.Graphics);
+            if (!AddinSettings.Instance.FilledMarks)
+            {
+                DrawRectangles(selectionSearcher.Marks, AddinSettings.Instance.SearchMarkBorderColor, e.Graphics);
+                DrawRectangles(freezer1.Marks, AddinSettings.Instance.FreezeMark1BorderColor, e.Graphics);
+                DrawRectangles(freezer2.Marks, AddinSettings.Instance.FreezeMark2BorderColor, e.Graphics);
+                DrawRectangles(freezer3.Marks, AddinSettings.Instance.FreezeMark3BorderColor, e.Graphics);
+            }
+            else
+            {
+                DrawFilledRectangles(selectionSearcher.Marks, AddinSettings.Instance.SearchMarkBorderColor, e.Graphics);
+                DrawFilledRectangles(freezer1.Marks, AddinSettings.Instance.FreezeMark1BorderColor, e.Graphics);
+                DrawFilledRectangles(freezer2.Marks, AddinSettings.Instance.FreezeMark2BorderColor, e.Graphics);
+                DrawFilledRectangles(freezer3.Marks, AddinSettings.Instance.FreezeMark3BorderColor, e.Graphics);
+            }
         }
 
         private void DrawRectangles(MarkCollection marks, Color penColor, Graphics g)
@@ -330,38 +358,41 @@ namespace WordLight
 
             if (rectangles != null && rectangles.Length > 0)
             {
-                if (AddinSettings.Instance.FilledMarks)
-                {
-                    using (var b = new SolidBrush(Color.FromArgb(32, penColor)))
-                        g.FillRectangles(b, rectangles);
-                }
-
                 using (var pen = new Pen(penColor))
                     g.DrawRectangles(pen, rectangles);
+            }
+        }
+
+        private void DrawFilledRectangles(MarkCollection marks, Color penColor, Graphics g)
+        {
+            Rectangle[] rectangles = marks.GetRectanglesForVisibleMarks(this);
+
+            if (rectangles != null && rectangles.Length > 0)
+            {
+                using (var b = new SolidBrush(Color.FromArgb(32, penColor)))
+                using (var pen = new Pen(penColor))
+                {
+                    foreach (var rect in rectangles)
+                    {
+                        //TODO                        
+                        if (
+                            Gdi32.GetPixel(g, rect.Left, rect.Top) != penColor
+                            || Gdi32.GetPixel(g, rect.Right, rect.Top) != penColor
+                            || Gdi32.GetPixel(g, rect.Right, rect.Bottom) != penColor
+                            || Gdi32.GetPixel(g, rect.Left, rect.Bottom) != penColor
+                        ) 
+                        {
+                            g.FillRectangle(b, rect);
+                            g.DrawRectangle(pen, rect);
+                        }
+                    }
+                }
             }
         }
 
         private void _window_PaintEnd(object sender, EventArgs e)
         {
             _screenUpdater.CompleteUpdate();
-        }
-
-        public void FreezeSearch(int group)
-        {
-            foreach (var freezer in freezers)
-            {
-                if (freezer.Id == group && freezer.SearchText != selectionSearcher.SearchText)
-                {
-                    Log.Debug("Freezing text: '{0}'", selectionSearcher.SearchText);
-                    freezer.FreezeText(selectionSearcher.SearchText);
-                }
-                else if (freezer.Id != group && freezer.SearchText == selectionSearcher.SearchText)
-                {
-                    freezer.Clear();
-                }
-            }
-
-            _screenUpdater.RequestUpdate();
-        }
+        }        
     }
 }

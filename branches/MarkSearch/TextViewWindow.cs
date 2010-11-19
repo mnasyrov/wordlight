@@ -37,13 +37,11 @@ namespace WordLight
 			if (view == null) throw new ArgumentNullException("view");
 
 			_view = view;			
-            //_view.ViewEvents.ScrollChanged += new EventHandler<ViewScrollChangedEventArgs>(ScrollChangedHandler);
 			AssignHandle(_view.WindowHandle);
 		}
 
 		public void Dispose()
 		{			
-			//_view.ViewEvents.ScrollChanged -= ScrollChangedHandler;
 			ReleaseHandle();
 		}
 
@@ -136,32 +134,5 @@ namespace WordLight
 
 			Monitor.Exit(_paintSync);
 		}		
-
-        //private void ScrollChangedHandler(object sender, ViewScrollChangedEventArgs e)
-        //{
-        //    if (AddinSettings.Instance.FilledMarks && Monitor.TryEnter(_paintSync))
-        //    {
-        //        try
-        //        {
-        //            selectionSearcher.Marks.InvalidateVisibleMarks();
-
-        //            foreach (var freezer in freezers)
-        //            {
-        //                freezer.Marks.InvalidateVisibleMarks();
-        //            }
-
-        //            _screenUpdater.RequestUpdate();
-
-        //        }
-        //        catch (Exception ex)
-        //        {
-        //            Log.Error("Failed to process scrollbar changes", ex);
-        //        }
-        //        finally
-        //        {
-        //            Monitor.Exit(_paintSync);
-        //        }
-        //    }
-        //}
 	}
 }
