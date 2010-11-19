@@ -136,6 +136,24 @@ namespace WordLight.NativeMethods
 		[DllImport("gdi32.dll")]
 		public static extern int SetDCPenColor(IntPtr hdc, int crColor);
 
+        [DllImport("gdi32.dll")]
+        public static extern int GetPixel(IntPtr hDC, int x, int y);
+
+        public static Color GetPixel(Graphics g, int x, int y)
+        {
+            Color color = Color.Empty;
+            if (g != null)
+            {
+                IntPtr hDC = g.GetHdc();
+                int colorRef = GetPixel(hDC, x, y);
+                color = Color.FromArgb(
+                    (int)(colorRef & 0x000000FF),
+                    (int)(colorRef & 0x0000FF00) >> 8,
+                    (int)(colorRef & 0x00FF0000) >> 16);
+                g.ReleaseHdc();
+            }
+            return color;
+        }
 
 		//[StructLayout(LayoutKind.Sequential)]
 		//public struct COLORREF

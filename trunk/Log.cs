@@ -36,7 +36,7 @@ namespace WordLight
 			{
 				_enabled = value;
 				if (value) 
-					Info("Started logging");
+					Info("Enabled logging");
 			}
 		}
 
@@ -71,7 +71,7 @@ namespace WordLight
 #endif
 		}
 
-		public static void Debug(string format, params string[] args)
+		public static void Debug(string format, params object[] args)
 		{
 #if DEBUG
 			LogMessage(LogLevels.Debug, string.Format(format, args));
@@ -83,7 +83,7 @@ namespace WordLight
 			LogMessage(LogLevels.Info, message);
 		}
 
-		public static void Info(string format, params string[] args)
+		public static void Info(string format, params object[] args)
 		{
 			LogMessage(LogLevels.Info, string.Format(format, args));
 		}
@@ -93,7 +93,7 @@ namespace WordLight
 			LogMessage(LogLevels.Warning, message);
 		}
 
-		public static void Warning(string format, params string[] args)
+		public static void Warning(string format, params object[] args)
 		{
 			LogMessage(LogLevels.Warning, string.Format(format, args));
 		}
@@ -103,7 +103,7 @@ namespace WordLight
 			LogMessage(LogLevels.Error, message);
 		}
 
-		public static void Error(string format, params string[] args)
+		public static void Error(string format, params object[] args)
 		{
 			LogMessage(LogLevels.Error, string.Format(format, args));
 		}
