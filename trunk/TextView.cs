@@ -39,11 +39,11 @@ namespace WordLight
         public event EventHandler GotFocus;
         public event EventHandler LostFocus;
 
-        private MarkSearcher selectionSearcher;
-        private MarkFreezer freezer1;
-        private MarkFreezer freezer2;
-        private MarkFreezer freezer3;
-        private List<MarkFreezer> freezers;
+		private MarkSearcher selectionSearcher;
+        private MarkSearcher freezer1;
+        private MarkSearcher freezer2;
+        private MarkSearcher freezer3;
+        private List<MarkSearcher> freezers;
 
         #region Properties
 
@@ -121,12 +121,12 @@ namespace WordLight
             _window.Paint += new PaintEventHandler(_window_Paint);
             _window.PaintEnd += new EventHandler(_window_PaintEnd);
 
-            selectionSearcher = new MarkSearcher(-1, this);
-            freezer1 = new MarkFreezer(1, this);
-            freezer2 = new MarkFreezer(2, this);
-            freezer3 = new MarkFreezer(3, this);
+			selectionSearcher = new MarkSearcher(-1, this);
+            freezer1 = new MarkSearcher(1, this);
+            freezer2 = new MarkSearcher(2, this);
+            freezer3 = new MarkSearcher(3, this);
 
-            freezers = new List<MarkFreezer>();
+            freezers = new List<MarkSearcher>();
             freezers.Add(freezer1);
             freezers.Add(freezer2);
             freezers.Add(freezer3);
