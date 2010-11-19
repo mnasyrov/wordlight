@@ -32,10 +32,11 @@ namespace WordLight.Search
         private bool _isThreadWorking;
         private object _isThreadWorkingSyncRoot = new object();
 
-        public event EventHandler<SearchCompletedEventArgs> SearchCompleted;
+        private BoyerMooreStringSearch _searcher;
+        private object _searcherLock = new object();
 
-        private bool _caseSensitiveSearch;
-        private bool _searchWholeWordsOnly;
+        public event EventHandler<SearchCompletedEventArgs> SearchCompleted;
+        
 
         public TextSearch(TextView view)
         {
@@ -49,90 +50,22 @@ namespace WordLight.Search
             _searchTimer.Elapsed += new ElapsedEventHandler(SearchTimer_Elapsed);
 
             _asyncJobs = new Queue<SearchJob>();
-
-            _caseSensitiveSearch = AddinSettings.Instance.CaseSensitiveSearch;
-            _searchWholeWordsOnly = AddinSettings.Instance.SearchWholeWordsOnly;
-        }
-
-        private static bool IsWordCharacter(char c)
+        }        
+        
+        private BoyerMooreStringSearch GetSearcher(string sample)
         {
-            return 
-                char.IsLetterOrDigit(c) ||
-                char.GetUnicodeCategory(c) == System.Globalization.UnicodeCategory.ConnectorPunctuation;
+            lock (_searcherLock)
+            {
+                if (_searcher == null || _searcher.Sample != sample)
+                    _searcher = new BoyerMooreStringSearch(sample);
+                return _searcher;
+            }
         }
 
-        /// <remarks>
-        /// Modification of Boyer–Moore string search
-        /// Based on http://algolist.manual.ru/search/esearch/qsearch.php
-        /// </remarks>
         private TextOccurences SearchOccurrencesInText(string text, string value, int searchStart, int searchEnd)
         {
-			int textLength = text.Length;
-			int valueLength = value.Length;
-
-			//Make sure, that the search range is not out of the text
-			searchStart = Math.Max(0, searchStart);
-			searchEnd = Math.Min(searchEnd, textLength);
-
-            var positions = new TreapBuilder();
-
-            /* Preprocessing */            
-            var badChars = new Dictionary<int, int>(valueLength);
-
-            for (int i = 0; i < valueLength; i++)
-            {
-                char c = value[i];
-
-                if (_caseSensitiveSearch)
-                    badChars[c] = valueLength - i;
-                else
-                {
-                    badChars[char.ToLower(c)] = valueLength - i;
-                    badChars[char.ToUpper(c)] = valueLength - i;
-                }
-            }
-
-            /* Searching */
-            var comparsion = (_caseSensitiveSearch ? 
-                StringComparison.InvariantCulture : StringComparison.InvariantCultureIgnoreCase);
-
-            int searchLoopEnd = Math.Min(searchEnd, text.Length) - (valueLength - 1);
-			for (int i = searchStart; i < searchLoopEnd; )
-            {
-                if (text.Substring(i, valueLength).StartsWith(value, comparsion))
-                {
-                    bool occurrenceFound = true;
-
-                    if (_searchWholeWordsOnly)
-                    {
-                        int previousCharIndex = i - 1;
-                        int nextCharIndex = i + valueLength;
-
-                        bool isPreviousCharPartOfWord = previousCharIndex >= 0 && IsWordCharacter(text[previousCharIndex]);
-                        bool isNextCharPartOfWord = nextCharIndex < textLength && IsWordCharacter(text[nextCharIndex]);
-
-                        occurrenceFound = !isPreviousCharPartOfWord && !isNextCharPartOfWord;
-                    }
-                    
-                    if (occurrenceFound)
-                        positions.Add(i);
-
-                    //Don't search inside a found substring (no crossed search marks).
-                    i += valueLength; 
-                    continue;
-                }
-
-                if (i + valueLength >= searchEnd)
-                    break;
-
-                int key = text[i + valueLength];
-                if (badChars.ContainsKey(key))
-                    i += badChars[key];
-                else
-                    i += valueLength + 1;
-            }
-
-            return new TextOccurences(value, positions);
+            BoyerMooreStringSearch searcher = GetSearcher(value);
+            return searcher.SearchOccurrencesInText(text, searchStart, searchEnd);
         }
 
         public TextOccurences SearchOccurrences(string value, int searchStart, int searchEnd)

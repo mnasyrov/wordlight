@@ -49,6 +49,7 @@
     <Compile Include="AddinSettings.cs" />
     <Compile Include="Log.cs" />
     <Compile Include="Extensions\OutputWindowPaneExtensions.cs" />
+    <Compile Include="Search\BoyerMooreStringSearch.cs" />
     <Compile Include="Search\MarkSearcher.cs" />
     <Compile Include="Search\MarkFreezer.cs" />
     <Compile Include="NativeMethods\WinProcMessages.cs" />
