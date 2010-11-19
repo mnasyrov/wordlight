@@ -43,6 +43,9 @@ namespace WordLight.Search
 			searcher.SearchCompleted += new EventHandler<SearchCompletedEventArgs>(AsyncSearchCompleted);
 
 			_marks = new MarkCollection(view);
+
+			view.TextStreamEvents.StreamTextChanged += 
+				new EventHandler<StreamTextChangedEventArgs>(StreamTextChangedHandler);
 		}
 
 		public void Clear()
@@ -57,20 +60,58 @@ namespace WordLight.Search
 
 			if (!string.IsNullOrEmpty(selectedText))
 			{
-				_searchText = selectedText;
-
-				var instantMarks = searcher.SearchOccurrences(selectedText, _view.VisibleTextStart, _view.VisibleTextEnd);
-				_marks.ReplaceMarks(instantMarks);
-				searcher.SearchOccurrencesDelayed(selectedText, 0, int.MaxValue);
+				FreezeText(selectedText);
 			}
 		}
-		
+
+		public void FreezeText(string selectedText)
+		{
+			_searchText = selectedText;
+
+			var instantMarks = searcher.SearchOccurrences(_searchText, _view.VisibleTextStart, _view.VisibleTextEnd);
+			_marks.ReplaceMarks(instantMarks);
+
+			searcher.SearchOccurrencesDelayed(_searchText, 0, int.MaxValue);
+		}
+
+		private void StreamTextChangedHandler(object sender, StreamTextChangedEventArgs e)
+		{
+			if (!string.IsNullOrEmpty(_searchText))
+			{
+				try
+				{
+					int searchStart = e.Position - _searchText.Length;
+					int searchEnd = e.Position + e.NewLength + _searchText.Length;
+
+					searchStart = Math.Max(0, searchStart);
+
+					var occurences = searcher.SearchOccurrences(_searchText, searchStart, searchEnd);
+
+					int replacementStart = e.Position;
+					int replacementEnd = e.Position + e.OldLength;
+
+					_marks.ReplaceMarks(occurences, replacementStart, replacementEnd, e.NewLength - e.OldLength);
+				}
+				catch (Exception ex)
+				{
+					Log.Error("Failed to process text changes", ex);
+				}
+			}		
+		}
+
 		private void AsyncSearchCompleted(object sender, SearchCompletedEventArgs e)
 		{
-			if (e.Occurences.Text == _searchText)
+			try
 			{
-				_marks.AddMarks(e.Occurences);
+				if (e.Occurences.Text == _searchText)
+				{
+					_marks.AddMarks(e.Occurences);
+				}
 			}
-		}
+            catch (Exception ex)
+            {
+                Log.Error("Failed to add marks after searching", ex);
+            }
+		}	
 	}
 }
