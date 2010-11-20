@@ -11,7 +11,7 @@ namespace WordLight.Search
 	{
 		private int _id;
 		private string _searchText;
-		private TextSearch searcher;
+		private TextSearch _searcher;
 		private MarkCollection _marks;
 
 		private TextView _view;
@@ -39,8 +39,8 @@ namespace WordLight.Search
 
 			_id = id;
 
-			searcher = new TextSearch(_view);
-			searcher.SearchCompleted += new EventHandler<SearchCompletedEventArgs>(AsyncSearchCompleted);
+			_searcher = new TextSearch(_view);
+			_searcher.SearchCompleted += new EventHandler<SearchCompletedEventArgs>(AsyncSearchCompleted);
 
 			_marks = new MarkCollection(view);
 
@@ -52,6 +52,7 @@ namespace WordLight.Search
 		{
 			_searchText = string.Empty;
 			_marks.Clear();
+			_searcher.ResetSearch();
 		}
 
 		public void Search(string selectedText)
@@ -68,10 +69,10 @@ namespace WordLight.Search
 		{
 			_searchText = selectedText;
 
-			var instantMarks = searcher.SearchOccurrences(_searchText, _view.VisibleTextStart, _view.VisibleTextEnd);
+			var instantMarks = _searcher.SearchOccurrences(_searchText, _view.VisibleTextStart, _view.VisibleTextEnd);
 			_marks.ReplaceMarks(instantMarks);
 
-			searcher.SearchOccurrencesDelayed(_searchText, 0, int.MaxValue);
+			_searcher.SearchOccurrencesDelayed(_searchText, 0, int.MaxValue);
 		}
 
 		private void StreamTextChangedHandler(object sender, StreamTextChangedEventArgs e)
@@ -85,7 +86,7 @@ namespace WordLight.Search
 
 					searchStart = Math.Max(0, searchStart);
 
-					var occurences = searcher.SearchOccurrences(_searchText, searchStart, searchEnd);
+					var occurences = _searcher.SearchOccurrences(_searchText, searchStart, searchEnd);
 
 					int replacementStart = e.Position;
 					int replacementEnd = e.Position + e.OldLength;

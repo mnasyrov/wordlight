@@ -63,11 +63,11 @@ namespace WordLight
 		#region Search
 
 		[Category("Search")]
-		[DisplayName("Match case"), Description("Needs reopening of documents")]
+		[DisplayName("Match case")]
 		public bool CaseSensitiveSearch { get; set; }
 
         [Category("Search")]
-        [DisplayName("Match whole words"), Description("Needs reopening of documents")]
+        [DisplayName("Match whole words")]
         public bool SearchWholeWordsOnly { get; set; }
 
 		#endregion
