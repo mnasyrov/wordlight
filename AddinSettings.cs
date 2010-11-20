@@ -7,6 +7,8 @@ using System.Text;
 using EnvDTE;
 using EnvDTE80;
 
+using WordLight.Settings;
+
 namespace WordLight
 {
     public class AddinSettings

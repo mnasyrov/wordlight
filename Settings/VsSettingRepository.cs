@@ -7,14 +7,14 @@ using System.Text;
 using EnvDTE;
 using EnvDTE80;
 
-namespace WordLight
+namespace WordLight.Settings
 {
-    public class SettingRepository
+    public class VsSettingRepository: SettingRepository
     {
         private Globals _globals;
         private string _keyPrefix;
 
-        public SettingRepository(Globals globals, string addinName)
+        public VsSettingRepository(Globals globals, string addinName)
         {
             if (globals == null) throw new ArgumentNullException("globals");
             if (string.IsNullOrEmpty(addinName)) throw new ArgumentNullException("addinName");
@@ -30,7 +30,7 @@ namespace WordLight
             return _keyPrefix + key;
         }
 
-        public string GetSetting(string key)
+        public override string GetSetting(string key)
         {
             try
             {
@@ -47,7 +47,7 @@ namespace WordLight
             return null;
         }
 
-        public void SetSetting(string key, string value)
+        public override void SetSetting(string key, string value)
         {
             try
             {
@@ -59,50 +59,6 @@ namespace WordLight
             {
                 Log.Error(string.Format("Failed to store a setting by key '{0}' and value '{1}'", key, value), ex);
             }
-        }
-
-        public string GetSetting(string key, string defaultValue)
-        {
-            string value = GetSetting(key);
-            if (string.IsNullOrEmpty(value))
-            {
-                return defaultValue;
-            }
-            return value;
-        }
-
-        public Color GetColorSetting(string key, Color defaultColor)
-        {
-            string value = GetSetting(key);
-
-            int argb;
-            if (int.TryParse(value, out argb))
-            {
-                return Color.FromArgb(argb);
-            }
-            return defaultColor;
-        }
-
-        public bool GetBoolSetting(string key, bool defaultValue)
-        {
-            string value = GetSetting(key);
-
-            bool parsedValue;
-            if (bool.TryParse(value, out parsedValue))
-            {
-                return parsedValue;
-            }
-            return defaultValue;
-        }
-
-        public void SetColorSetting(string key, Color value)
-        {
-            SetSetting(key, value.ToArgb().ToString(CultureInfo.InvariantCulture));
-        }
-
-        public void SetBoolSetting(string key, bool value)
-        {
-            SetSetting(key, value.ToString(CultureInfo.InvariantCulture));
         }
     }
 }
