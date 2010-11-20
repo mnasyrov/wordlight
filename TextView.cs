@@ -239,7 +239,6 @@ namespace WordLight
             {
                 if (freezer.Id == group && freezer.SearchText != selectionSearcher.SearchText)
                 {
-                    Log.Debug("Freezing text: '{0}'", selectionSearcher.SearchText);
                     freezer.FreezeText(selectionSearcher.SearchText);
                 }
                 else if (freezer.Id != group && freezer.SearchText == selectionSearcher.SearchText)

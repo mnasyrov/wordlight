@@ -50,7 +50,15 @@ namespace WordLight.Search
             _searchTimer.Elapsed += new ElapsedEventHandler(SearchTimer_Elapsed);
 
             _asyncJobs = new Queue<SearchJob>();
-        }        
+        }
+
+		public void ResetSearch()
+		{
+			lock (_searcherLock)
+			{
+				_searcher = null;
+			}
+		}
         
         private BoyerMooreStringSearch GetSearcher(string sample)
         {
