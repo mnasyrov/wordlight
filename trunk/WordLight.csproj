@@ -55,6 +55,8 @@
     <Compile Include="Search\TextOccurences.cs" />
     <Compile Include="Search\Treap.cs" />
     <Compile Include="Search\TreapBuilder.cs" />
+    <Compile Include="Settings\RegistrySettingRepository.cs" />
+    <Compile Include="Settings\VsSettingRepository.cs" />
     <Compile Include="TextView.cs" />
     <Compile Include="NativeMethods\Gdi32.cs" />
     <Compile Include="NativeMethods\RECT.cs" />
@@ -70,17 +72,17 @@
     <Compile Include="Search\MarkCollection.cs" />
     <Compile Include="Search\TextSearch.cs" />
     <Compile Include="Search\SearchCompletedEventArgs.cs" />
-    <Compile Include="SettingRepository.cs" />
+    <Compile Include="Settings\SettingRepository.cs" />
     <Compile Include="AssemblyInfo.cs">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Connect.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="SettingsForm.cs">
+    <Compile Include="Settings\SettingsForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="SettingsForm.Designer.cs">
+    <Compile Include="Settings\SettingsForm.Designer.cs">
       <DependentUpon>SettingsForm.cs</DependentUpon>
     </Compile>
     <Compile Include="EventAdapters\TextManagerEventAdapter.cs" />
@@ -94,7 +96,7 @@
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="CommandBar.resx" />
-    <EmbeddedResource Include="SettingsForm.resx">
+    <EmbeddedResource Include="Settings\SettingsForm.resx">
       <DependentUpon>SettingsForm.cs</DependentUpon>
     </EmbeddedResource>
   </ItemGroup>

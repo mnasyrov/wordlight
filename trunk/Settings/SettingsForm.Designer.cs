@@ -1,4 +1,4 @@
-﻿namespace WordLight
+﻿namespace WordLight.Settings
 {
     partial class SettingsForm
     {
