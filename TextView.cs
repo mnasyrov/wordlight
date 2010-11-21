@@ -165,8 +165,8 @@ namespace WordLight
                 }
                 else
                 {
-                    var p = new Microsoft.VisualStudio.OLE.Interop.POINT[1];
-                    _view.GetPointOfLineColumn(line, column, p);
+					var p = new Microsoft.VisualStudio.OLE.Interop.POINT[1];
+					_view.GetPointOfLineColumn(line, column, p);
 
                     screenPoint.X = p[0].x;
                     screenPoint.Y = p[0].y;
@@ -335,58 +335,53 @@ namespace WordLight
 
         private void _window_Paint(object sender, PaintEventArgs e)
         {
-            if (!AddinSettings.Instance.FilledMarks)
-            {
-                DrawRectangles(selectionSearcher.Marks, AddinSettings.Instance.SearchMarkBorderColor, e.Graphics);
-                DrawRectangles(freezer1.Marks, AddinSettings.Instance.FreezeMark1BorderColor, e.Graphics);
-                DrawRectangles(freezer2.Marks, AddinSettings.Instance.FreezeMark2BorderColor, e.Graphics);
-                DrawRectangles(freezer3.Marks, AddinSettings.Instance.FreezeMark3BorderColor, e.Graphics);
-            }
-            else
-            {
-                DrawFilledRectangles(selectionSearcher.Marks, AddinSettings.Instance.SearchMarkBorderColor, e.Graphics);
-                DrawFilledRectangles(freezer1.Marks, AddinSettings.Instance.FreezeMark1BorderColor, e.Graphics);
-                DrawFilledRectangles(freezer2.Marks, AddinSettings.Instance.FreezeMark2BorderColor, e.Graphics);
-                DrawFilledRectangles(freezer3.Marks, AddinSettings.Instance.FreezeMark3BorderColor, e.Graphics);
-            }
+			DrawMarks(e.Graphics, selectionSearcher.Marks, AddinSettings.Instance.SearchMarkBorderColor);
+			DrawMarks(e.Graphics, freezer1.Marks, AddinSettings.Instance.FreezeMark1BorderColor);
+			DrawMarks(e.Graphics, freezer2.Marks, AddinSettings.Instance.FreezeMark2BorderColor);
+			DrawMarks(e.Graphics, freezer3.Marks, AddinSettings.Instance.FreezeMark3BorderColor);
         }
 
-        private void DrawRectangles(MarkCollection marks, Color penColor, Graphics g)
-        {
+		private void DrawMarks(Graphics g, MarkCollection marks, Color markColor)
+		{
             Rectangle[] rectangles = marks.GetRectanglesForVisibleMarks(this);
 
-            if (rectangles != null && rectangles.Length > 0)
-            {
-                using (var pen = new Pen(penColor))
-                    g.DrawRectangles(pen, rectangles);
-            }
-        }
+			if (rectangles == null || rectangles.Length == 0)
+				return;
 
-        private void DrawFilledRectangles(MarkCollection marks, Color penColor, Graphics g)
-        {
-            Rectangle[] rectangles = marks.GetRectanglesForVisibleMarks(this);
-
-            if (rectangles != null && rectangles.Length > 0)
+			if (AddinSettings.Instance.FilledMarks)
             {
-                using (var b = new SolidBrush(Color.FromArgb(32, penColor)))
-                using (var pen = new Pen(penColor))
-                {
-                    foreach (var rect in rectangles)
-                    {
-                        //TODO                        
-                        if (
-                            Gdi32.GetPixel(g, rect.Left, rect.Top) != penColor
-                            || Gdi32.GetPixel(g, rect.Right, rect.Top) != penColor
-                            || Gdi32.GetPixel(g, rect.Right, rect.Bottom) != penColor
-                            || Gdi32.GetPixel(g, rect.Left, rect.Bottom) != penColor
-                        ) 
-                        {
-                            g.FillRectangle(b, rect);
-                            g.DrawRectangle(pen, rect);
-                        }
-                    }
-                }
+				List<Rectangle> rectsToFilling = new List<Rectangle>();
+
+				uint nativeBorderColor = (uint)markColor.R | (uint)markColor.G << 8 | (uint)markColor.B << 16;
+
+				IntPtr hdc = g.GetHdc();
+
+				for (int i = 0; i < rectangles.Length; i++)
+				{
+					var rect = rectangles[i];
+
+					bool isBorderDrawn =
+						Gdi32.GetPixel(hdc, rect.Left, rect.Top) == nativeBorderColor
+						&& Gdi32.GetPixel(hdc, rect.Right, rect.Bottom) == nativeBorderColor
+						&& Gdi32.GetPixel(hdc, rect.Right, rect.Top) == nativeBorderColor
+						&& Gdi32.GetPixel(hdc, rect.Left, rect.Bottom) == nativeBorderColor;
+
+					if (!isBorderDrawn)
+						rectsToFilling.Add(rect);
+				}
+
+				g.ReleaseHdc();
+
+				if (rectsToFilling.Count > 0)
+				{
+					using (var bodyBrush = new SolidBrush(Color.FromArgb(32, markColor)))
+						g.FillRectangles(bodyBrush, rectsToFilling.ToArray());
+				}
             }
+
+			//Draw borders
+			using (var borderPen = new Pen(markColor))
+				g.DrawRectangles(borderPen, rectangles);
         }
 
         private void _window_PaintEnd(object sender, EventArgs e)
