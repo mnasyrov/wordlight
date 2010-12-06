@@ -38,6 +38,8 @@ namespace WordLight
 
 			_view = view;			
 			AssignHandle(_view.WindowHandle);
+
+            Log.Debug("TextViewWindow is created");
 		}
 
 		public void Dispose()

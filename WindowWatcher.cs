@@ -11,7 +11,7 @@ namespace WordLight
 {
 	public class WindowWatcher : IDisposable
 	{
-		private IDictionary<IntPtr, TextView> _textViews;
+		private IDictionary<IVsTextView, TextView> _textViews;
 		private TextManagerEventAdapter _textManagerEvents;
 
 		private TextView _activeTextView;
@@ -19,7 +19,7 @@ namespace WordLight
 
 		public WindowWatcher(DTE2 application)
 		{
-			_textViews = new Dictionary<IntPtr, TextView>();
+            _textViews = new Dictionary<IVsTextView, TextView>();
 
 			IVsTextManager textManager = GetTextManager(application);
 
@@ -46,8 +46,7 @@ namespace WordLight
 			{
 				lock (_watcherSyncRoot)
 				{
-					IntPtr windowHandle = e.View.GetWindowHandle();
-					if (windowHandle != IntPtr.Zero && !_textViews.ContainsKey(windowHandle))
+                    if (!_textViews.ContainsKey(e.View))
 					{
 						var textView = new TextView(e.View);
 
@@ -56,9 +55,9 @@ namespace WordLight
 
 						_activeTextView = textView;
 
-						_textViews.Add(windowHandle, textView);
+                        _textViews.Add(e.View, textView);
 
-						Log.Debug("Registered view: {0}", windowHandle.ToString());
+                        Log.Debug("Registered view: {0}", e.View.GetHashCode());
 					}
 				}
 			}
@@ -74,18 +73,17 @@ namespace WordLight
 			{
 				lock (_watcherSyncRoot)
 				{
-					IntPtr windowHandle = e.View.GetWindowHandle();
-					if (_textViews.ContainsKey(windowHandle))
+					if (_textViews.ContainsKey(e.View))
 					{
-						TextView view = _textViews[windowHandle];
-						_textViews.Remove(windowHandle);
+                        TextView view = _textViews[e.View];
+                        _textViews.Remove(e.View);
 
 						if (_activeTextView == view)
 							_activeTextView = null;
 
 						DisposeView(view);
 
-						Log.Debug("Unregistered view: {0}", windowHandle.ToString());
+                        Log.Debug("Unregistered view: {0}", e.View.GetHashCode().ToString());
 					}
 				}
 			}
