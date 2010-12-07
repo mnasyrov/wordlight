@@ -13,21 +13,20 @@ namespace WordLight.EventAdapters
 	public class TextViewEventAdapter : IVsTextViewEvents, IDisposable
 	{
 		private uint _connectionCookie = 0;
-		private IConnectionPoint _connectionPoint;
+        private IVsTextView _view;        
 
 		public TextViewEventAdapter(IVsTextView view)
 		{
 			if (view == null) throw new ArgumentNullException("view");
 
+            _view = view;
+
             try
             {
-                var cpContainer = view as IConnectionPointContainer;
-                Guid riid = typeof(IVsTextViewEvents).GUID;
-
-                cpContainer.FindConnectionPoint(ref riid, out _connectionPoint);
+                var connectionPoint = FindConnectionPoint();
                 
                 IEnumConnections ppEnum;
-                _connectionPoint.EnumConnections(out ppEnum);
+                connectionPoint.EnumConnections(out ppEnum);
 
                 bool found = false;
 
@@ -36,7 +35,7 @@ namespace WordLight.EventAdapters
                 ppEnum.Next(1, conData, out fetched);
                 for (; fetched > 0 ; ppEnum.Next(1, conData, out fetched))
                 {
-                    if (conData[1].punk == this)
+                    if (conData[0].punk == this)
                     {
                         found = true;
                         break;
@@ -45,7 +44,7 @@ namespace WordLight.EventAdapters
 
                 if (!found)
                 {
-                    _connectionPoint.Advise(this, out _connectionCookie);
+                    connectionPoint.Advise(this, out _connectionCookie);
                 }
 
                 Log.Debug("_connectionCookie: {0}", _connectionCookie);
@@ -60,7 +59,9 @@ namespace WordLight.EventAdapters
 		{
 			if (_connectionCookie > 0)
 			{
-				_connectionPoint.Unadvise(_connectionCookie);
+                var connectionPoint = FindConnectionPoint();
+
+				connectionPoint.Unadvise(_connectionCookie);
                 Log.Debug("Unadvised connectionCookie: {0}", _connectionCookie);
 
 				_connectionCookie = 0;
@@ -78,7 +79,7 @@ namespace WordLight.EventAdapters
 		{
             Log.Debug("OnSetFocus");
             EventHandler<ViewFocusEventArgs> evt = GotFocus;
-            if (evt != null)
+            if (evt != null && view != null)
                 evt(this, new ViewFocusEventArgs(view));
 		}
 
@@ -119,5 +120,17 @@ namespace WordLight.EventAdapters
 		}
 
 		#endregion
+
+        private IConnectionPoint FindConnectionPoint()
+        {
+            var cpContainer = _view as IConnectionPointContainer;
+
+            Guid riid = typeof(IVsTextViewEvents).GUID;
+            IConnectionPoint connectionPoint;
+
+            cpContainer.FindConnectionPoint(ref riid, out connectionPoint);
+
+            return connectionPoint;
+        }
 	}
 }

@@ -111,11 +111,11 @@ namespace WordLight
                 _lineHeight = _view.GetLineHeight();
 
                 _viewEvents = new TextViewEventAdapter(view);
-                _textStreamEvents = new TextStreamEventAdapter(Buffer);
+                //_textStreamEvents = new TextStreamEventAdapter(Buffer);
 
-                _viewEvents.ScrollChanged += ScrollChangedHandler;
+                //_viewEvents.ScrollChanged += ScrollChangedHandler;
                 _viewEvents.GotFocus += new EventHandler<ViewFocusEventArgs>(GotFocusHandler);
-                _viewEvents.LostFocus += new EventHandler<ViewFocusEventArgs>(LostFocusHandler);
+                //_viewEvents.LostFocus += new EventHandler<ViewFocusEventArgs>(LostFocusHandler);
 
                 _screenUpdater = new ScreenUpdateManager(this);
 
@@ -123,15 +123,15 @@ namespace WordLight
                 //_window.Paint += new PaintEventHandler(_window_Paint);
                 //_window.PaintEnd += new EventHandler(_window_PaintEnd);
 
-                selectionSearcher = new MarkSearcher(-1, this);
-                freezer1 = new MarkSearcher(1, this);
-                freezer2 = new MarkSearcher(2, this);
-                freezer3 = new MarkSearcher(3, this);
+                //selectionSearcher = new MarkSearcher(-1, this);
+                //freezer1 = new MarkSearcher(1, this);
+                //freezer2 = new MarkSearcher(2, this);
+                //freezer3 = new MarkSearcher(3, this);
 
-                freezers = new List<MarkSearcher>();
-                freezers.Add(freezer1);
-                freezers.Add(freezer2);
-                freezers.Add(freezer3);
+                //freezers = new List<MarkSearcher>();
+                //freezers.Add(freezer1);
+                //freezers.Add(freezer2);
+                //freezers.Add(freezer3);
             }
             catch (Exception ex)
             {
@@ -141,12 +141,12 @@ namespace WordLight
 
         public void Dispose()
         {
-            _viewEvents.ScrollChanged -= ScrollChangedHandler;
+            //_viewEvents.ScrollChanged -= ScrollChangedHandler;
             _viewEvents.GotFocus -= GotFocusHandler;
-            _viewEvents.LostFocus -= LostFocusHandler;
+            //_viewEvents.LostFocus -= LostFocusHandler;
             _viewEvents.Dispose();
 
-            _textStreamEvents.Dispose();
+            //_textStreamEvents.Dispose();
 
             if (_window != null)
             {
@@ -340,13 +340,13 @@ namespace WordLight
             
             if (_window == null && WindowHandle != IntPtr.Zero)
             {
-                _window = new TextViewWindow(this);
-                _window.Paint += new PaintEventHandler(_window_Paint);
-                _window.PaintEnd += new EventHandler(_window_PaintEnd);
+                //_window = new TextViewWindow(this);
+                //_window.Paint += new PaintEventHandler(_window_Paint);
+                //_window.PaintEnd += new EventHandler(_window_PaintEnd);
             }
 
-            EventHandler evt = GotFocus;
-            if (evt != null) evt(this, EventArgs.Empty);
+            //EventHandler evt = GotFocus;
+            //if (evt != null) evt(this, EventArgs.Empty);
         }
 
         private void LostFocusHandler(object sender, ViewFocusEventArgs e)
