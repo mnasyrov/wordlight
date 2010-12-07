@@ -89,6 +89,7 @@ namespace WordLight
 					base.WndProc(ref m);
 					break;
 			}
+            base.WndProc(ref m);
 
 #if DEBUG
 		}
