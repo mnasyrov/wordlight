@@ -82,34 +82,34 @@ namespace WordLight.EventAdapters
 		public void OnSetFocus(IVsTextView view)
 		{
             //Log.Debug("OnSetFocus");
-            //EventHandler<ViewFocusEventArgs> evt = GotFocus;
-            //if (evt != null && view != null)
-            //    evt(this, new ViewFocusEventArgs(view));
+			EventHandler<ViewFocusEventArgs> evt = GotFocus;
+			if (evt != null && view != null)
+				evt(this, new ViewFocusEventArgs(view));
             //Log.Debug("OnSetFocus END");
 		}
 
 		public void OnKillFocus(IVsTextView view)
 		{
-            //EventHandler<ViewFocusEventArgs> evt = LostFocus;
-            //if (evt != null && view != null)
-            //    evt(this, new ViewFocusEventArgs(view));
+			EventHandler<ViewFocusEventArgs> evt = LostFocus;
+			if (evt != null && view != null)
+				evt(this, new ViewFocusEventArgs(view));
 		}
 
 		public void OnChangeScrollInfo(IVsTextView view, int iBar, int iMinUnit, int iMaxUnits, int iVisibleUnits, int iFirstVisibleUnit)
 		{
-            //EventHandler<ViewScrollChangedEventArgs> evt = ScrollChanged;
-            //if (evt != null)
-            //{
-            //    ViewScrollInfo scrollInfo = new ViewScrollInfo()
-            //    {
-            //        bar = iBar,
-            //        minUnit = iMinUnit,
-            //        maxUnit = iMaxUnits,
-            //        visibleUnits = iVisibleUnits,
-            //        firstVisibleUnit = iFirstVisibleUnit
-            //    };
-            //    evt(this, new ViewScrollChangedEventArgs(view, scrollInfo));
-            //}
+			EventHandler<ViewScrollChangedEventArgs> evt = ScrollChanged;
+			if (evt != null)
+			{
+				ViewScrollInfo scrollInfo = new ViewScrollInfo()
+				{
+					bar = iBar,
+					minUnit = iMinUnit,
+					maxUnit = iMaxUnits,
+					visibleUnits = iVisibleUnits,
+					firstVisibleUnit = iFirstVisibleUnit
+				};
+				evt(this, new ViewScrollChangedEventArgs(view, scrollInfo));
+			}
 		}
 
 		#region Unused events

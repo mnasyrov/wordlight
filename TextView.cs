@@ -24,6 +24,8 @@ namespace WordLight
         private TextStreamEventAdapter _textStreamEvents;
 
         private TextViewWindow _window;
+		private object _windowLock = new object();
+
         private ScreenUpdateManager _screenUpdater;
 
         //private int _lineHeight;
@@ -36,8 +38,8 @@ namespace WordLight
         private int _visibleTextEnd;
         private int _visibleLeftTextColumn = 0;
 
-        //public event EventHandler GotFocus;
-        //public event EventHandler LostFocus;
+		//public event EventHandler GotFocus;
+		//public event EventHandler LostFocus;
 
         private MarkSearcher selectionSearcher;
         private MarkSearcher freezer1;
@@ -113,27 +115,28 @@ namespace WordLight
                 //_lineHeight = _view.GetLineHeight();
 
                 _viewEvents = new TextViewEventAdapter(view);
-                //_textStreamEvents = new TextStreamEventAdapter(Buffer);
+                _textStreamEvents = new TextStreamEventAdapter(Buffer);
 
-                //_viewEvents.ScrollChanged += ScrollChangedHandler;
-                //_viewEvents.GotFocus += new EventHandler<ViewFocusEventArgs>(GotFocusHandler);
+                _viewEvents.ScrollChanged += ScrollChangedHandler;
+                _viewEvents.GotFocus += new EventHandler<ViewFocusEventArgs>(GotFocusHandler);
                 //_viewEvents.LostFocus += new EventHandler<ViewFocusEventArgs>(LostFocusHandler);
 
-                //_screenUpdater = new ScreenUpdateManager(this);
+                _screenUpdater = new ScreenUpdateManager(this);
 
+				CreateWindow();
                 //_window = new TextViewWindow(this);
                 //_window.Paint += new PaintEventHandler(_window_Paint);
                 //_window.PaintEnd += new EventHandler(_window_PaintEnd);
 
-                //selectionSearcher = new MarkSearcher(-1, this);
-                //freezer1 = new MarkSearcher(1, this);
-                //freezer2 = new MarkSearcher(2, this);
-                //freezer3 = new MarkSearcher(3, this);
+                selectionSearcher = new MarkSearcher(-1, this);
+                freezer1 = new MarkSearcher(1, this);
+                freezer2 = new MarkSearcher(2, this);
+                freezer3 = new MarkSearcher(3, this);
 
-                //freezers = new List<MarkSearcher>();
-                //freezers.Add(freezer1);
-                //freezers.Add(freezer2);
-                //freezers.Add(freezer3);
+                freezers = new List<MarkSearcher>();
+                freezers.Add(freezer1);
+                freezers.Add(freezer2);
+                freezers.Add(freezer3);
             }
             catch (Exception ex)
             {
@@ -143,12 +146,12 @@ namespace WordLight
 
         public void Dispose()
         {
-            //_viewEvents.ScrollChanged -= ScrollChangedHandler;
-            //_viewEvents.GotFocus -= GotFocusHandler;
+            _viewEvents.ScrollChanged -= ScrollChangedHandler;
+            _viewEvents.GotFocus -= GotFocusHandler;
             //_viewEvents.LostFocus -= LostFocusHandler;
             _viewEvents.Dispose();
 
-            //_textStreamEvents.Dispose();
+            _textStreamEvents.Dispose();
 
             if (_window != null)
             {
@@ -158,10 +161,26 @@ namespace WordLight
             }
         }
 
+		private void CreateWindow()
+		{
+			if (_window == null && WindowHandle != IntPtr.Zero)
+			{
+				lock (_windowLock)
+				{
+					if (_window == null && WindowHandle != IntPtr.Zero)
+					{
+						_window = new TextViewWindow(this);
+						_window.Paint += new PaintEventHandler(_window_Paint);
+						_window.PaintEnd += new EventHandler(_window_PaintEnd);
+					}
+				}
+			}
+		}
+
         public void SearchText(string text)
         {
-            //selectionSearcher.Search(text);
-            //_screenUpdater.RequestUpdate();
+            selectionSearcher.Search(text);
+            _screenUpdater.RequestUpdate();
         }
 
         public Point GetScreenPoint(int line, int column)
@@ -247,19 +266,19 @@ namespace WordLight
 
         public void FreezeSearch(int group)
         {
-            //foreach (var freezer in freezers)
-            //{
-            //    if (freezer.Id == group && freezer.SearchText != selectionSearcher.SearchText)
-            //    {
-            //        freezer.FreezeText(selectionSearcher.SearchText);
-            //    }
-            //    else if (freezer.Id != group && freezer.SearchText == selectionSearcher.SearchText)
-            //    {
-            //        freezer.Clear();
-            //    }
-            //}
+			foreach (var freezer in freezers)
+			{
+				if (freezer.Id == group && freezer.SearchText != selectionSearcher.SearchText)
+				{
+					freezer.FreezeText(selectionSearcher.SearchText);
+				}
+				else if (freezer.Id != group && freezer.SearchText == selectionSearcher.SearchText)
+				{
+					freezer.Clear();
+				}
+			}
 
-            //_screenUpdater.RequestUpdate();
+			_screenUpdater.RequestUpdate();
         }
 
         private void ResetCaches()
@@ -339,13 +358,14 @@ namespace WordLight
             //{
             //    _window.AssignHandle(WindowHandle);
             //}
-            
-            if (_window == null && WindowHandle != IntPtr.Zero)
-            {
-                //_window = new TextViewWindow(this);
-                //_window.Paint += new PaintEventHandler(_window_Paint);
-                //_window.PaintEnd += new EventHandler(_window_PaintEnd);
-            }
+
+			CreateWindow();
+			//if (_window == null && WindowHandle != IntPtr.Zero)
+			//{
+			//    _window = new TextViewWindow(this);
+			//    _window.Paint += new PaintEventHandler(_window_Paint);
+			//    _window.PaintEnd += new EventHandler(_window_PaintEnd);
+			//}
 
             //EventHandler evt = GotFocus;
             //if (evt != null) evt(this, EventArgs.Empty);
@@ -359,10 +379,10 @@ namespace WordLight
 
         private void _window_Paint(object sender, PaintEventArgs e)
         {
-            //DrawMarks(e.Graphics, selectionSearcher.Marks, AddinSettings.Instance.SearchMarkBorderColor);
-            //DrawMarks(e.Graphics, freezer1.Marks, AddinSettings.Instance.FreezeMark1BorderColor);
-            //DrawMarks(e.Graphics, freezer2.Marks, AddinSettings.Instance.FreezeMark2BorderColor);
-            //DrawMarks(e.Graphics, freezer3.Marks, AddinSettings.Instance.FreezeMark3BorderColor);
+			DrawMarks(e.Graphics, selectionSearcher.Marks, AddinSettings.Instance.SearchMarkBorderColor);
+			DrawMarks(e.Graphics, freezer1.Marks, AddinSettings.Instance.FreezeMark1BorderColor);
+			DrawMarks(e.Graphics, freezer2.Marks, AddinSettings.Instance.FreezeMark2BorderColor);
+			DrawMarks(e.Graphics, freezer3.Marks, AddinSettings.Instance.FreezeMark3BorderColor);
         }
 
         private void DrawMarks(Graphics g, MarkCollection marks, Color markColor)
@@ -415,7 +435,7 @@ namespace WordLight
 
         private void _window_PaintEnd(object sender, EventArgs e)
         {
-            //_screenUpdater.CompleteUpdate();
+            _screenUpdater.CompleteUpdate();
         }
     }
 }
