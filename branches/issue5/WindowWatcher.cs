@@ -14,16 +14,23 @@ namespace WordLight
 		private IDictionary<IVsTextView, TextView> _textViews;
 		private TextManagerEventAdapter _textManagerEvents;
 
-		private TextView _activeTextView;
+		//private TextView _activeTextView;
 		private object _watcherSyncRoot = new object();
+
+        private DTE2 _application;
+        private IVsTextManager _textManager;
 
 		public WindowWatcher(DTE2 application)
 		{
+            if (application == null) throw new ArgumentNullException("application");
+
+            _application = application;
+
             _textViews = new Dictionary<IVsTextView, TextView>();
 
-			IVsTextManager textManager = GetTextManager(application);
+			_textManager = GetTextManager(application);
 
-			_textManagerEvents = new TextManagerEventAdapter(textManager);
+            _textManagerEvents = new TextManagerEventAdapter(_textManager);
 			_textManagerEvents.ViewRegistered += new EventHandler<ViewRegistrationEventArgs>(ViewRegisteredHandler);
 			_textManagerEvents.ViewUnregistered += new EventHandler<ViewRegistrationEventArgs>(ViewUnregisteredHandler);
 		}
@@ -46,14 +53,14 @@ namespace WordLight
 			{
 				lock (_watcherSyncRoot)
 				{
-                    if (!_textViews.ContainsKey(e.View))
+                    if (e.View != null && !_textViews.ContainsKey(e.View))
 					{
 						var textView = new TextView(e.View);
 
-						textView.GotFocus += new EventHandler(ViewGotFocusHandler);
-						textView.LostFocus += new EventHandler(ViewLostFocusHandler);
+                        //textView.GotFocus += new EventHandler(ViewGotFocusHandler);
+                        //textView.LostFocus += new EventHandler(ViewLostFocusHandler);
 
-						_activeTextView = textView;
+						//_activeTextView = textView;
 
                         _textViews.Add(e.View, textView);
 
@@ -78,8 +85,8 @@ namespace WordLight
                         TextView view = _textViews[e.View];
                         _textViews.Remove(e.View);
 
-						if (_activeTextView == view)
-							_activeTextView = null;
+                        //if (_activeTextView == view)
+                        //    _activeTextView = null;
 
 						DisposeView(view);
 
@@ -97,7 +104,7 @@ namespace WordLight
 		{
 			lock (_watcherSyncRoot)
 			{
-				_activeTextView = null;
+				//_activeTextView = null;
 
 				foreach (TextView view in _textViews.Values)
 				{
@@ -110,49 +117,58 @@ namespace WordLight
 
 		private void DisposeView(TextView view)
 		{
-			view.GotFocus -= ViewGotFocusHandler;
-			view.LostFocus -= ViewLostFocusHandler;
+            //view.GotFocus -= ViewGotFocusHandler;
+            //view.LostFocus -= ViewLostFocusHandler;
 			view.Dispose();
 		}
 
-		private void ViewGotFocusHandler(object sender, EventArgs e)
-		{
-			try
-			{
-				var view = (TextView)sender;
-				lock (_watcherSyncRoot)
-				{
-					_activeTextView = view;
-				}
-			}
-			catch (Exception ex)
-			{
-				Log.Error("Failed to process a view focus", ex);
-			}
-		}
+        //private void ViewGotFocusHandler(object sender, EventArgs e)
+        //{
+        //    try
+        //    {
+        //        var view = (TextView)sender;
+        //        lock (_watcherSyncRoot)
+        //        {
+        //            _activeTextView = view;
+        //        }
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        Log.Error("Failed to process a view focus", ex);
+        //    }
+        //}
 
-		private void ViewLostFocusHandler(object sender, EventArgs e)
-		{
-			try
-			{
-				var view = (TextView)sender;
-				lock (_watcherSyncRoot)
-				{
-					if (_activeTextView == view)
-						_activeTextView = null;
-				}
-			}
-			catch (Exception ex)
-			{
-				Log.Error("Failed to process a lost view focus", ex);
-			}
-		}
+        //private void ViewLostFocusHandler(object sender, EventArgs e)
+        //{
+        //    try
+        //    {
+        //        var view = (TextView)sender;
+        //        lock (_watcherSyncRoot)
+        //        {
+        //            if (_activeTextView == view)
+        //                _activeTextView = null;
+        //        }
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        Log.Error("Failed to process a lost view focus", ex);
+        //    }
+        //}
 
 		public TextView GetActiveTextView()
 		{
 			lock (_watcherSyncRoot)
 			{
-				return _activeTextView;
+                IVsTextView activeVsView;
+                _textManager.GetActiveView(Convert.ToInt32(true), null, out activeVsView);
+
+                lock (_watcherSyncRoot)
+                {
+                    if (activeVsView == null || !_textViews.ContainsKey(activeVsView))
+                        return null;
+                    else
+                        return _textViews[activeVsView];
+                }
 			}
 		}
 	}
