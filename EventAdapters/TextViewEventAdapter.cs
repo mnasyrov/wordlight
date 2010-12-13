@@ -24,28 +24,30 @@ namespace WordLight.EventAdapters
             try
             {
                 var connectionPoint = FindConnectionPoint();
-                
-                IEnumConnections ppEnum;
-                connectionPoint.EnumConnections(out ppEnum);
+                connectionPoint.Advise(this, out _connectionCookie);
 
-                bool found = false;
+                //IEnumConnections ppEnum;
+                //connectionPoint.EnumConnections(out ppEnum);
 
-                CONNECTDATA[] conData = new CONNECTDATA[1];
-                uint fetched;
-                ppEnum.Next(1, conData, out fetched);
-                for (; fetched > 0 ; ppEnum.Next(1, conData, out fetched))
-                {
-                    if (conData[0].punk == this)
-                    {
-                        found = true;
-                        break;
-                    }
-                }
+                //bool found = false;
 
-                if (!found)
-                {
-                    connectionPoint.Advise(this, out _connectionCookie);
-                }
+                //CONNECTDATA[] conData = new CONNECTDATA[1];
+                //uint fetched;
+                //ppEnum.Next(1, conData, out fetched);
+                //for (; fetched > 0; ppEnum.Next(1, conData, out fetched))
+                //{
+                //    //if (conData[0].punk == this)
+                //    if (conData[0].punk as TextViewEventAdapter != null)
+                //    {
+                //        found = true;
+                //        break;
+                //    }
+                //}
+
+                //if (!found)
+                //{
+                //    connectionPoint.Advise(this, out _connectionCookie);
+                //}
 
                 Log.Debug("_connectionCookie: {0}", _connectionCookie);
             }
@@ -57,6 +59,8 @@ namespace WordLight.EventAdapters
 
 		public void Dispose()
 		{
+            Log.Debug("Disposing TextViewEvent...");
+
 			if (_connectionCookie > 0)
 			{
                 var connectionPoint = FindConnectionPoint();
@@ -77,34 +81,35 @@ namespace WordLight.EventAdapters
 
 		public void OnSetFocus(IVsTextView view)
 		{
-            Log.Debug("OnSetFocus");
-            EventHandler<ViewFocusEventArgs> evt = GotFocus;
-            if (evt != null && view != null)
-                evt(this, new ViewFocusEventArgs(view));
+            //Log.Debug("OnSetFocus");
+            //EventHandler<ViewFocusEventArgs> evt = GotFocus;
+            //if (evt != null && view != null)
+            //    evt(this, new ViewFocusEventArgs(view));
+            //Log.Debug("OnSetFocus END");
 		}
 
 		public void OnKillFocus(IVsTextView view)
 		{
-            EventHandler<ViewFocusEventArgs> evt = LostFocus;
-            if (evt != null)
-                evt(this, new ViewFocusEventArgs(view));
+            //EventHandler<ViewFocusEventArgs> evt = LostFocus;
+            //if (evt != null && view != null)
+            //    evt(this, new ViewFocusEventArgs(view));
 		}
 
 		public void OnChangeScrollInfo(IVsTextView view, int iBar, int iMinUnit, int iMaxUnits, int iVisibleUnits, int iFirstVisibleUnit)
 		{
-            EventHandler<ViewScrollChangedEventArgs> evt = ScrollChanged;
-            if (evt != null)
-            {
-                ViewScrollInfo scrollInfo = new ViewScrollInfo()
-                {
-                    bar = iBar,
-                    minUnit = iMinUnit,
-                    maxUnit = iMaxUnits,
-                    visibleUnits = iVisibleUnits,
-                    firstVisibleUnit = iFirstVisibleUnit
-                };
-                evt(this, new ViewScrollChangedEventArgs(view, scrollInfo));
-            }
+            //EventHandler<ViewScrollChangedEventArgs> evt = ScrollChanged;
+            //if (evt != null)
+            //{
+            //    ViewScrollInfo scrollInfo = new ViewScrollInfo()
+            //    {
+            //        bar = iBar,
+            //        minUnit = iMinUnit,
+            //        maxUnit = iMaxUnits,
+            //        visibleUnits = iVisibleUnits,
+            //        firstVisibleUnit = iFirstVisibleUnit
+            //    };
+            //    evt(this, new ViewScrollChangedEventArgs(view, scrollInfo));
+            //}
 		}
 
 		#region Unused events
