@@ -80,7 +80,7 @@ namespace WordLight
 			{
 				lock (_watcherSyncRoot)
 				{
-					if (_textViews.ContainsKey(e.View))
+					if (e.View != null && _textViews.ContainsKey(e.View))
 					{
                         TextView view = _textViews[e.View];
                         _textViews.Remove(e.View);
