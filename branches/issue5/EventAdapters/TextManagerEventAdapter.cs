@@ -51,47 +51,10 @@ namespace WordLight.EventAdapters
             {
                 EventHandler<ViewRegistrationEventArgs> evt = ViewRegistered;
                 if (evt != null) evt(this, new ViewRegistrationEventArgs(view));
-
-                // Excellent comment from MetalScroll addin. Can't say better.
-                // (http://code.google.com/p/metalscroll/source/browse/trunk/Connect.cpp)
-
-                // Unfortunately, the window hasn't been created at this point yet, so we can't get the HWND
-                // here. Register an even handler to catch SetFocus(), and get the HWND from there. We'll remove
-                // the handler after the first SetFocus() as we don't care about getting more events once we
-                // have the HWND.
-
-                //try
-                //{
-                //    var textViewEvents = new TextViewEventAdapter(view);
-                //    textViewEvents.GotFocus += new EventHandler<ViewFocusEventArgs>(textViewEvents_SetFocus);
-                //}
-                //catch (Exception ex)
-                //{
-                //    Log.Error("Failed to register a view", ex);
-                //}
             }
         }
 
-        //private void textViewEvents_SetFocus(object sender, ViewFocusEventArgs e)
-        //{
-        //    IVsTextView view = e.View;
-
-        //    try
-        //    {
-        //        var textViewEvents = (TextViewEventAdapter)sender;
-        //        textViewEvents.GotFocus -= textViewEvents_SetFocus;
-        //        textViewEvents.Dispose();
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        Log.Error("Failed to dispose a TextViewEventAdapter", ex);
-        //    }
-
-        //    EventHandler<ViewRegistrationEventArgs> evt = ViewRegistered;
-        //    if (evt != null) evt(this, new ViewRegistrationEventArgs(view));
-        //}
-
-        public void OnUnregisterView(IVsTextView view)
+		public void OnUnregisterView(IVsTextView view)
         {
             if (view != null)
             {
