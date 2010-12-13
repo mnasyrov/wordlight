@@ -14,7 +14,6 @@ namespace WordLight
 		private IDictionary<IVsTextView, TextView> _textViews;
 		private TextManagerEventAdapter _textManagerEvents;
 
-		//private TextView _activeTextView;
 		private object _watcherSyncRoot = new object();
 
         private DTE2 _application;
@@ -23,7 +22,7 @@ namespace WordLight
 		public WindowWatcher(DTE2 application)
 		{
             if (application == null) throw new ArgumentNullException("application");
-
+			
             _application = application;
 
             _textViews = new Dictionary<IVsTextView, TextView>();
@@ -51,26 +50,31 @@ namespace WordLight
 		{
 			try
 			{
-				lock (_watcherSyncRoot)
+				System.Threading.ThreadPool.QueueUserWorkItem((object state) =>
 				{
-                    if (e.View != null && !_textViews.ContainsKey(e.View))
+					try
 					{
-						var textView = new TextView(e.View);
+						System.Threading.Thread.Sleep(200);
+						lock (_watcherSyncRoot)
+						{
+							if (e.View != null && !_textViews.ContainsKey(e.View))
+							{
+								var textView = new TextView(e.View);
+								_textViews.Add(e.View, textView);
 
-                        //textView.GotFocus += new EventHandler(ViewGotFocusHandler);
-                        //textView.LostFocus += new EventHandler(ViewLostFocusHandler);
-
-						//_activeTextView = textView;
-
-                        _textViews.Add(e.View, textView);
-
-                        Log.Debug("Registered view: {0}", e.View.GetHashCode());
+								Log.Debug("Registered view: {0}", e.View.GetHashCode());
+							}
+						}
 					}
-				}
+					catch (Exception ex)
+					{
+						Log.Error("Failed to register a view", ex);
+					}
+				});
 			}
 			catch (Exception ex)
 			{
-				Log.Error("Failed to register a view", ex);
+				Log.Error("Failed to enqueue a work item", ex);
 			}
 		}
 
@@ -85,10 +89,7 @@ namespace WordLight
                         TextView view = _textViews[e.View];
                         _textViews.Remove(e.View);
 
-                        //if (_activeTextView == view)
-                        //    _activeTextView = null;
-
-						DisposeView(view);
+						view.Dispose();
 
                         Log.Debug("Unregistered view: {0}", e.View.GetHashCode().ToString());
 					}
@@ -104,56 +105,14 @@ namespace WordLight
 		{
 			lock (_watcherSyncRoot)
 			{
-				//_activeTextView = null;
-
 				foreach (TextView view in _textViews.Values)
 				{
-					DisposeView(view);
+					view.Dispose();
 				}
 
 				_textViews.Clear();
 			}
 		}
-
-		private void DisposeView(TextView view)
-		{
-            //view.GotFocus -= ViewGotFocusHandler;
-            //view.LostFocus -= ViewLostFocusHandler;
-			view.Dispose();
-		}
-
-        //private void ViewGotFocusHandler(object sender, EventArgs e)
-        //{
-        //    try
-        //    {
-        //        var view = (TextView)sender;
-        //        lock (_watcherSyncRoot)
-        //        {
-        //            _activeTextView = view;
-        //        }
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        Log.Error("Failed to process a view focus", ex);
-        //    }
-        //}
-
-        //private void ViewLostFocusHandler(object sender, EventArgs e)
-        //{
-        //    try
-        //    {
-        //        var view = (TextView)sender;
-        //        lock (_watcherSyncRoot)
-        //        {
-        //            if (_activeTextView == view)
-        //                _activeTextView = null;
-        //        }
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        Log.Error("Failed to process a lost view focus", ex);
-        //    }
-        //}
 
 		public TextView GetActiveTextView()
 		{
