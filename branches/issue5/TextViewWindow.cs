@@ -53,46 +53,44 @@ namespace WordLight
             try
             {
 #endif
-			switch (m.Msg)
-			{
-				case WinProcMessages.WM_KEYUP:
-				case WinProcMessages.WM_KEYDOWN:
-				case WinProcMessages.WM_LBUTTONUP:
-				case WinProcMessages.WM_RBUTTONUP:
-				case WinProcMessages.WM_MBUTTONUP:
-				case WinProcMessages.WM_XBUTTONUP:
-				case WinProcMessages.WM_LBUTTONDOWN:
-				case WinProcMessages.WM_MBUTTONDOWN:
-				case WinProcMessages.WM_RBUTTONDOWN:
-				case WinProcMessages.WM_XBUTTONDOWN:
-				case WinProcMessages.WM_LBUTTONDBLCLK:
-				case WinProcMessages.WM_MBUTTONDBLCLK:
-				case WinProcMessages.WM_RBUTTONDBLCLK:
-				case WinProcMessages.WM_XBUTTONDBLCLK:
-					base.WndProc(ref m);
-					HandleUserInput();
-					break;
+			    switch (m.Msg)
+			    {
+				    case WinProcMessages.WM_KEYUP:
+				    case WinProcMessages.WM_KEYDOWN:
+				    case WinProcMessages.WM_LBUTTONUP:
+				    case WinProcMessages.WM_RBUTTONUP:
+				    case WinProcMessages.WM_MBUTTONUP:
+				    case WinProcMessages.WM_XBUTTONUP:
+				    case WinProcMessages.WM_LBUTTONDOWN:
+				    case WinProcMessages.WM_MBUTTONDOWN:
+				    case WinProcMessages.WM_RBUTTONDOWN:
+				    case WinProcMessages.WM_XBUTTONDOWN:
+				    case WinProcMessages.WM_LBUTTONDBLCLK:
+				    case WinProcMessages.WM_MBUTTONDBLCLK:
+				    case WinProcMessages.WM_RBUTTONDBLCLK:
+				    case WinProcMessages.WM_XBUTTONDBLCLK:
+					    base.WndProc(ref m);
+					    HandleUserInput();
+					    break;
 
-				case WinProcMessages.WM_PAINT:
-					Rectangle clipRect = User32.GetUpdateRect(Handle, false).ToRectangle();
+				    case WinProcMessages.WM_PAINT:
+					    Rectangle clipRect = User32.GetUpdateRect(Handle, false).ToRectangle();
 
-					base.WndProc(ref m);
+					    base.WndProc(ref m);
 
-					if (clipRect != Rectangle.Empty)
-					{
-						OnPaint(clipRect);
-					}
+					    if (clipRect != Rectangle.Empty)
+					    {
+						    OnPaint(clipRect);
+					    }
 
-					break;
+					    break;
 
-				default:
-					base.WndProc(ref m);
-					break;
-			}
-            base.WndProc(ref m);
-
+				    default:
+					    base.WndProc(ref m);
+					    break;
+			    }
 #if DEBUG
-		}
+	    	}
             catch (Exception ex)
             {
                 Log.Error("Unhandled exception during processing window messages", ex);
