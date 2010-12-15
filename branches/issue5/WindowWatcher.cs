@@ -121,13 +121,10 @@ namespace WordLight
                 IVsTextView activeVsView;
                 _textManager.GetActiveView(Convert.ToInt32(true), null, out activeVsView);
 
-                lock (_watcherSyncRoot)
-                {
-                    if (activeVsView == null || !_textViews.ContainsKey(activeVsView))
-                        return null;
-                    else
-                        return _textViews[activeVsView];
-                }
+				if (activeVsView != null && _textViews.ContainsKey(activeVsView))
+					return _textViews[activeVsView];
+				else
+					return null;
 			}
 		}
 	}
