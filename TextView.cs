@@ -19,7 +19,7 @@ namespace WordLight
     public class TextView : IDisposable
     {
         private IVsTextView _view;
-        //private IVsTextLines _buffer;
+        private IVsTextLines _buffer;
         private TextViewEventAdapter _viewEvents;
         private TextStreamEventAdapter _textStreamEvents;
 
@@ -28,7 +28,7 @@ namespace WordLight
 
         private ScreenUpdateManager _screenUpdater;
 
-        //private int _lineHeight;
+        private int _lineHeight;
 
         private Dictionary<long, Point> _pointCache = new Dictionary<long, Point>();
         private object _pointCacheSync = new object();
@@ -56,14 +56,8 @@ namespace WordLight
 
         public IVsTextLines Buffer
         {
-            //get { return _buffer; }
-            get { return _view.GetBuffer(); }
+            get { return _buffer; }
         }
-
-        //public TextViewEventAdapter ViewEvents
-        //{
-        //    get { return _viewEvents; }
-        //}
 
         public TextStreamEventAdapter TextStreamEvents
         {
@@ -72,8 +66,7 @@ namespace WordLight
 
         public int LineHeight
         {
-            //get { return _lineHeight; }
-            get { return _view.GetLineHeight(); }
+            get { return _lineHeight; }
         }
 
         public TextSpan VisibleSpan
@@ -110,23 +103,19 @@ namespace WordLight
             try
             {
                 _view = view;
-                //_buffer = view.GetBuffer();
+                _buffer = view.GetBuffer();
 
-                //_lineHeight = _view.GetLineHeight();
+                _lineHeight = _view.GetLineHeight();
 
                 _viewEvents = new TextViewEventAdapter(view);
                 _textStreamEvents = new TextStreamEventAdapter(Buffer);
 
                 _viewEvents.ScrollChanged += ScrollChangedHandler;
                 _viewEvents.GotFocus += new EventHandler<ViewFocusEventArgs>(GotFocusHandler);
-                //_viewEvents.LostFocus += new EventHandler<ViewFocusEventArgs>(LostFocusHandler);
 
                 _screenUpdater = new ScreenUpdateManager(this);
 
 				CreateWindow();
-                //_window = new TextViewWindow(this);
-                //_window.Paint += new PaintEventHandler(_window_Paint);
-                //_window.PaintEnd += new EventHandler(_window_PaintEnd);
 
                 selectionSearcher = new MarkSearcher(-1, this);
                 freezer1 = new MarkSearcher(1, this);
@@ -148,7 +137,6 @@ namespace WordLight
         {
             _viewEvents.ScrollChanged -= ScrollChangedHandler;
             _viewEvents.GotFocus -= GotFocusHandler;
-            //_viewEvents.LostFocus -= LostFocusHandler;
             _viewEvents.Dispose();
 
             _textStreamEvents.Dispose();
@@ -354,28 +342,8 @@ namespace WordLight
 
         private void GotFocusHandler(object sender, ViewFocusEventArgs e)
         {
-            //if (_window.Handle == IntPtr.Zero)
-            //{
-            //    _window.AssignHandle(WindowHandle);
-            //}
-
 			CreateWindow();
-			//if (_window == null && WindowHandle != IntPtr.Zero)
-			//{
-			//    _window = new TextViewWindow(this);
-			//    _window.Paint += new PaintEventHandler(_window_Paint);
-			//    _window.PaintEnd += new EventHandler(_window_PaintEnd);
-			//}
-
-            //EventHandler evt = GotFocus;
-            //if (evt != null) evt(this, EventArgs.Empty);
         }
-
-        //private void LostFocusHandler(object sender, ViewFocusEventArgs e)
-        //{
-        //    EventHandler evt = LostFocus;
-        //    if (evt != null) evt(this, EventArgs.Empty);
-        //}
 
         private void _window_Paint(object sender, PaintEventArgs e)
         {
