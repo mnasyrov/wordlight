@@ -19,11 +19,14 @@ namespace WordLight
     public class TextView : IDisposable
     {
         private IVsTextView _view;
+		private IVsTextManager _textManager;
         private IVsTextLines _buffer;
         private TextViewEventAdapter _viewEvents;
         private TextStreamEventAdapter _textStreamEvents;
 
         private TextViewWindow _window;
+		private object _windowLock = new object();
+
         private ScreenUpdateManager _screenUpdater;
 
         private int _lineHeight;
@@ -35,15 +38,14 @@ namespace WordLight
         private int _visibleTextStart;
         private int _visibleTextEnd;
         private int _visibleLeftTextColumn = 0;
-
-        public event EventHandler GotFocus;
-        public event EventHandler LostFocus;
-
-		private MarkSearcher selectionSearcher;
+		
+        private MarkSearcher selectionSearcher;
         private MarkSearcher freezer1;
         private MarkSearcher freezer2;
         private MarkSearcher freezer3;
         private List<MarkSearcher> freezers;
+
+		private int _searchMarkerTypeId;
 
         #region Properties
 
@@ -55,11 +57,6 @@ namespace WordLight
         public IVsTextLines Buffer
         {
             get { return _buffer; }
-        }
-
-        public TextViewEventAdapter ViewEvents
-        {
-            get { return _viewEvents; }
         }
 
         public TextStreamEventAdapter TextStreamEvents
@@ -97,54 +94,88 @@ namespace WordLight
             get { return _screenUpdater; }
         }
 
+		public int SearchMarkerTypeId
+		{
+			get { return _searchMarkerTypeId; }
+		}
+
         #endregion
 
-        public TextView(IVsTextView view)
+        public TextView(IVsTextView view, IVsTextManager textManager)
         {
             if (view == null) throw new ArgumentNullException("view");
+			if (textManager == null) throw new ArgumentNullException("textManager");
 
-            _view = view;
-            _buffer = view.GetBuffer();
+            try
+            {
+                _view = view;
+				_textManager = textManager;
 
-            _lineHeight = _view.GetLineHeight();
+				Guid searchMarkerType = GuidConstants.SearchMarkerType;
+				_textManager.GetRegisteredMarkerTypeID(ref searchMarkerType, out _searchMarkerTypeId);
+				Log.Debug("_searchMarkerTypeId = {0}", _searchMarkerTypeId);
 
-            _viewEvents = new TextViewEventAdapter(view);
-            _textStreamEvents = new TextStreamEventAdapter(Buffer);
+                _buffer = view.GetBuffer();
 
-            _viewEvents.ScrollChanged += ScrollChangedHandler;
-            _viewEvents.GotFocus += new EventHandler<ViewFocusEventArgs>(GotFocusHandler);
-            _viewEvents.LostFocus += new EventHandler<ViewFocusEventArgs>(LostFocusHandler);
+                _lineHeight = _view.GetLineHeight();
 
-            _screenUpdater = new ScreenUpdateManager(this);
+                _viewEvents = new TextViewEventAdapter(view);
+                _textStreamEvents = new TextStreamEventAdapter(Buffer);
 
-            _window = new TextViewWindow(this);
-            _window.Paint += new PaintEventHandler(_window_Paint);
-            _window.PaintEnd += new EventHandler(_window_PaintEnd);
+                _viewEvents.ScrollChanged += ScrollChangedHandler;
+                _viewEvents.GotFocus += new EventHandler<ViewFocusEventArgs>(GotFocusHandler);
 
-			selectionSearcher = new MarkSearcher(-1, this);
-            freezer1 = new MarkSearcher(1, this);
-            freezer2 = new MarkSearcher(2, this);
-            freezer3 = new MarkSearcher(3, this);
+                _screenUpdater = new ScreenUpdateManager(this);
 
-            freezers = new List<MarkSearcher>();
-            freezers.Add(freezer1);
-            freezers.Add(freezer2);
-            freezers.Add(freezer3);
+				CreateWindow();
+
+                selectionSearcher = new MarkSearcher(-1, this);
+                freezer1 = new MarkSearcher(1, this);
+                freezer2 = new MarkSearcher(2, this);
+                freezer3 = new MarkSearcher(3, this);
+
+                freezers = new List<MarkSearcher>();
+                freezers.Add(freezer1);
+                freezers.Add(freezer2);
+                freezers.Add(freezer3);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("Failed to create TextView", ex);
+            }
         }
 
         public void Dispose()
         {
             _viewEvents.ScrollChanged -= ScrollChangedHandler;
             _viewEvents.GotFocus -= GotFocusHandler;
-            _viewEvents.LostFocus -= LostFocusHandler;
             _viewEvents.Dispose();
 
             _textStreamEvents.Dispose();
 
-            _window.Paint -= _window_Paint;
-            _window.PaintEnd -= _window_PaintEnd;
-            _window.Dispose();
+            if (_window != null)
+            {
+                _window.Paint -= _window_Paint;
+                _window.PaintEnd -= _window_PaintEnd;
+                _window.Dispose();
+            }
         }
+
+		private void CreateWindow()
+		{
+			if (_window == null && WindowHandle != IntPtr.Zero)
+			{
+				lock (_windowLock)
+				{
+					if (_window == null && WindowHandle != IntPtr.Zero)
+					{
+						_window = new TextViewWindow(this);
+						//_window.Paint += new PaintEventHandler(_window_Paint);
+						//_window.PaintEnd += new EventHandler(_window_PaintEnd);
+					}
+				}
+			}
+		}
 
         public void SearchText(string text)
         {
@@ -165,8 +196,8 @@ namespace WordLight
                 }
                 else
                 {
-					var p = new Microsoft.VisualStudio.OLE.Interop.POINT[1];
-					_view.GetPointOfLineColumn(line, column, p);
+                    var p = new Microsoft.VisualStudio.OLE.Interop.POINT[1];
+                    _view.GetPointOfLineColumn(line, column, p);
 
                     screenPoint.X = p[0].x;
                     screenPoint.Y = p[0].y;
@@ -182,7 +213,7 @@ namespace WordLight
         {
             int line;
             int column;
-            _buffer.GetLineIndexOfPosition(position, out line, out column);
+            Buffer.GetLineIndexOfPosition(position, out line, out column);
             return GetScreenPoint(line, column);
         }
 
@@ -235,19 +266,19 @@ namespace WordLight
 
         public void FreezeSearch(int group)
         {
-            foreach (var freezer in freezers)
-            {
-                if (freezer.Id == group && freezer.SearchText != selectionSearcher.SearchText)
-                {
-                    freezer.FreezeText(selectionSearcher.SearchText);
-                }
-                else if (freezer.Id != group && freezer.SearchText == selectionSearcher.SearchText)
-                {
-                    freezer.Clear();
-                }
-            }
+			foreach (var freezer in freezers)
+			{
+				if (freezer.Id == group && freezer.SearchText != selectionSearcher.SearchText)
+				{
+					freezer.FreezeText(selectionSearcher.SearchText);
+				}
+				else if (freezer.Id != group && freezer.SearchText == selectionSearcher.SearchText)
+				{
+					freezer.Clear();
+				}
+			}
 
-            _screenUpdater.RequestUpdate();
+			_screenUpdater.RequestUpdate();
         }
 
         private void ResetCaches()
@@ -274,7 +305,7 @@ namespace WordLight
 
                     IVsLayeredTextView viewLayer = _view as IVsLayeredTextView;
                     IVsTextLayer topLayer = null;
-                    IVsTextLayer bufferLayer = _buffer as IVsTextLayer;
+                    IVsTextLayer bufferLayer = Buffer as IVsTextLayer;
 
                     if (viewLayer != null)
                     {
@@ -291,12 +322,12 @@ namespace WordLight
                     }
                     else
                     {
-                        TextSpan entireSpan = _buffer.CreateSpanForAllLines();
+                        TextSpan entireSpan = Buffer.CreateSpanForAllLines();
                         topTextLineInView = entireSpan.iStartLine;
                         bottomTextLineInView = entireSpan.iEndLine;
                     }
 
-                    TextSpan viewRange = _buffer.CreateSpanForAllLines();
+                    TextSpan viewRange = Buffer.CreateSpanForAllLines();
                     viewRange.iStartLine = topTextLineInView;
                     if (bottomTextLineInView < viewRange.iEndLine)
                     {
@@ -306,8 +337,8 @@ namespace WordLight
 
                     _visibleSpan = viewRange;
 
-                    _visibleTextStart = _buffer.GetPositionOfLineIndex(_visibleSpan.iStartLine, _visibleSpan.iStartIndex);
-                    _visibleTextEnd = _buffer.GetPositionOfLineIndex(_visibleSpan.iEndLine, _visibleSpan.iEndIndex);
+                    _visibleTextStart = Buffer.GetPositionOfLineIndex(_visibleSpan.iStartLine, _visibleSpan.iStartIndex);
+                    _visibleTextEnd = Buffer.GetPositionOfLineIndex(_visibleSpan.iEndLine, _visibleSpan.iEndIndex);
                 }
 
                 if (e.ScrollInfo.IsHorizontal || e.ScrollInfo.IsVertical)
@@ -323,14 +354,7 @@ namespace WordLight
 
         private void GotFocusHandler(object sender, ViewFocusEventArgs e)
         {
-            EventHandler evt = GotFocus;
-            if (evt != null) evt(this, EventArgs.Empty);
-        }
-
-        private void LostFocusHandler(object sender, ViewFocusEventArgs e)
-        {
-            EventHandler evt = LostFocus;
-            if (evt != null) evt(this, EventArgs.Empty);
+			CreateWindow();
         }
 
         private void _window_Paint(object sender, PaintEventArgs e)
@@ -341,7 +365,7 @@ namespace WordLight
 			DrawMarks(e.Graphics, freezer3.Marks, AddinSettings.Instance.FreezeMark3BorderColor);
         }
 
-		private void DrawMarks(Graphics g, MarkCollection marks, Color markColor)
+        private void DrawMarks(Graphics g, MarkCollection marks, Color markColor)
 		{
             Rectangle[] rectangles = marks.GetRectanglesForVisibleMarks(this);
 
@@ -360,14 +384,16 @@ namespace WordLight
 				{
 					var rect = rectangles[i];
 
-					bool isBorderDrawn =
-						Gdi32.GetPixel(hdc, rect.Left, rect.Top) == nativeBorderColor
-						&& Gdi32.GetPixel(hdc, rect.Right, rect.Bottom) == nativeBorderColor
-						&& Gdi32.GetPixel(hdc, rect.Right, rect.Top) == nativeBorderColor
-						&& Gdi32.GetPixel(hdc, rect.Left, rect.Bottom) == nativeBorderColor;
+                    int score = 0;
+                    if (Gdi32.GetPixel(hdc, rect.Left, rect.Top) == nativeBorderColor) score++;
+                    if (Gdi32.GetPixel(hdc, rect.Left, rect.Bottom) == nativeBorderColor) score++;
+                    if (score < 2 && Gdi32.GetPixel(hdc, rect.Right, rect.Bottom) == nativeBorderColor) score++;
+                    if (score < 2 && Gdi32.GetPixel(hdc, rect.Right, rect.Top) == nativeBorderColor) score++;
 
-					if (!isBorderDrawn)
-						rectsToFilling.Add(rect);
+                    bool isBorderDrawn = score >= 2;
+
+                    if (!isBorderDrawn)
+                        rectsToFilling.Add(rect);
 				}
 
 				g.ReleaseHdc();
@@ -376,17 +402,20 @@ namespace WordLight
 				{
 					using (var bodyBrush = new SolidBrush(Color.FromArgb(32, markColor)))
 						g.FillRectangles(bodyBrush, rectsToFilling.ToArray());
+
+                    //using (var borderPen = new Pen(markColor))
+                    //    g.DrawRectangles(borderPen, rectsToFilling.ToArray());
 				}
             }
 
 			//Draw borders
-			using (var borderPen = new Pen(markColor))
-				g.DrawRectangles(borderPen, rectangles);
+            using (var borderPen = new Pen(markColor))
+                g.DrawRectangles(borderPen, rectangles);
         }
 
         private void _window_PaintEnd(object sender, EventArgs e)
         {
             _screenUpdater.CompleteUpdate();
-        }        
+        }
     }
 }

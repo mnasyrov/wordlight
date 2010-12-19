@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 
 using EnvDTE80;
 using Microsoft.VisualStudio.TextManager.Interop;
+using Microsoft.VisualStudio.Shell.Interop;
 
 using WordLight.EventAdapters;
 
@@ -11,19 +12,33 @@ namespace WordLight
 {
 	public class WindowWatcher : IDisposable
 	{
-		private IDictionary<IntPtr, TextView> _textViews;
+		private IDictionary<IVsTextView, TextView> _textViews;
 		private TextManagerEventAdapter _textManagerEvents;
 
-		private TextView _activeTextView;
 		private object _watcherSyncRoot = new object();
+
+		private DTE2 _application;
+		private IVsTextManager _textManager;
+
+		private IProfferService _profferService;
+		private uint _textMarkerServiceCookie;
+		private WordLight.Search.TextMarkerService _textMarkerService;		
 
 		public WindowWatcher(DTE2 application)
 		{
-			_textViews = new Dictionary<IntPtr, TextView>();
+			if (application == null) throw new ArgumentNullException("application");
 
-			IVsTextManager textManager = GetTextManager(application);
+			_application = application;
+			_textViews = new Dictionary<IVsTextView, TextView>();
 
-			_textManagerEvents = new TextManagerEventAdapter(textManager);
+			_textManager = GetTextManager(application);
+
+			_textMarkerService = new WordLight.Search.TextMarkerService();
+			_profferService = GetProfferService(application);
+			Guid markerServiceGuid = GuidConstants.TextMarkerService;
+			_profferService.ProfferService(ref markerServiceGuid, _textMarkerService, out _textMarkerServiceCookie);			
+
+			_textManagerEvents = new TextManagerEventAdapter(_textManager);
 			_textManagerEvents.ViewRegistered += new EventHandler<ViewRegistrationEventArgs>(ViewRegisteredHandler);
 			_textManagerEvents.ViewUnregistered += new EventHandler<ViewRegistrationEventArgs>(ViewUnregisteredHandler);
 		}
@@ -40,31 +55,47 @@ namespace WordLight
 			return (IVsTextManager)Marshal.GetObjectForIUnknown(output);
 		}
 
+		private IProfferService GetProfferService(DTE2 application)
+		{
+			var serviceProvider = application as Microsoft.VisualStudio.OLE.Interop.IServiceProvider;
+
+			Guid SID = typeof(SProfferService).GUID;
+			Guid IID = typeof(IProfferService).GUID;
+			IntPtr output;
+			serviceProvider.QueryService(ref SID, ref IID, out output);
+
+			return (IProfferService)Marshal.GetObjectForIUnknown(output);
+		}
+
 		private void ViewRegisteredHandler(object sender, ViewRegistrationEventArgs e)
 		{
 			try
 			{
-				lock (_watcherSyncRoot)
+				System.Threading.ThreadPool.QueueUserWorkItem((object state) =>
 				{
-					IntPtr windowHandle = e.View.GetWindowHandle();
-					if (windowHandle != IntPtr.Zero && !_textViews.ContainsKey(windowHandle))
+					try
 					{
-						var textView = new TextView(e.View);
+						System.Threading.Thread.Sleep(200);
+						lock (_watcherSyncRoot)
+						{
+							if (e.View != null && !_textViews.ContainsKey(e.View))
+							{
+								var textView = new TextView(e.View, _textManager);
+								_textViews.Add(e.View, textView);
 
-						textView.GotFocus += new EventHandler(ViewGotFocusHandler);
-						textView.LostFocus += new EventHandler(ViewLostFocusHandler);
-
-						_activeTextView = textView;
-
-						_textViews.Add(windowHandle, textView);
-
-						Log.Debug("Registered view: {0}", windowHandle.ToString());
+								Log.Debug("Registered view: {0}", e.View.GetHashCode());
+							}
+						}
 					}
-				}
+					catch (Exception ex)
+					{
+						Log.Error("Failed to register a view", ex);
+					}
+				});
 			}
 			catch (Exception ex)
 			{
-				Log.Error("Failed to register a view", ex);
+				Log.Error("Failed to enqueue a work item", ex);
 			}
 		}
 
@@ -74,18 +105,14 @@ namespace WordLight
 			{
 				lock (_watcherSyncRoot)
 				{
-					IntPtr windowHandle = e.View.GetWindowHandle();
-					if (_textViews.ContainsKey(windowHandle))
+					if (e.View != null && _textViews.ContainsKey(e.View))
 					{
-						TextView view = _textViews[windowHandle];
-						_textViews.Remove(windowHandle);
+						TextView view = _textViews[e.View];
+						_textViews.Remove(e.View);
 
-						if (_activeTextView == view)
-							_activeTextView = null;
+						view.Dispose();
 
-						DisposeView(view);
-
-						Log.Debug("Unregistered view: {0}", windowHandle.ToString());
+						Log.Debug("Unregistered view: {0}", e.View.GetHashCode().ToString());
 					}
 				}
 			}
@@ -99,54 +126,14 @@ namespace WordLight
 		{
 			lock (_watcherSyncRoot)
 			{
-				_activeTextView = null;
+				_profferService.RevokeService(_textMarkerServiceCookie);
 
 				foreach (TextView view in _textViews.Values)
 				{
-					DisposeView(view);
+					view.Dispose();
 				}
 
 				_textViews.Clear();
-			}
-		}
-
-		private void DisposeView(TextView view)
-		{
-			view.GotFocus -= ViewGotFocusHandler;
-			view.LostFocus -= ViewLostFocusHandler;
-			view.Dispose();
-		}
-
-		private void ViewGotFocusHandler(object sender, EventArgs e)
-		{
-			try
-			{
-				var view = (TextView)sender;
-				lock (_watcherSyncRoot)
-				{
-					_activeTextView = view;
-				}
-			}
-			catch (Exception ex)
-			{
-				Log.Error("Failed to process a view focus", ex);
-			}
-		}
-
-		private void ViewLostFocusHandler(object sender, EventArgs e)
-		{
-			try
-			{
-				var view = (TextView)sender;
-				lock (_watcherSyncRoot)
-				{
-					if (_activeTextView == view)
-						_activeTextView = null;
-				}
-			}
-			catch (Exception ex)
-			{
-				Log.Error("Failed to process a lost view focus", ex);
 			}
 		}
 
@@ -154,7 +141,13 @@ namespace WordLight
 		{
 			lock (_watcherSyncRoot)
 			{
-				return _activeTextView;
+				IVsTextView activeVsView;
+				_textManager.GetActiveView(Convert.ToInt32(true), null, out activeVsView);
+
+				if (activeVsView != null && _textViews.ContainsKey(activeVsView))
+					return _textViews[activeVsView];
+				else
+					return null;
 			}
 		}
 	}
