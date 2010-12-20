@@ -49,7 +49,7 @@ namespace WordLight
                 if (_start != int.MaxValue)
                 {
                     var rect = GetRect(_start, _end);
-                    if (rect != Rectangle.Empty)
+                    if (rect != Rectangle.Empty && _view.WindowHandle != IntPtr.Zero)
                         User32.ValidateRect(_view.WindowHandle, rect);
 
                     _start = int.MaxValue;
@@ -65,7 +65,7 @@ namespace WordLight
                 if (_start != int.MaxValue)
                 {
                     var rect = GetRect(_start, _end);
-                    if (rect != Rectangle.Empty)
+                    if (rect != Rectangle.Empty && _view.WindowHandle != IntPtr.Zero)
                         User32.InvalidateRect(_view.WindowHandle, rect, false);
                 }
             }
