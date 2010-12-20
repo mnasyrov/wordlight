@@ -12,25 +12,39 @@ namespace WordLight.EventAdapters
 {	
 	public class TextViewEventAdapter : IVsTextViewEvents, IDisposable
 	{
-		private uint _connectionCookie;
-		private IConnectionPoint _connectionPoint;
+		private uint _connectionCookie = 0;
+        private IVsTextView _view;        
 
 		public TextViewEventAdapter(IVsTextView view)
 		{
 			if (view == null) throw new ArgumentNullException("view");
 
-			var cpContainer = view as IConnectionPointContainer;
-			Guid riid = typeof(IVsTextViewEvents).GUID;
-			cpContainer.FindConnectionPoint(ref riid, out _connectionPoint);
+            _view = view;
 
-			_connectionPoint.Advise(this, out _connectionCookie);
+            try
+            {
+                var connectionPoint = FindConnectionPoint(_view);
+                connectionPoint.Advise(this, out _connectionCookie);
+
+                Log.Debug("_connectionCookie: {0}", _connectionCookie);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("Failed to create TextViewEventAdapter", ex);
+            }
 		}
 
 		public void Dispose()
 		{
+            Log.Debug("Disposing TextViewEvent...");
+
 			if (_connectionCookie > 0)
 			{
-				_connectionPoint.Unadvise(_connectionCookie);
+                var connectionPoint = FindConnectionPoint(_view);
+
+				connectionPoint.Unadvise(_connectionCookie);
+                Log.Debug("Unadvised connectionCookie: {0}", _connectionCookie);
+
 				_connectionCookie = 0;
 			}
 		}
@@ -44,21 +58,19 @@ namespace WordLight.EventAdapters
 
 		public void OnSetFocus(IVsTextView view)
 		{
-			EventHandler<ViewFocusEventArgs> evt = GotFocus;
-			if (evt != null)
-				evt(this, new ViewFocusEventArgs(view));
+			var evt = GotFocus;
+			if (evt != null && view != null) evt(this, new ViewFocusEventArgs(view));
 		}
 
 		public void OnKillFocus(IVsTextView view)
 		{
-			EventHandler<ViewFocusEventArgs> evt = LostFocus;
-			if (evt != null)
-				evt(this, new ViewFocusEventArgs(view));
+			var evt = LostFocus;
+			if (evt != null && view != null) evt(this, new ViewFocusEventArgs(view));
 		}
 
 		public void OnChangeScrollInfo(IVsTextView view, int iBar, int iMinUnit, int iMaxUnits, int iVisibleUnits, int iFirstVisibleUnit)
 		{
-			EventHandler<ViewScrollChangedEventArgs> evt = ScrollChanged;
+			var evt = ScrollChanged;
 			if (evt != null)
 			{
 				ViewScrollInfo scrollInfo = new ViewScrollInfo()
@@ -86,5 +98,17 @@ namespace WordLight.EventAdapters
 		}
 
 		#endregion
+
+        private static IConnectionPoint FindConnectionPoint(IVsTextView view)
+        {
+            var cpContainer = view as IConnectionPointContainer;
+
+            Guid riid = typeof(IVsTextViewEvents).GUID;
+            IConnectionPoint connectionPoint;
+
+            cpContainer.FindConnectionPoint(ref riid, out connectionPoint);
+
+            return connectionPoint;
+        }
 	}
 }
