@@ -49,10 +49,8 @@ namespace WordLight
 
 		protected override void WndProc(ref Message m)
 		{
-#if DEBUG
             try
             {
-#endif
 			    switch (m.Msg)
 			    {
 				    case WinProcMessages.WM_KEYUP:
@@ -89,13 +87,11 @@ namespace WordLight
 					    base.WndProc(ref m);
 					    break;
 			    }
-#if DEBUG
 	    	}
             catch (Exception ex)
             {
                 Log.Error("Unhandled exception during processing window messages", ex);
             }
-#endif
 		}
 
 		private void HandleUserInput()
