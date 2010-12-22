@@ -28,7 +28,7 @@ namespace WordLight
 
         private ScreenUpdateManager _screenUpdater;
 
-        private int _lineHeight;
+        private int _lineHeight = 0;
 
         private Dictionary<long, Point> _pointCache = new Dictionary<long, Point>();
         private object _pointCacheSync = new object();
@@ -102,7 +102,7 @@ namespace WordLight
                 _view = view;
                 _buffer = view.GetBuffer();
 
-                _lineHeight = _view.GetLineHeight();
+                //_lineHeight = _view.GetLineHeight();
 
                 _viewEvents = new TextViewEventAdapter(view);
                 _textStreamEvents = new TextStreamEventAdapter(Buffer);
@@ -154,6 +154,8 @@ namespace WordLight
 				{
 					if (_window == null && WindowHandle != IntPtr.Zero)
 					{
+                        _lineHeight = _view.GetLineHeight();
+
 						_window = new TextViewWindow(this);
 						_window.Paint += new PaintEventHandler(_window_Paint);
 						_window.PaintEnd += new EventHandler(_window_PaintEnd);
