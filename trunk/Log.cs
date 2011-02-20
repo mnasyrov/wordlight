@@ -6,6 +6,7 @@ using System.Text;
 
 using EnvDTE;
 using EnvDTE80;
+using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
 
 using WordLight.Extensions;
@@ -121,21 +122,17 @@ namespace WordLight
 		{
 			IVsActivityLog log = null;
 
-			Guid SID = typeof(SVsActivityLog).GUID;
-			Guid IID = typeof(IVsActivityLog).GUID;
-			IntPtr output = IntPtr.Zero;
-
 			lock (_serviceProviderSyncRoot)
 			{
-				if (_serviceProvider != null)
-					_serviceProvider.QueryService(ref SID, ref IID, out output);
+                if (_serviceProvider != null)
+                {
+                    using (ServiceProvider wrapperSP = new ServiceProvider(_serviceProvider))
+                    {
+                        log = (IVsActivityLog)wrapperSP.GetService(typeof(SVsActivityLog));
+                    }
+                }
 			}
-
-			if (output != IntPtr.Zero)
-			{
-				log = (IVsActivityLog)Marshal.GetObjectForIUnknown(output);
-			}
-			
+		
 			return log;
 		}
 

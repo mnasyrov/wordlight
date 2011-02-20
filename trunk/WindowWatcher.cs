@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 
 using EnvDTE80;
+using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.TextManager.Interop;
 
 using WordLight.EventAdapters;
@@ -36,22 +37,18 @@ namespace WordLight
 
 		private IVsTextManager GetTextManager(DTE2 application)
 		{
-			var serviceProvider = application as Microsoft.VisualStudio.OLE.Interop.IServiceProvider;
-
-			Guid SID = typeof(SVsTextManager).GUID;
-			Guid IID = typeof(IVsTextManager).GUID;
-			IntPtr output;
-			serviceProvider.QueryService(ref SID, ref IID, out output);
-
-			return (IVsTextManager)Marshal.GetObjectForIUnknown(output);
+            using (ServiceProvider wrapperSP = new ServiceProvider((Microsoft.VisualStudio.OLE.Interop.IServiceProvider)application))
+            {
+                return (IVsTextManager)wrapperSP.GetService(typeof(SVsTextManager));
+            }
 		}
 
 		private void ViewRegisteredHandler(object sender, ViewRegistrationEventArgs e)
 		{
 			try
 			{
-				System.Threading.ThreadPool.QueueUserWorkItem((object state) =>
-				{
+                System.Threading.ThreadPool.QueueUserWorkItem((object state) =>
+                {
 					try
 					{
 						System.Threading.Thread.Sleep(200);
