@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 10.00
 # Visual Studio 2008
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WordLight", "WordLight.csproj", "{13406719-538E-4557-8305-23EE4995D03B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WordLight", "WordLight2008\WordLight.csproj", "{13406719-538E-4557-8305-23EE4995D03B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
