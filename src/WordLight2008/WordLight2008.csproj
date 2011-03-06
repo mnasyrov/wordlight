@@ -10,8 +10,8 @@
     <StartupObject>
     </StartupObject>
     <NoStandardLibraries>false</NoStandardLibraries>
-    <AssemblyName>WordLight</AssemblyName>
-    <RootNamespace>WordLight</RootNamespace>
+    <AssemblyName>WordLight2008</AssemblyName>
+    <RootNamespace>WordLight2008</RootNamespace>
     <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
     <FileUpgradeFlags>
     </FileUpgradeFlags>
@@ -164,7 +164,7 @@
     </COMReference>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="WordLight.AddIn" />
+    <Content Include="WordLight2008.AddIn" />
   </ItemGroup>
   <ItemGroup>
     <BootstrapperPackage Include="Microsoft.Net.Client.3.5">
