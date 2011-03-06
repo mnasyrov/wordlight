@@ -3,6 +3,10 @@ Microsoft Visual Studio Solution File, Format Version 11.00
 # Visual Studio 2010
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WordLight2008", "WordLight2008\WordLight2008.csproj", "{13406719-538E-4557-8305-23EE4995D03B}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WordLight2010", "WordLight2010\WordLight2010.csproj", "{986789CB-4C1D-4F38-B45A-BE43D1F453A0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WordLight", "WordLight\WordLight.csproj", "{2C81BF0A-1563-4173-8486-473CA4C744F8}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -13,6 +17,14 @@ Global
 		{13406719-538E-4557-8305-23EE4995D03B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{13406719-538E-4557-8305-23EE4995D03B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{13406719-538E-4557-8305-23EE4995D03B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{986789CB-4C1D-4F38-B45A-BE43D1F453A0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{986789CB-4C1D-4F38-B45A-BE43D1F453A0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{986789CB-4C1D-4F38-B45A-BE43D1F453A0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{986789CB-4C1D-4F38-B45A-BE43D1F453A0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2C81BF0A-1563-4173-8486-473CA4C744F8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2C81BF0A-1563-4173-8486-473CA4C744F8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2C81BF0A-1563-4173-8486-473CA4C744F8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2C81BF0A-1563-4173-8486-473CA4C744F8}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
