@@ -21,7 +21,7 @@ namespace WordLight.Search
 
         const int SearchDelay = 250; //ms
 
-        private TextView _view;
+		private ITextView _textProvider;
 
         private System.Timers.Timer _searchTimer;
         private SearchJob _delayedJob = new SearchJob();
@@ -36,13 +36,13 @@ namespace WordLight.Search
         private object _searcherLock = new object();
 
         public event EventHandler<SearchCompletedEventArgs> SearchCompleted;
-        
 
-        public TextSearch(TextView view)
+
+		public TextSearch(ITextView textProvider)
         {
-            if (view == null) throw new ArgumentNullException("view");
+			if (textProvider == null) throw new ArgumentNullException("textProvider");
 
-			_view = view;
+			_textProvider = textProvider;
 
             _searchTimer = new System.Timers.Timer();
             _searchTimer.AutoReset = false;
@@ -87,7 +87,7 @@ namespace WordLight.Search
             {
                 try
                 {
-                    string text = _view.Buffer.GetText();
+					string text = _textProvider.GetBufferText();
                     if (!string.IsNullOrEmpty(text))
                     {
                         occurences = SearchOccurrencesInText(text, value, searchStart, searchEnd);
