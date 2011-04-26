@@ -16,7 +16,7 @@ using WordLight.Search;
 
 namespace WordLight
 {
-    public class TextView : IDisposable, ITextView
+    public class TextView : IDisposable
     {
         private IVsTextView _view;
         private IVsTextLines _buffer;
@@ -86,7 +86,7 @@ namespace WordLight
             get { return _visibleLeftTextColumn; }
         }
 
-        public IScreenUpdateManager ScreenUpdater
+        public ScreenUpdateManager ScreenUpdater
         {
             get { return _screenUpdater; }
         }
@@ -143,20 +143,6 @@ namespace WordLight
                 _window.Dispose();
             }
         }
-
-		#region IBufferTextProvider
-
-		public string GetBufferText()
-		{
-			string text = string.Empty;
-			if (_buffer != null)
-			{
-				text = _buffer.GetText();
-			}
-			return text;
-		}
-
-		#endregion
 
 		private void CreateWindow()
 		{

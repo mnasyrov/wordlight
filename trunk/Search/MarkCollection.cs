@@ -12,19 +12,19 @@ namespace WordLight.Search
     public class MarkCollection
     {
         private object _marksSyncRoot = new object();
-		private IScreenUpdateManager _screenUpdater;
+		private TextView _view;
         private int _markLength;
         private Treap _positions;
 
-		public MarkCollection(IScreenUpdateManager screenUpdater)
+        public MarkCollection(TextView view)
         {
-			if (screenUpdater == null) throw new ArgumentNullException("screenUpdater");
-			_screenUpdater = screenUpdater;
+            if (view == null) throw new ArgumentNullException("view");
+			_view = view;
         }
 
         private void IncludeTextToScreenUpdate(int position)
         {
-			_screenUpdater.IncludeText(position, _markLength);
+            _view.ScreenUpdater.IncludeText(position, _markLength);
         }
 
         public void Clear()
@@ -152,7 +152,7 @@ namespace WordLight.Search
             }
         }
 
-        public Rectangle[] GetRectanglesForVisibleMarks(ITextView view)
+        public Rectangle[] GetRectanglesForVisibleMarks(TextView view)
         {
             List<Rectangle> rectList = null;
 
@@ -186,27 +186,27 @@ namespace WordLight.Search
 
             return null;
         }
-		
-		//public void InvalidateVisibleMarks()
-		//{
-		//    lock (_marksSyncRoot)
-		//    {
-		//        if (_positions != null)
-		//        {
-		//            //_positions.ForEachInOrderBetween(
-		//            //    view.VisibleTextStart - _markLength,
-		//            //    view.VisibleTextEnd + _markLength,
-		//            //    (x) =>
-		//            //    {
-		//            //        _view.Window.ScreenUpdater.IncludeText(x, _markLength);
-		//            //    }
-		//            //);
-		//            int start = _view.VisibleTextStart - _markLength;
-		//            int end = _view.VisibleTextEnd + _markLength;
 
-		//            _positions.ForEachInOrderBetween(start, end, IncludeTextToScreenUpdate);
-		//        }
-		//    }
-		//}
+        public void InvalidateVisibleMarks()
+        {
+            lock (_marksSyncRoot)
+            {
+                if (_positions != null)
+                {
+					//_positions.ForEachInOrderBetween(
+					//    view.VisibleTextStart - _markLength,
+					//    view.VisibleTextEnd + _markLength,
+					//    (x) =>
+					//    {
+					//        _view.Window.ScreenUpdater.IncludeText(x, _markLength);
+					//    }
+					//);
+					int start = _view.VisibleTextStart - _markLength;
+					int end = _view.VisibleTextEnd + _markLength;
+
+					_positions.ForEachInOrderBetween(start, end, IncludeTextToScreenUpdate);
+                }
+            }
+        }
     }
 }
