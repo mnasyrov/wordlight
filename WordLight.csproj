@@ -1,5 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0">
+﻿<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="3.5">
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
@@ -10,28 +9,9 @@
     <StartupObject>
     </StartupObject>
     <NoStandardLibraries>false</NoStandardLibraries>
-    <AssemblyName>WordLight2008</AssemblyName>
-    <RootNamespace>WordLight2008</RootNamespace>
+    <AssemblyName>WordLight</AssemblyName>
+    <RootNamespace>WordLight</RootNamespace>
     <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
-    <FileUpgradeFlags>
-    </FileUpgradeFlags>
-    <OldToolsVersion>3.5</OldToolsVersion>
-    <UpgradeBackupLocation />
-    <PublishUrl>publish\</PublishUrl>
-    <Install>true</Install>
-    <InstallFrom>Disk</InstallFrom>
-    <UpdateEnabled>false</UpdateEnabled>
-    <UpdateMode>Foreground</UpdateMode>
-    <UpdateInterval>7</UpdateInterval>
-    <UpdateIntervalUnits>Days</UpdateIntervalUnits>
-    <UpdatePeriodically>false</UpdatePeriodically>
-    <UpdateRequired>false</UpdateRequired>
-    <MapFileExtensions>true</MapFileExtensions>
-    <ApplicationRevision>0</ApplicationRevision>
-    <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
-    <IsWebBootstrapper>false</IsWebBootstrapper>
-    <UseApplicationTrust>false</UseApplicationTrust>
-    <BootstrapperEnabled>true</BootstrapperEnabled>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -67,23 +47,59 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AddinSettings.cs" />
+    <Compile Include="Log.cs" />
+    <Compile Include="Extensions\OutputWindowPaneExtensions.cs" />
+    <Compile Include="Search\BoyerMooreStringSearch.cs" />
+    <Compile Include="Search\MarkSearcher.cs" />
     <Compile Include="NativeMethods\WinProcMessages.cs" />
+    <Compile Include="Search\TextOccurences.cs" />
+    <Compile Include="Search\Treap.cs" />
+    <Compile Include="Search\TreapBuilder.cs" />
+    <Compile Include="Settings\RegistrySettingRepository.cs" />
+    <Compile Include="Settings\VsSettingRepository.cs" />
     <Compile Include="TextView.cs" />
     <Compile Include="NativeMethods\Gdi32.cs" />
     <Compile Include="NativeMethods\RECT.cs" />
     <Compile Include="NativeMethods\User32.cs" />
+    <Compile Include="EventAdapters\StreamTextChangedEventArgs.cs" />
+    <Compile Include="EventAdapters\TextStreamEventAdapter.cs" />
+    <Compile Include="EventAdapters\ViewScrollChangedEventArgs.cs" />
+    <Compile Include="EventAdapters\ViewScrollInfo.cs" />
+    <Compile Include="Extensions\IVsEnumHiddenRegionsExtensions.cs" />
+    <Compile Include="Extensions\IVsHiddenTextManagerExtensions.cs" />
+    <Compile Include="Extensions\IVsHiddenTextSessionExtensions.cs" />
+    <Compile Include="Extensions\IVsTextLinesExtensions.cs" />
+    <Compile Include="Search\MarkCollection.cs" />
+    <Compile Include="Search\TextSearch.cs" />
+    <Compile Include="Search\SearchCompletedEventArgs.cs" />
+    <Compile Include="Settings\SettingRepository.cs" />
     <Compile Include="AssemblyInfo.cs">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Connect.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Settings\SettingsForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Settings\SettingsForm.Designer.cs">
+      <DependentUpon>SettingsForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="EventAdapters\TextManagerEventAdapter.cs" />
+    <Compile Include="EventAdapters\TextViewEventAdapter.cs" />
+    <Compile Include="EventAdapters\ViewFocusEventArgs.cs" />
+    <Compile Include="EventAdapters\ViewRegistrationEventArgs.cs" />
     <Compile Include="TextViewWindow.cs" />
+    <Compile Include="Extensions\IVsTextViewExtensions.cs" />
     <Compile Include="ScreenUpdateManager.cs" />
     <Compile Include="WindowWatcher.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="CommandBar.resx" />
+    <EmbeddedResource Include="Settings\SettingsForm.resx">
+      <DependentUpon>SettingsForm.cs</DependentUpon>
+    </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
     <COMReference Include="EnvDTE">
@@ -128,30 +144,7 @@
     </COMReference>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="WordLight2008.AddIn" />
-  </ItemGroup>
-  <ItemGroup>
-    <BootstrapperPackage Include="Microsoft.Net.Client.3.5">
-      <Visible>False</Visible>
-      <ProductName>.NET Framework 3.5 SP1 Client Profile</ProductName>
-      <Install>false</Install>
-    </BootstrapperPackage>
-    <BootstrapperPackage Include="Microsoft.Net.Framework.3.5.SP1">
-      <Visible>False</Visible>
-      <ProductName>.NET Framework 3.5 SP1</ProductName>
-      <Install>true</Install>
-    </BootstrapperPackage>
-    <BootstrapperPackage Include="Microsoft.Windows.Installer.3.1">
-      <Visible>False</Visible>
-      <ProductName>Windows Installer 3.1</ProductName>
-      <Install>true</Install>
-    </BootstrapperPackage>
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\WordLight\WordLight.csproj">
-      <Project>{2C81BF0A-1563-4173-8486-473CA4C744F8}</Project>
-      <Name>WordLight</Name>
-    </ProjectReference>
+    <Content Include="WordLight.AddIn" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSHARP.Targets" />
   <PropertyGroup>

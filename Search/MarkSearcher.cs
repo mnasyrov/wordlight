@@ -14,7 +14,7 @@ namespace WordLight.Search
 		private TextSearch _searcher;
 		private MarkCollection _marks;
 
-		private ITextView _view;
+		private TextView _view;
 
 		public int Id
 		{
@@ -31,7 +31,7 @@ namespace WordLight.Search
 			get { return _searchText; }
 		}
 
-		public MarkSearcher(int id, ITextView view)
+		public MarkSearcher(int id, TextView view)
 		{
 			if (view == null) throw new ArgumentNullException("view");
 
@@ -42,7 +42,7 @@ namespace WordLight.Search
 			_searcher = new TextSearch(_view);
 			_searcher.SearchCompleted += new EventHandler<SearchCompletedEventArgs>(AsyncSearchCompleted);
 
-			_marks = new MarkCollection(view.ScreenUpdater);
+			_marks = new MarkCollection(view);
 
 			view.TextStreamEvents.StreamTextChanged += 
 				new EventHandler<StreamTextChangedEventArgs>(StreamTextChangedHandler);

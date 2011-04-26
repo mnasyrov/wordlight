@@ -9,7 +9,7 @@ using WordLight.Search;
 
 namespace WordLight
 {
-	public class ScreenUpdateManager : IScreenUpdateManager
+    public class ScreenUpdateManager
     {
         private const int MaxScreenWidth = 10000;
 
