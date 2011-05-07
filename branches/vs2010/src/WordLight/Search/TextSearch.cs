@@ -21,7 +21,7 @@ namespace WordLight.Search
 
         const int SearchDelay = 250; //ms
 
-		private ITextView _textProvider;
+		private ITextViewAdapter _textProvider;
 
         private System.Timers.Timer _searchTimer;
         private SearchJob _delayedJob = new SearchJob();
@@ -38,7 +38,7 @@ namespace WordLight.Search
         public event EventHandler<SearchCompletedEventArgs> SearchCompleted;
 
 
-		public TextSearch(ITextView textProvider)
+		public TextSearch(ITextViewAdapter textProvider)
         {
 			if (textProvider == null) throw new ArgumentNullException("textProvider");
 

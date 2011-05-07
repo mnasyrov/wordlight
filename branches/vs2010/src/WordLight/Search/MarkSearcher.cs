@@ -14,7 +14,7 @@ namespace WordLight.Search
 		private TextSearch _searcher;
 		private MarkCollection _marks;
 
-		private ITextView _view;
+		private ITextViewAdapter _view;
 
 		public int Id
 		{
@@ -31,7 +31,7 @@ namespace WordLight.Search
 			get { return _searchText; }
 		}
 
-		public MarkSearcher(int id, ITextView view)
+		public MarkSearcher(int id, ITextViewAdapter view)
 		{
 			if (view == null) throw new ArgumentNullException("view");
 
