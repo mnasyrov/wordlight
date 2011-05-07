@@ -7,14 +7,17 @@ using System.Text;
 using System.Windows.Forms;
 
 using EnvDTE;
+using Microsoft.VisualStudio.Editor;
 using Microsoft.VisualStudio.TextManager.Interop;
+using Microsoft.VisualStudio.Text.Editor;
 
+using WordLight;
 using WordLight.NativeMethods;
 using WordLight.EventAdapters;
 using WordLight.Extensions;
 using WordLight.Search;
 
-namespace WordLight
+namespace WordLight2010
 {
     public class TextView : IDisposable, ITextViewAdapter
     {
@@ -23,7 +26,7 @@ namespace WordLight
         private TextViewEventAdapter _viewEvents;
         private TextStreamEventAdapter _textStreamEvents;
 
-        private TextViewWindow _window;
+        //private TextViewWindow _window;
 		private object _windowLock = new object();
 
         private ScreenUpdateManager _screenUpdater;
@@ -43,6 +46,8 @@ namespace WordLight
         private MarkSearcher freezer2;
         private MarkSearcher freezer3;
         private List<MarkSearcher> freezers;
+
+		private string _previousSelectedText;
 
         #region Properties
 
@@ -110,7 +115,27 @@ namespace WordLight
 
                 _screenUpdater = new ScreenUpdateManager(this);
 
-				CreateWindow();
+				_lineHeight = _view.GetLineHeight();
+
+				IVsUserData userData = _view as IVsUserData;
+				if (null != userData)
+				{
+					IWpfTextViewHost viewHost;
+					object holder;
+					Guid guidViewHost = DefGuidList.guidIWpfTextViewHost;
+					userData.GetData(ref guidViewHost, out holder);
+					viewHost = (IWpfTextViewHost)holder;
+					//view = viewHost.TextView;
+					
+					//CreateWindow(viewHost);
+
+					var visualElement = viewHost.TextView.VisualElement;
+
+					visualElement.KeyDown += new System.Windows.Input.KeyEventHandler(visualElement_KeyDown);
+					visualElement.MouseDown += new System.Windows.Input.MouseButtonEventHandler(visualElement_MouseDown);
+
+					new TextAdornment1.TextAdornment1(viewHost.TextView);
+				}
 
                 selectionSearcher = new MarkSearcher(-1, this);
                 freezer1 = new MarkSearcher(1, this);
@@ -136,13 +161,36 @@ namespace WordLight
 
             _textStreamEvents.Dispose();
 
-            if (_window != null)
-            {
-                _window.Paint -= _window_Paint;
-                _window.PaintEnd -= _window_PaintEnd;
-                _window.Dispose();
-            }
+			//if (_window != null)
+			//{
+			//    _window.Paint -= _window_Paint;
+			//    _window.PaintEnd -= _window_PaintEnd;
+			//    _window.Dispose();
+			//}
         }
+
+		void visualElement_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+		{
+			HandleUserInput();
+		}
+
+		void visualElement_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+		{
+			HandleUserInput();
+		}
+
+		private void HandleUserInput()
+		{
+			string text = _view.GetSelectedText();
+
+			if (text != _previousSelectedText)
+			{
+				Log.Debug("Selected text: '{0}'", text);
+
+				_previousSelectedText = text;
+				SearchText(text);
+			}
+		}
 
 		#region IBufferTextProvider
 
@@ -158,23 +206,38 @@ namespace WordLight
 
 		#endregion
 
-		private void CreateWindow()
-		{
-			if (_window == null && WindowHandle != IntPtr.Zero)
-			{
-				lock (_windowLock)
-				{
-					if (_window == null && WindowHandle != IntPtr.Zero)
-					{
-                        _lineHeight = _view.GetLineHeight();
+		//private void CreateWindow(IWpfTextViewHost viewHost)
+		//{
+		//    //if (_window == null && WindowHandle != IntPtr.Zero)
+		//    //{
+		//    //    lock (_windowLock)
+		//    //    {
+		//    //        if (_window == null && WindowHandle != IntPtr.Zero)
+		//    //        {
+		//    //            _lineHeight = _view.GetLineHeight();
 
-						_window = new TextViewWindow(this);
-						_window.Paint += new PaintEventHandler(_window_Paint);
-						_window.PaintEnd += new EventHandler(_window_PaintEnd);
-					}
-				}
-			}
-		}
+		//    //            _window = new TextViewWindow(this);
+		//    //            _window.Paint += new PaintEventHandler(_window_Paint);
+		//    //            _window.PaintEnd += new EventHandler(_window_PaintEnd);
+		//    //        }
+		//    //    }
+		//    //}
+
+		//    if (_window == null && viewHost != null)
+		//    {
+		//        lock (_windowLock)
+		//        {
+		//            if (_window == null && viewHost != null)
+		//            {
+		//                _lineHeight = _view.GetLineHeight();
+
+		//                //_window = new TextViewWindow(this, viewHost);
+		//                //_window.Paint += new PaintEventHandler(_window_Paint);
+		//                //_window.PaintEnd += new EventHandler(_window_PaintEnd);
+		//            }
+		//        }
+		//    }
+		//}
 
         public void SearchText(string text)
         {
@@ -353,7 +416,7 @@ namespace WordLight
 
         private void GotFocusHandler(object sender, ViewFocusEventArgs e)
         {
-			CreateWindow();
+			//CreateWindow();
         }
 
         private void _window_Paint(object sender, PaintEventArgs e)

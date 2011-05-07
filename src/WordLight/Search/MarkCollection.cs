@@ -152,7 +152,7 @@ namespace WordLight.Search
             }
         }
 
-        public Rectangle[] GetRectanglesForVisibleMarks(ITextView view)
+        public Rectangle[] GetRectanglesForVisibleMarks(ITextViewAdapter view)
         {
             List<Rectangle> rectList = null;
 

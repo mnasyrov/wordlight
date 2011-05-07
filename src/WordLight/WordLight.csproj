@@ -70,10 +70,14 @@
     <Compile Include="Extensions\IVsTextViewExtensions.cs" />
     <Compile Include="Extensions\OutputWindowPaneExtensions.cs" />
     <Compile Include="Log.cs" />
+    <Compile Include="NativeMethods\Gdi32.cs" />
+    <Compile Include="NativeMethods\RECT.cs" />
+    <Compile Include="NativeMethods\User32.cs" />
+    <Compile Include="NativeMethods\WinProcMessages.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="IScreenUpdateManager.cs" />
     <Compile Include="Search\BoyerMooreStringSearch.cs" />
-    <Compile Include="ITextView.cs" />
+    <Compile Include="ITextViewAdapter.cs" />
     <Compile Include="Search\MarkCollection.cs" />
     <Compile Include="Search\MarkSearcher.cs" />
     <Compile Include="Search\SearchCompletedEventArgs.cs" />

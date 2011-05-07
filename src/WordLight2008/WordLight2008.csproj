@@ -67,11 +67,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="NativeMethods\WinProcMessages.cs" />
     <Compile Include="TextView.cs" />
-    <Compile Include="NativeMethods\Gdi32.cs" />
-    <Compile Include="NativeMethods\RECT.cs" />
-    <Compile Include="NativeMethods\User32.cs" />
     <Compile Include="AssemblyInfo.cs">
       <SubType>Code</SubType>
     </Compile>
