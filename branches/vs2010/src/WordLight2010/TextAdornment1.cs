@@ -1,11 +1,9 @@
-using System.ComponentModel.Composition;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
 using Microsoft.VisualStudio.Text.Formatting;
-using Microsoft.VisualStudio.Utilities;
 
 namespace TextAdornment1
 {
@@ -14,12 +12,6 @@ namespace TextAdornment1
 	///</summary>
 	public class TextAdornment1
 	{
-		[Export(typeof(AdornmentLayerDefinition))]
-		[Name("TextAdornment1")]
-		[Order(After = PredefinedAdornmentLayers.Selection, Before = PredefinedAdornmentLayers.Text)]
-		[TextViewRole(PredefinedTextViewRoles.Document)]
-		internal AdornmentLayerDefinition editorAdornmentLayer;
-
 		IAdornmentLayer _layer;
 		IWpfTextView _view;
 		Brush _brush;
