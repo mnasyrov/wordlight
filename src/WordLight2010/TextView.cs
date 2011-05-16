@@ -134,7 +134,7 @@ namespace WordLight2010
 					visualElement.KeyDown += new System.Windows.Input.KeyEventHandler(visualElement_KeyDown);
 					visualElement.MouseDown += new System.Windows.Input.MouseButtonEventHandler(visualElement_MouseDown);
 
-					new TextAdornment1.TextAdornment1(viewHost.TextView);
+					//new TextAdornment1.TextAdornment1(viewHost.TextView);
 				}
 
                 selectionSearcher = new MarkSearcher(-1, this);
