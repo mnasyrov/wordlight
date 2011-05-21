@@ -111,7 +111,22 @@ namespace WordLight
 			}
 		}
 
-		public TextView GetActiveTextView()
+		public void FreezeSearchOnActiveTextView(int groupIndex)
+		{
+			TextView activeView = GetActiveTextView();
+			if (activeView != null)
+			{
+				activeView.FreezeSearch(groupIndex);
+
+				Log.Debug("Freezed search group: {0}", groupIndex);
+			}
+			else
+			{
+				Log.Debug("No active view to freeze group: {0}", groupIndex);
+			}
+		}
+
+		private TextView GetActiveTextView()
 		{
 			lock (_watcherSyncRoot)
 			{

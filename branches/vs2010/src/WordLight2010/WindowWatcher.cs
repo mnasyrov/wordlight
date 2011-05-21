@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using Microsoft.VisualStudio.ComponentModelHost;
 
 using EnvDTE80;
+using Microsoft.VisualStudio.Editor;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.TextManager.Interop;
 
@@ -13,9 +15,9 @@ namespace WordLight2010
 {
 	public class WindowWatcher : IDisposable
 	{
-		//TODO
-		//private IDictionary<IVsTextView, TextView> _textViews;
+		private IDictionary<IVsTextView, MarkAdornment> _adornments;
 		private TextManagerEventAdapter _textManagerEvents;
+		IVsEditorAdaptersFactoryService _editorAdapterService;
 
 		private object _watcherSyncRoot = new object();
 
@@ -27,50 +29,51 @@ namespace WordLight2010
             if (application == null) throw new ArgumentNullException("application");
 			
             _application = application;
+			_adornments = new Dictionary<IVsTextView, MarkAdornment>();
 
-            //TODO //_textViews = new Dictionary<IVsTextView, TextView>();
+			IComponentModel componentModel;
 
-			_textManager = GetTextManager(application);
+			using (ServiceProvider wrapperSP = 
+				new ServiceProvider((Microsoft.VisualStudio.OLE.Interop.IServiceProvider)application))
+			{
+				_textManager = (IVsTextManager)wrapperSP.GetService(typeof(SVsTextManager));
+				componentModel = (IComponentModel)wrapperSP.GetService(typeof(SComponentModel));
+			}
+
+			_editorAdapterService = componentModel.GetService<IVsEditorAdaptersFactoryService>();
 
             _textManagerEvents = new TextManagerEventAdapter(_textManager);
 			_textManagerEvents.ViewRegistered += new EventHandler<ViewRegistrationEventArgs>(ViewRegisteredHandler);
 			_textManagerEvents.ViewUnregistered += new EventHandler<ViewRegistrationEventArgs>(ViewUnregisteredHandler);
 		}
 
-		private IVsTextManager GetTextManager(DTE2 application)
-		{
-            using (ServiceProvider wrapperSP = new ServiceProvider((Microsoft.VisualStudio.OLE.Interop.IServiceProvider)application))
-            {
-                return (IVsTextManager)wrapperSP.GetService(typeof(SVsTextManager));
-            }
-		}
-
 		private void ViewRegisteredHandler(object sender, ViewRegistrationEventArgs e)
 		{
 			try
 			{
-                System.Threading.ThreadPool.QueueUserWorkItem((object state) =>
-                {
+				//System.Threading.ThreadPool.QueueUserWorkItem((object state) =>
+				//{
 					try
 					{
-						System.Threading.Thread.Sleep(200);
+						//System.Threading.Thread.Sleep(200);
 						lock (_watcherSyncRoot)
 						{
-							//TODO //
-							//if (e.View != null && !_textViews.ContainsKey(e.View))
-							//{
-							//    var textView = new TextView(e.View);
-							//    _textViews.Add(e.View, textView);
+							if (e.View != null && !_adornments.ContainsKey(e.View))
+							{
+								var wpfTextView = _editorAdapterService.GetWpfTextView(e.View);
+								var adornment = new MarkAdornment(wpfTextView);
 
-							//    Log.Debug("Registered view: {0}", e.View.GetHashCode());
-							//}
+								_adornments.Add(e.View, adornment);
+
+							    Log.Debug("Registered view: {0}", e.View.GetHashCode());
+							}
 						}
 					}
 					catch (Exception ex)
 					{
 						Log.Error("Failed to register a view", ex);
 					}
-				});
+				//});
 			}
 			catch (Exception ex)
 			{
@@ -84,16 +87,13 @@ namespace WordLight2010
 			{
 				lock (_watcherSyncRoot)
 				{
-					//TODO //
-					//if (e.View != null && _textViews.ContainsKey(e.View))
-					//{
-					//    TextView view = _textViews[e.View];
-					//    _textViews.Remove(e.View);
+					if (e.View != null && _adornments.ContainsKey(e.View))
+					{
+					    var adornment = _adornments[e.View];
+					    _adornments.Remove(e.View);
 
-					//    view.Dispose();
-
-					//    Log.Debug("Unregistered view: {0}", e.View.GetHashCode().ToString());
-					//}
+					    Log.Debug("Unregistered view: {0}", e.View.GetHashCode().ToString());
+					}
 				}
 			}
 			catch (Exception ex)
@@ -106,28 +106,38 @@ namespace WordLight2010
 		{
 			lock (_watcherSyncRoot)
 			{
-				//TODO //
-				//foreach (TextView view in _textViews.Values)
-				//{
-				//    view.Dispose();
-				//}
-
-				//_textViews.Clear();
+				_adornments.Clear();
 			}
 		}
 
-		//public TextView GetActiveTextView()
-		//{
-		//    lock (_watcherSyncRoot)
-		//    {
-		//        IVsTextView activeVsView;
-		//        _textManager.GetActiveView(Convert.ToInt32(true), null, out activeVsView);
+		public void FreezeSearchOnActiveTextView(int groupIndex)
+		{
+			var activeAdornment = GetActiveMarkAdornment();
 
-		//        if (activeVsView != null && _textViews.ContainsKey(activeVsView))
-		//            return _textViews[activeVsView];
-		//        else
-		//            return null;
-		//    }
-		//}
+			if (activeAdornment != null)
+			{
+				activeAdornment.FreezeSearch(groupIndex);
+
+				Log.Debug("Freezed search group: {0}", groupIndex);
+			}
+			else
+			{
+				Log.Debug("No active view to freeze group: {0}", groupIndex);
+			}
+		}
+
+		private MarkAdornment GetActiveMarkAdornment()
+		{
+			lock (_watcherSyncRoot)
+			{
+				IVsTextView activeVsView;
+				_textManager.GetActiveView(Convert.ToInt32(true), null, out activeVsView);
+
+				if (activeVsView != null && _adornments.ContainsKey(activeVsView))
+					return _adornments[activeVsView];
+				else
+					return null;
+			}
+		}
 	}
 }
