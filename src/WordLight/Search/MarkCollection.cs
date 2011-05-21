@@ -16,6 +16,11 @@ namespace WordLight.Search
         private int _markLength;
         private Treap _positions;
 
+		public int MarkLength
+		{
+			get { return _markLength; }
+		}
+
 		public MarkCollection(IScreenUpdateManager screenUpdater)
         {
 			if (screenUpdater == null) throw new ArgumentNullException("screenUpdater");
@@ -208,5 +213,22 @@ namespace WordLight.Search
 		//        }
 		//    }
 		//}
+
+		public ICollection<int> GetMarksBetween(int start, int end)
+		{
+			List<int> resultPositions = new List<int>();
+
+			lock (_marksSyncRoot)
+			{
+				if (_positions != null)
+				{
+					_positions.ForEachInOrderBetween(start - _markLength, end + _markLength,
+						(x) => resultPositions.Add(x) 
+					);
+				}
+			}
+
+			return resultPositions;
+		}
     }
 }

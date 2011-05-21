@@ -56,11 +56,6 @@ namespace WordLight
             get { return _buffer; }
         }
 
-        public TextStreamEventAdapter TextStreamEvents
-        {
-            get { return _textStreamEvents; }
-        }
-
         public int LineHeight
         {
             get { return _lineHeight; }
@@ -121,12 +116,22 @@ namespace WordLight
                 freezers.Add(freezer1);
                 freezers.Add(freezer2);
                 freezers.Add(freezer3);
+
+				_textStreamEvents.StreamTextChanged += new EventHandler<StreamTextChangedEventArgs>(StreamTextChanged);
             }
             catch (Exception ex)
             {
                 Log.Error("Failed to create TextView", ex);
             }
         }
+
+		private void StreamTextChanged(object sender, StreamTextChangedEventArgs e)
+		{
+			foreach (MarkSearcher searcher in freezers)
+			{
+				searcher.OnTextChanged(e.Position, e.NewLength, e.Position, e.OldLength);
+			}
+		}
 
         public void Dispose()
         {
