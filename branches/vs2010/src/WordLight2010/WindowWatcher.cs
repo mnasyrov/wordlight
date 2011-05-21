@@ -13,7 +13,8 @@ namespace WordLight2010
 {
 	public class WindowWatcher : IDisposable
 	{
-		private IDictionary<IVsTextView, TextView> _textViews;
+		//TODO
+		//private IDictionary<IVsTextView, TextView> _textViews;
 		private TextManagerEventAdapter _textManagerEvents;
 
 		private object _watcherSyncRoot = new object();
@@ -27,7 +28,7 @@ namespace WordLight2010
 			
             _application = application;
 
-            _textViews = new Dictionary<IVsTextView, TextView>();
+            //TODO //_textViews = new Dictionary<IVsTextView, TextView>();
 
 			_textManager = GetTextManager(application);
 
@@ -48,27 +49,28 @@ namespace WordLight2010
 		{
 			try
 			{
-                //System.Threading.ThreadPool.QueueUserWorkItem((object state) =>
-                //{
+                System.Threading.ThreadPool.QueueUserWorkItem((object state) =>
+                {
 					try
 					{
 						System.Threading.Thread.Sleep(200);
 						lock (_watcherSyncRoot)
 						{
-							if (e.View != null && !_textViews.ContainsKey(e.View))
-							{
-								var textView = new TextView(e.View);
-								_textViews.Add(e.View, textView);
+							//TODO //
+							//if (e.View != null && !_textViews.ContainsKey(e.View))
+							//{
+							//    var textView = new TextView(e.View);
+							//    _textViews.Add(e.View, textView);
 
-								Log.Debug("Registered view: {0}", e.View.GetHashCode());
-							}
+							//    Log.Debug("Registered view: {0}", e.View.GetHashCode());
+							//}
 						}
 					}
 					catch (Exception ex)
 					{
 						Log.Error("Failed to register a view", ex);
 					}
-				//});
+				});
 			}
 			catch (Exception ex)
 			{
@@ -82,15 +84,16 @@ namespace WordLight2010
 			{
 				lock (_watcherSyncRoot)
 				{
-					if (e.View != null && _textViews.ContainsKey(e.View))
-					{
-                        TextView view = _textViews[e.View];
-                        _textViews.Remove(e.View);
+					//TODO //
+					//if (e.View != null && _textViews.ContainsKey(e.View))
+					//{
+					//    TextView view = _textViews[e.View];
+					//    _textViews.Remove(e.View);
 
-						view.Dispose();
+					//    view.Dispose();
 
-                        Log.Debug("Unregistered view: {0}", e.View.GetHashCode().ToString());
-					}
+					//    Log.Debug("Unregistered view: {0}", e.View.GetHashCode().ToString());
+					//}
 				}
 			}
 			catch (Exception ex)
@@ -103,27 +106,28 @@ namespace WordLight2010
 		{
 			lock (_watcherSyncRoot)
 			{
-				foreach (TextView view in _textViews.Values)
-				{
-					view.Dispose();
-				}
+				//TODO //
+				//foreach (TextView view in _textViews.Values)
+				//{
+				//    view.Dispose();
+				//}
 
-				_textViews.Clear();
+				//_textViews.Clear();
 			}
 		}
 
-		public TextView GetActiveTextView()
-		{
-			lock (_watcherSyncRoot)
-			{
-                IVsTextView activeVsView;
-                _textManager.GetActiveView(Convert.ToInt32(true), null, out activeVsView);
+		//public TextView GetActiveTextView()
+		//{
+		//    lock (_watcherSyncRoot)
+		//    {
+		//        IVsTextView activeVsView;
+		//        _textManager.GetActiveView(Convert.ToInt32(true), null, out activeVsView);
 
-				if (activeVsView != null && _textViews.ContainsKey(activeVsView))
-					return _textViews[activeVsView];
-				else
-					return null;
-			}
-		}
+		//        if (activeVsView != null && _textViews.ContainsKey(activeVsView))
+		//            return _textViews[activeVsView];
+		//        else
+		//            return null;
+		//    }
+		//}
 	}
 }

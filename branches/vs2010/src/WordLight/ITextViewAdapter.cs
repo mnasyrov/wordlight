@@ -12,7 +12,6 @@ namespace WordLight
 	{
 		int VisibleTextStart { get; }
 		int VisibleTextEnd { get; }
-		TextStreamEventAdapter TextStreamEvents { get; }
 		IScreenUpdateManager ScreenUpdater { get; }
 		int LineHeight { get; }
 
