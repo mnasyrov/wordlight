@@ -2,12 +2,10 @@
 // MUST match PkgCmdID.h
 using System;
 
-namespace MikhailNasyrov.WordLightPackage
+namespace WordLight2010
 {
-    static class PkgCmdIDList
-    {
-        public const uint cmdidMyCommand =        0x100;
-
-
-    };
+	static class PkgCmdIDList
+	{
+		public const uint cmdidSettings = 0x100;
+	};
 }

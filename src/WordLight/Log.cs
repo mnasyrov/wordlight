@@ -6,6 +6,7 @@ using System.Text;
 
 using EnvDTE;
 using EnvDTE80;
+using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
 
@@ -23,11 +24,10 @@ namespace WordLight
 			Error
 		}
 
-		private static Microsoft.VisualStudio.OLE.Interop.IServiceProvider _serviceProvider;
+		private static IServiceProvider _serviceProvider;
 		private static object _serviceProviderSyncRoot = new object();
 		private static string _packageName;
-		private static DTE2 _application;
-
+		private static Guid _outputWindowPaneId = Guid.NewGuid();
 		private static bool _enabled;
 
 		public static bool Enabled
@@ -41,21 +41,16 @@ namespace WordLight
 			}
 		}
 
-		public static void Initialize(DTE2 application, string packageName)
+		public static void Initialize(string packageName, IServiceProvider serviceProvider)
 		{
-			if (application == null) throw new ArgumentNullException("application");
 			if (string.IsNullOrEmpty(packageName)) throw new ArgumentException("packageName");
+			if (serviceProvider == null) throw new ArgumentNullException("serviceProvider");
 
-			_application = application;
-			_packageName = packageName;
+			_packageName = packageName;			
 
-			if (_serviceProvider == null)
+			lock (_serviceProviderSyncRoot)
 			{
-				lock (_serviceProviderSyncRoot)
-				{
-					if (_serviceProvider == null)
-						_serviceProvider = application as Microsoft.VisualStudio.OLE.Interop.IServiceProvider;
-				}
+				_serviceProvider = serviceProvider;
 			}
 
 #if DEBUG
@@ -126,33 +121,46 @@ namespace WordLight
 			{
                 if (_serviceProvider != null)
                 {
-                    using (ServiceProvider wrapperSP = new ServiceProvider(_serviceProvider))
-                    {
-                        log = (IVsActivityLog)wrapperSP.GetService(typeof(SVsActivityLog));
-                    }
+					log = (IVsActivityLog)_serviceProvider.GetService(typeof(SVsActivityLog));
                 }
 			}
 		
 			return log;
 		}
 
-		private static OutputWindowPane GetLogPane()
+		private static IVsOutputWindowPane GetLogPane()
 		{
-			string title = _packageName;
+			IVsOutputWindow outputWindow = null;
 
-			OutputWindowPanes panes = _application.ToolWindows.OutputWindow.OutputWindowPanes;
-			OutputWindowPane logPane;
-			try
+			lock (_serviceProviderSyncRoot)
 			{
-				logPane = panes.Item(title); // If the pane exists already, return it.
+				if (_serviceProvider != null)
+				{
+					outputWindow = _serviceProvider.GetService(typeof(SVsOutputWindow)) as IVsOutputWindow;
+				}
 			}
-			catch (ArgumentException)
+
+			if (outputWindow == null)
 			{
-				// Create a new pane.				
-				logPane = panes.Add(title);
-				logPane.WriteLine("Activity log for " + _packageName);
-				logPane.WriteLine(System.Reflection.Assembly.GetExecutingAssembly().FullName);
-				logPane.WriteLine("----------------------------------------------------");
+				return null;
+			}
+
+            IVsOutputWindowPane logPane;
+
+			outputWindow.GetPane(ref _outputWindowPaneId, out logPane);
+
+			if (logPane == null)
+			{
+				if (
+					ErrorHandler.Succeeded(outputWindow.CreatePane(_outputWindowPaneId, _packageName, 1, 0)) &&
+					ErrorHandler.Succeeded(outputWindow.GetPane(ref _outputWindowPaneId, out logPane)) &&
+					logPane != null
+				)
+				{
+					logPane.WriteLine("Activity log for " + _packageName);
+					logPane.WriteLine(System.Reflection.Assembly.GetExecutingAssembly().FullName);
+					logPane.WriteLine("----------------------------------------------------");
+				}
 			}
 
 			return logPane;

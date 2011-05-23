@@ -48,6 +48,7 @@
     </Reference>
     <Reference Include="Microsoft.VisualStudio.OLE.Interop, Version=7.1.40304.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" />
     <Reference Include="Microsoft.VisualStudio.Shell, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL" />
+    <Reference Include="Microsoft.VisualStudio.Shell.Interop, Version=7.1.40304.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" />
     <Reference Include="Microsoft.VisualStudio.Shell.Interop.8.0, Version=8.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" />
     <Reference Include="Microsoft.VisualStudio.TextManager.Interop, Version=7.1.40304.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" />
     <Reference Include="System" />
@@ -74,7 +75,7 @@
     <Compile Include="Extensions\IVsHiddenTextSessionExtensions.cs" />
     <Compile Include="Extensions\IVsTextLinesExtensions.cs" />
     <Compile Include="Extensions\IVsTextViewExtensions.cs" />
-    <Compile Include="Extensions\OutputWindowPaneExtensions.cs" />
+    <Compile Include="Extensions\IVsOutputWindowPaneExtensions.cs" />
     <Compile Include="Log.cs" />
     <Compile Include="NativeMethods\Gdi32.cs" />
     <Compile Include="NativeMethods\RECT.cs" />
@@ -108,6 +109,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Key.snk" />
+  </ItemGroup>
+  <ItemGroup>
+    <WCFMetadata Include="Service References\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

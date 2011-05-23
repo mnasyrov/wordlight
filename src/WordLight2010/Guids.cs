@@ -2,7 +2,7 @@
 // MUST match guids.h
 using System;
 
-namespace MikhailNasyrov.WordLightPackage
+namespace WordLight2010
 {
     static class GuidList
     {
