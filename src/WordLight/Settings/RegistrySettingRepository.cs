@@ -16,7 +16,7 @@ namespace WordLight.Settings
 
 		public RegistrySettingRepository(string registryKeyPath)
         {
-			if (string.IsNullOrEmpty(registryKeyPath)) throw new ArgumentNullException("registryKeyPath");
+			if (string.IsNullOrEmpty(registryKeyPath)) throw new ArgumentException("registryKeyPath");
 
 			try
 			{
@@ -27,6 +27,13 @@ namespace WordLight.Settings
 				Log.Error(string.Format("Failed to initialize a setting repository by path '{0}'", registryKeyPath), ex);
 			}
         }
+
+		public RegistrySettingRepository(RegistryKey settingsKey)
+		{
+			if (settingsKey == null) throw new ArgumentNullException("settingsKey");
+
+			_settingsKey = settingsKey;
+		}
 
         public override string GetSetting(string key)
         {
