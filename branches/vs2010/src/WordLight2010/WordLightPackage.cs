@@ -32,6 +32,9 @@ namespace WordLight2010
 	[InstalledProductRegistration("#110", "#112", "1.0", IconResourceID = 400)]
 	// This attribute is needed to let the shell know that this package exposes some menus.
 	[ProvideMenuResource("Menus.ctmenu", 1)]
+	//[ProvideAutoLoad(VSConstants.UICONTEXT.NoSolution_string)]
+	//[ProvideAutoLoad(VSConstants.UICONTEXT.SolutionOpening_string)]
+	[ProvideAutoLoad(VSConstants.UICONTEXT.SolutionExists_string)]
 	[Guid(GuidList.guidWordLightPackagePkgString)]
 	public sealed class WordLightPackage : Package
 	{
@@ -47,12 +50,6 @@ namespace WordLight2010
 			Trace.WriteLine(string.Format(CultureInfo.CurrentCulture, "Entering constructor for: {0}", this.ToString()));
 		}
 
-
-
-		/////////////////////////////////////////////////////////////////////////////
-		// Overriden Package Implementation
-		#region Package Members
-
 		/// <summary>
 		/// Initialization of the package; this method is called right after the package is sited, so this is the place
 		/// where you can put all the initilaization code that rely on services provided by VisualStudio.
@@ -63,20 +60,41 @@ namespace WordLight2010
 
 			Log.Initialize("WordLight", this);
 			Log.Debug("Initializing the add-in...");
-			
+
+			try
+			{				
+				AddinSettings.Instance.Load(
+					new RegistrySettingRepository(UserRegistryRoot.CreateSubKey("WordLight"))
+					//new VsSettingRepository(_application.Globals, "WordLight")
+				);
+
+				RegisterMenuCommands();
+				
+				//RegisterCommands();
+
+				//_watcher = new WindowWatcher(_application);
+
+				Log.Debug("Initialized.");
+			}
+			catch (Exception ex)
+			{
+				Log.Error("Unhandled exception during initializing", ex);
+			}			
+		}
+
+		private void RegisterMenuCommands()
+		{
 			// Add our command handlers for menu (commands must exist in the .vsct file)
 			OleMenuCommandService mcs = GetService(typeof(IMenuCommandService)) as OleMenuCommandService;
 			if (mcs != null)
 			{
 				// Create the command for the menu item.
-				CommandID menuCommandID = 
+				CommandID menuCommandID =
 					new CommandID(GuidList.guidWordLightPackageCmdSet, (int)PkgCmdIDList.cmdidSettings);
 				MenuCommand menuItem = new MenuCommand(SettingsMenuItemExecuted, menuCommandID);
-				mcs.AddCommand(menuItem);
+				mcs.AddCommand(menuItem);				
 			}
 		}
-
-		#endregion
 
 		private void SettingsMenuItemExecuted(object sender, EventArgs e)
 		{
