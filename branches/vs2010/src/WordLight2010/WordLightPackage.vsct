@@ -44,7 +44,7 @@
          must be a menu. -->
     <Groups>
 
-      <Group guid="guidWordLightPackageCmdSet" id="MyMenuGroup" priority="0x0600">
+      <Group guid="guidWordLightPackageCmdSet" id="WordLightGroup" priority="0x0600">
         <Parent guid="guidSHLMainMenu" id="IDM_VS_MENU_TOOLS"/>
       </Group>
       
@@ -64,12 +64,12 @@
               <CommandFlag>DynamicVisibility</CommandFlag>
           If you do not want an image next to your command, remove the Icon node or set it to <Icon guid="guidOfficeIcon" id="msotcidNoIcon" /> -->
 
-      <Button guid="guidWordLightPackageCmdSet" id="cmdidMyCommand" priority="0x0100" type="Button">
-        <Parent guid="guidWordLightPackageCmdSet" id="MyMenuGroup" />
+      <Button guid="guidWordLightPackageCmdSet" id="cmdidSettings" priority="0x0100" type="Button">
+        <Parent guid="guidWordLightPackageCmdSet" id="WordLightGroup" />
         <Icon guid="guidImages" id="bmpPic1" />
         <Strings>
-          <CommandName>cmdidMyCommand</CommandName>
-          <ButtonText>My Command name</ButtonText>
+          <CommandName>cmdidSettings</CommandName>
+          <ButtonText>WordLight settings...</ButtonText>
         </Strings>
       </Button>
 
@@ -101,8 +101,8 @@
     <!-- This is the guid used to group the menu commands together -->
     <GuidSymbol name="guidWordLightPackageCmdSet" value="{6c689197-b42e-4045-8230-9e09996146bd}">
 
-      <IDSymbol name="MyMenuGroup" value="0x1020" />
-      <IDSymbol name="cmdidMyCommand" value="0x0100" />
+      <IDSymbol name="WordLightGroup" value="0x1020" />
+      <IDSymbol name="cmdidSettings" value="0x0100" />
     </GuidSymbol>
     
     
