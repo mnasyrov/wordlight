@@ -33,14 +33,14 @@ namespace WordLight2010
 		/// <param name="textView">The <see cref="IWpfTextView"/> upon which the adornment should be placed</param>
 		public void TextViewCreated(IWpfTextView textView)
 		{
-			try
-			{
-				new MarkAdornment(textView);
-			}
-			catch (Exception ex)
-			{
-				Log.Error("Failed to create MarkAdornment", ex);
-			}
+			//try
+			//{
+			//    new MarkAdornment(textView);
+			//}
+			//catch (Exception ex)
+			//{
+			//    Log.Error("Failed to create MarkAdornment", ex);
+			//}
 		}
 	}
 }

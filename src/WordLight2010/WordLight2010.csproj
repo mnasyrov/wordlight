@@ -71,7 +71,7 @@
     <Compile Include="MarkAdornmentFactory.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="MarkAdornment.cs" />
-    <Compile Include="Connect.cs" />
+    <None Include="Connect.cs" />
     <Compile Include="ScreenUpdateManager.cs" />
     <Compile Include="WindowWatcher.cs" />
   </ItemGroup>
@@ -160,6 +160,7 @@
   <ItemGroup>
     <VSCTCompile Include="WordLightPackage.vsct">
       <ResourceName>Menus.ctmenu</ResourceName>
+      <SubType>Designer</SubType>
     </VSCTCompile>
   </ItemGroup>
   <ItemGroup>

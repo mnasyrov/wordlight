@@ -24,8 +24,6 @@
 	<Extern href="msobtnid.h"/>
 
 
-
-
 	<!--The Commands section is where we the commands, menus and menu groups are defined.
       This section uses a Guid to identify the package that provides the command defined inside it. -->
 	<Commands package="guidWordLightPackagePkg">
@@ -66,17 +64,17 @@
 				<Parent guid="guidWordLightPackageCmdSet" id="WordLightGroup" />
 				<Icon guid="guidImages" id="bmpPic1" />
 				<Strings>
-					<CommandName>cmdidSettings</CommandName>
+					<CommandName>WordLight settings</CommandName>					
 					<ButtonText>WordLight settings...</ButtonText>
 				</Strings>
 			</Button>
 
-			<Button guid="guidWordLightPackageCmdSet" id="cmdidSettings" priority="0x0100" type="Shared" >
+			<Button guid="guidWordLightPackageCmdSet" id="cmdidFreezeSearch1" priority="0x0101" type="Button" >
 				<Parent guid="guidWordLightPackageCmdSet" id="WordLightGroup" />
 				<Icon guid="guidImages" id="bmpPic2" />
 				<Strings>
-					<CommandName>cmdidSettings</CommandName>
-					<ButtonText>WordLight settings 2...</ButtonText>
+					<CommandName>cmdidFreezeSearch1</CommandName>
+					<ButtonText>Freeze search 1</ButtonText>
 				</Strings>
 			</Button>
 
@@ -89,10 +87,19 @@
             bitmap strip containing the bitmaps and then there are the numeric ids of the elements used 
             inside a button definition. An important aspect of this declaration is that the element id 
             must be the actual index (1-based) of the bitmap inside the bitmap strip. -->
-			<Bitmap guid="guidImages" href="Resources\Images_32bit.bmp" usedList="bmpPic1, bmpPic2, bmpPicSearch, bmpPicX, bmpPicArrows"/>
+			<Bitmap guid="guidImages" href="Resources\Images_32bit.bmp"
+					usedList="bmpPic1, bmpPic2, bmpPicSearch, bmpPicX, bmpPicArrows"/>
 
 		</Bitmaps>
+		
 	</Commands>
+	
+	
+	<KeyBindings>
+		<KeyBinding guid="guidWordLightPackageCmdSet" id="cmdidFreezeSearch1" editor="guidVSStd97"
+					key1="1" mod1="CONTROL" />
+	</KeyBindings>
+	
 	
 	<Symbols>
 		<!-- This is the package guid. -->
@@ -103,9 +110,11 @@
 
 			<IDSymbol name="WordLightGroup" value="0x1020" />
 			<IDSymbol name="cmdidSettings" value="0x0100" />
+			<IDSymbol name="cmdidFreezeSearch1" value="0x0101" />
+			<IDSymbol name="cmdidFreezeSearch2" value="0x0102" />
+			<IDSymbol name="cmdidFreezeSearch3" value="0x0103" />
+			<IDSymbol name="cmdidEnableLog" value="0x0104" />
 		</GuidSymbol>
-
-
 
 		<GuidSymbol name="guidImages" value="{8652abbd-63b1-4d9e-88f2-4d7955794bbf}" >
 			<IDSymbol name="bmpPic1" value="1" />
