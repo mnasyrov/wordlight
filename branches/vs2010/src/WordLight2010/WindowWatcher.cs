@@ -21,24 +21,25 @@ namespace WordLight2010
 
 		private object _watcherSyncRoot = new object();
 
-        private DTE2 _application;
         private IVsTextManager _textManager;
 
-		public WindowWatcher(DTE2 application)
+		public WindowWatcher(IServiceProvider serviceProvider)
 		{
-            if (application == null) throw new ArgumentNullException("application");
+			if (serviceProvider == null) throw new ArgumentNullException("serviceProvider");
 			
-            _application = application;
 			_adornments = new Dictionary<IVsTextView, MarkAdornment>();
 
 			IComponentModel componentModel;
 
-			using (ServiceProvider wrapperSP = 
-				new ServiceProvider((Microsoft.VisualStudio.OLE.Interop.IServiceProvider)application))
-			{
-				_textManager = (IVsTextManager)wrapperSP.GetService(typeof(SVsTextManager));
-				componentModel = (IComponentModel)wrapperSP.GetService(typeof(SComponentModel));
-			}
+			//using (ServiceProvider wrapperSP = 
+			//    new ServiceProvider((Microsoft.VisualStudio.OLE.Interop.IServiceProvider)application))
+			//{
+			//    _textManager = (IVsTextManager)wrapperSP.GetService(typeof(SVsTextManager));
+			//    componentModel = (IComponentModel)wrapperSP.GetService(typeof(SComponentModel));
+			//}
+
+			_textManager = (IVsTextManager)serviceProvider.GetService(typeof(SVsTextManager));
+			componentModel = (IComponentModel)serviceProvider.GetService(typeof(SComponentModel));
 
 			_editorAdapterService = componentModel.GetService<IVsEditorAdaptersFactoryService>();
 
