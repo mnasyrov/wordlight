@@ -71,7 +71,6 @@
     <Compile Include="MarkAdornmentFactory.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="MarkAdornment.cs" />
-    <None Include="Connect.cs" />
     <Compile Include="ScreenUpdateManager.cs" />
     <Compile Include="WindowWatcher.cs" />
   </ItemGroup>
