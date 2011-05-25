@@ -91,17 +91,6 @@ namespace WordLight2010
 			return VSConstants.S_OK;
 		}
 
-		protected override void Dispose(bool disposing)
-		{
-			if (disposing && _watcher != null)
-			{
-				_watcher.Dispose();
-				_watcher = null;
-			}
-
-			base.Dispose(disposing);
-		}
-
 		private void OnEnvironmentInitialized()
 		{
 			Log.Initialize("WordLight", this);
